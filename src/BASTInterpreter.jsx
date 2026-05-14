@@ -41,22 +41,32 @@ export default function BASTInterpreter() {
   };
 
   const lastAssistantRef = useRef(null);
+  const scrollPosRef = useRef(0);
 
+  // Save scroll position when user submits
+  const saveScroll = () => {
+    scrollPosRef.current = window.scrollY;
+  };
+
+  // When loading starts, scroll to bottom so user sees the typing indicator
   useEffect(() => {
     if (loading) {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }
   }, [loading]);
 
+  // When a new assistant message arrives, scroll to its top
   useEffect(() => {
-    if (!loading && messages.length > 0 && messages[messages.length - 1].role === "assistant") {
+    if (!loading && lastAssistantRef.current) {
       setTimeout(() => {
-        if (lastAssistantRef.current) {
-          lastAssistantRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+        const el = lastAssistantRef.current;
+        if (el) {
+          const top = el.getBoundingClientRect().top + window.scrollY - 80;
+          window.scrollTo({ top, behavior: "smooth" });
         }
-      }, 100);
+      }, 150);
     }
-  }, [messages]);
+  }, [messages, loading]);
 
   const handleLicenseSubmit = async () => {
     if (!licenseKey.trim()) return;
@@ -77,6 +87,7 @@ export default function BASTInterpreter() {
 
   const handleSubmit = async () => {
     if (!input.trim() || loading) return;
+    saveScroll();
     const userMessage = { role: "user", content: input.trim() };
     const newMessages = [...messages, userMessage];
     setMessages(newMessages);
