@@ -42,19 +42,23 @@ export default function BASTInterpreter() {
 
   const lastAssistantRef = useRef(null);
   const scrollContainerRef = useRef(null);
+  const prevMessageCountRef = useRef(0);
 
   useEffect(() => {
-    if (loading) return;
-    if (!lastAssistantRef.current || !scrollContainerRef.current) return;
-    setTimeout(() => {
-      const container = scrollContainerRef.current;
-      const el = lastAssistantRef.current;
-      if (!container || !el) return;
-      const containerTop = container.getBoundingClientRect().top;
-      const elTop = el.getBoundingClientRect().top;
-      const offset = elTop - containerTop + container.scrollTop - 80;
-      container.scrollTo({ top: offset, behavior: "smooth" });
-    }, 200);
+    // Only scroll when loading indicator appears
+    if (loading) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      return;
+    }
+    // When a new message arrives, scroll to its top
+    if (messages.length > prevMessageCountRef.current) {
+      prevMessageCountRef.current = messages.length;
+      setTimeout(() => {
+        if (lastAssistantRef.current) {
+          lastAssistantRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      }, 50);
+    }
   }, [messages, loading]);
 
   const handleLicenseSubmit = async () => {
@@ -252,7 +256,7 @@ export default function BASTInterpreter() {
       )}
 
       {messages.length > 0 && (
-        <div ref={scrollContainerRef} style={{ flex: 1, display: "flex", flexDirection: "column", maxWidth: "700px", width: "100%", margin: "0 auto", padding: "0 1.5rem", overflowY: "auto", height: "calc(100vh - 70px)" }}>
+        <div ref={scrollContainerRef} style={{ flex: 1, display: "flex", flexDirection: "column", maxWidth: "700px", width: "100%", margin: "0 auto", padding: "0 1.5rem" }}>
           <div style={{ paddingTop: "2rem" }}>
             {messages.map((msg, i) => {
               const isLastAssistant = msg.role === "assistant" && !messages.slice(i + 1).some(m => m.role === "assistant");
