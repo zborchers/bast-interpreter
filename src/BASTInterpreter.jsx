@@ -41,25 +41,12 @@ export default function BASTInterpreter() {
   };
 
   const lastAssistantRef = useRef(null);
-  const scrollContainerRef = useRef(null);
-  const prevMessageCountRef = useRef(0);
 
   useEffect(() => {
-    // Only scroll when loading indicator appears
     if (loading) {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-      return;
     }
-    // When a new message arrives, scroll to its top
-    if (messages.length > prevMessageCountRef.current) {
-      prevMessageCountRef.current = messages.length;
-      setTimeout(() => {
-        if (lastAssistantRef.current) {
-          lastAssistantRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
-        }
-      }, 50);
-    }
-  }, [messages, loading]);
+  }, [loading]);
 
   const handleLicenseSubmit = async () => {
     if (!licenseKey.trim()) return;
