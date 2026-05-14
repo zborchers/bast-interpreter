@@ -45,10 +45,18 @@ export default function BASTInterpreter() {
   useEffect(() => {
     if (loading) {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    } else if (lastAssistantRef.current) {
-      lastAssistantRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
     }
-  }, [messages, loading]);
+  }, [loading]);
+
+  useEffect(() => {
+    if (!loading && messages.length > 0 && messages[messages.length - 1].role === "assistant") {
+      setTimeout(() => {
+        if (lastAssistantRef.current) {
+          lastAssistantRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      }, 100);
+    }
+  }, [messages]);
 
   const handleLicenseSubmit = async () => {
     if (!licenseKey.trim()) return;
