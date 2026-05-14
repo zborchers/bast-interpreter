@@ -101,12 +101,12 @@ const GUMROAD_PRODUCT_PERMALINK = "dxrekr";
 
 async function validateLicenseKey(key) {
   try {
-    const response = await fetch("https://api.gumroad.com/v2/licenses/verify", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({
-        product_permalink: GUMROAD_PRODUCT_PERMALINK,
+    const response = await fetch('/api/verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
         license_key: key.trim(),
+        product_permalink: GUMROAD_PRODUCT_PERMALINK,
       }),
     });
     const data = await response.json();
