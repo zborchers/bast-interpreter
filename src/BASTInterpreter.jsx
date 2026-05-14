@@ -41,31 +41,20 @@ export default function BASTInterpreter() {
   };
 
   const lastAssistantRef = useRef(null);
-  const scrollPosRef = useRef(0);
+  const scrollContainerRef = useRef(null);
 
-  // Save scroll position when user submits
-  const saveScroll = () => {
-    scrollPosRef.current = window.scrollY;
-  };
-
-  // When loading starts, scroll to bottom so user sees the typing indicator
   useEffect(() => {
-    if (loading) {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }
-  }, [loading]);
-
-  // When a new assistant message arrives, scroll to its top
-  useEffect(() => {
-    if (!loading && lastAssistantRef.current) {
-      setTimeout(() => {
-        const el = lastAssistantRef.current;
-        if (el) {
-          const top = el.getBoundingClientRect().top + window.scrollY - 80;
-          window.scrollTo({ top, behavior: "smooth" });
-        }
-      }, 150);
-    }
+    if (loading) return;
+    if (!lastAssistantRef.current || !scrollContainerRef.current) return;
+    setTimeout(() => {
+      const container = scrollContainerRef.current;
+      const el = lastAssistantRef.current;
+      if (!container || !el) return;
+      const containerTop = container.getBoundingClientRect().top;
+      const elTop = el.getBoundingClientRect().top;
+      const offset = elTop - containerTop + container.scrollTop - 80;
+      container.scrollTo({ top: offset, behavior: "smooth" });
+    }, 200);
   }, [messages, loading]);
 
   const handleLicenseSubmit = async () => {
@@ -87,7 +76,6 @@ export default function BASTInterpreter() {
 
   const handleSubmit = async () => {
     if (!input.trim() || loading) return;
-    saveScroll();
     const userMessage = { role: "user", content: input.trim() };
     const newMessages = [...messages, userMessage];
     setMessages(newMessages);
@@ -264,7 +252,7 @@ export default function BASTInterpreter() {
       )}
 
       {messages.length > 0 && (
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", maxWidth: "700px", width: "100%", margin: "0 auto", padding: "0 1.5rem" }}>
+        <div ref={scrollContainerRef} style={{ flex: 1, display: "flex", flexDirection: "column", maxWidth: "700px", width: "100%", margin: "0 auto", padding: "0 1.5rem", overflowY: "auto", height: "calc(100vh - 70px)" }}>
           <div style={{ paddingTop: "2rem" }}>
             {messages.map((msg, i) => {
               const isLastAssistant = msg.role === "assistant" && !messages.slice(i + 1).some(m => m.role === "assistant");
