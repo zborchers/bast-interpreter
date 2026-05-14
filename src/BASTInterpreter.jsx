@@ -40,8 +40,14 @@ export default function BASTInterpreter() {
     userBubbleBorder: "rgba(100,80,60,0.18)",
   };
 
+  const lastAssistantRef = useRef(null);
+
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (loading) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    } else if (lastAssistantRef.current) {
+      lastAssistantRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
   }, [messages, loading]);
 
   const handleLicenseSubmit = async () => {
@@ -241,22 +247,25 @@ export default function BASTInterpreter() {
       {messages.length > 0 && (
         <div style={{ flex: 1, display: "flex", flexDirection: "column", maxWidth: "700px", width: "100%", margin: "0 auto", padding: "0 1.5rem" }}>
           <div style={{ paddingTop: "2rem" }}>
-            {messages.map((msg, i) => (
-              <div key={i} style={{ marginBottom: "2rem" }}>
-                {msg.role === "user" ? (
-                  <div style={{ display: "flex", justifyContent: "flex-end" }}>
-                    <div style={{ background: c.userBubble, border: `1px solid ${c.userBubbleBorder}`, borderRadius: "14px 14px 2px 14px", padding: "12px 18px", maxWidth: "85%", fontSize: "18px", lineHeight: 1.65, color: c.textPrimary, whiteSpace: "pre-wrap", fontFamily: SERIF }}>
-                      {msg.content}
+            {messages.map((msg, i) => {
+              const isLastAssistant = msg.role === "assistant" && !messages.slice(i + 1).some(m => m.role === "assistant");
+              return (
+                <div key={i} ref={isLastAssistant ? lastAssistantRef : null} style={{ marginBottom: "2rem" }}>
+                  {msg.role === "user" ? (
+                    <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                      <div style={{ background: c.userBubble, border: `1px solid ${c.userBubbleBorder}`, borderRadius: "14px 14px 2px 14px", padding: "12px 18px", maxWidth: "85%", fontSize: "18px", lineHeight: 1.65, color: c.textPrimary, whiteSpace: "pre-wrap", fontFamily: SERIF }}>
+                        {msg.content}
+                      </div>
                     </div>
-                  </div>
-                ) : (
-                  <div style={{ display: "flex", gap: "12px", alignItems: "flex-start" }}>
-                    <div style={{ width: "28px", height: "28px", borderRadius: "50%", background: c.accentLight, border: `1px solid ${c.borderMid}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", color: c.accent, flexShrink: 0, marginTop: "2px", fontFamily: SANS }}>&#10022;</div>
-                    <div style={{ flex: 1, fontSize: "18px", color: c.textPrimary, fontFamily: SERIF }}>{formatMessage(msg.content)}</div>
-                  </div>
-                )}
-              </div>
-            ))}
+                  ) : (
+                    <div style={{ display: "flex", gap: "12px", alignItems: "flex-start" }}>
+                      <div style={{ width: "28px", height: "28px", borderRadius: "50%", background: c.accentLight, border: `1px solid ${c.borderMid}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", color: c.accent, flexShrink: 0, marginTop: "2px", fontFamily: SANS }}>&#10022;</div>
+                      <div style={{ flex: 1, fontSize: "18px", color: c.textPrimary, fontFamily: SERIF }}>{formatMessage(msg.content)}</div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
 
             {loading && (
               <div style={{ display: "flex", gap: "12px", alignItems: "flex-start", marginBottom: "2rem" }}>
