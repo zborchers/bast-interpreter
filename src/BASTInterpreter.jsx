@@ -243,12 +243,10 @@ export default function BASTInterpreter() {
       )}
 
       {messages.length > 0 && (
-        <div ref={scrollContainerRef} style={{ flex: 1, display: "flex", flexDirection: "column", maxWidth: "700px", width: "100%", margin: "0 auto", padding: "0 1.5rem" }}>
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", maxWidth: "700px", width: "100%", margin: "0 auto", padding: "0 1.5rem" }}>
           <div style={{ paddingTop: "2rem" }}>
-            {messages.map((msg, i) => {
-              const isLastAssistant = msg.role === "assistant" && !messages.slice(i + 1).some(m => m.role === "assistant");
-              return (
-                <div key={i} ref={isLastAssistant ? lastAssistantRef : null} style={{ marginBottom: "2rem" }}>
+            {messages.map((msg, i) => (
+                <div key={i} style={{ marginBottom: "2rem" }}>
                   {msg.role === "user" ? (
                     <div style={{ display: "flex", justifyContent: "flex-end" }}>
                       <div style={{ background: c.userBubble, border: `1px solid ${c.userBubbleBorder}`, borderRadius: "14px 14px 2px 14px", padding: "12px 18px", maxWidth: "85%", fontSize: "18px", lineHeight: 1.65, color: c.textPrimary, whiteSpace: "pre-wrap", fontFamily: SERIF }}>
@@ -262,8 +260,7 @@ export default function BASTInterpreter() {
                     </div>
                   )}
                 </div>
-              );
-            })}
+            ))}
 
             {loading && (
               <div style={{ display: "flex", gap: "12px", alignItems: "flex-start", marginBottom: "2rem" }}>
