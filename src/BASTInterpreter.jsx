@@ -297,7 +297,7 @@ export default function BASTInterpreter() {
 
           <div style={{ textAlign: "center", marginTop: "1.5rem", fontSize: "14px", color: c.textMuted, fontFamily: SERIF }}>
             Don't have a license key?{" "}
-            <a href="https://bodyassoultech.com/#purchase" style={{ color: c.accent, textDecoration: "underline" }}>
+            <a href="https://zborchster.gumroad.com/l/dxrekr" style={{ color: c.accent, textDecoration: "underline" }}>
               Purchase access here
             </a>
           </div>
