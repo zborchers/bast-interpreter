@@ -97,23 +97,10 @@ const LIFE_CONTEXT_PROMPT = "To take this interpretation even deeper, I want to 
 
 // Replace this with your actual Gumroad product permalink
 // Found in your Gumroad product URL: gumroad.com/l/YOUR_PERMALINK
-const GUMROAD_PRODUCT_PERMALINK = "dxrekr";
+const ACCESS_PASSWORD = "bodyspeak";
 
 async function validateLicenseKey(key) {
-  try {
-    const response = await fetch('/api/verify', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        license_key: key.trim(),
-        product_permalink: GUMROAD_PRODUCT_PERMALINK,
-      }),
-    });
-    const data = await response.json();
-    return data.success === true;
-  } catch {
-    return false;
-  }
+  return key.trim().toLowerCase() === ACCESS_PASSWORD;
 }
 
 export default function BASTInterpreter() {
@@ -157,7 +144,7 @@ export default function BASTInterpreter() {
     if (valid) {
       setUnlocked(true);
     } else {
-      setLicenseError("That license key doesn't appear to be valid. Please check your purchase confirmation email and try again.");
+      setLicenseError("That password doesn't appear to be correct. Please check your purchase confirmation email and try again.");
     }
     setLicenseLoading(false);
   };
@@ -239,20 +226,20 @@ export default function BASTInterpreter() {
               Symptom Interpreter
             </div>
             <div style={{ fontSize: "17px", color: c.textSecondary, lineHeight: 1.75 }}>
-              Enter your license key to access the interpreter. Your key was included in your purchase confirmation email.
+              Enter your access password to unlock the interpreter. Your password was included in your purchase confirmation email.
             </div>
           </div>
 
           <div style={{ background: c.bgInput, border: `1px solid ${c.borderMid}`, borderRadius: "10px", padding: "1.25rem" }}>
             <div style={{ fontSize: "12px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: c.textMuted, marginBottom: "0.6rem", fontFamily: SANS }}>
-              License Key
+              Access Password
             </div>
             <input
               type="text"
               value={licenseKey}
               onChange={e => { setLicenseKey(e.target.value); setLicenseError(""); }}
               onKeyDown={handleLicenseKeyDown}
-              placeholder="XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
+              placeholder="Enter your access password"
               style={{
                 width: "100%",
                 background: "transparent",
@@ -292,7 +279,7 @@ export default function BASTInterpreter() {
               transition: "all 0.15s",
             }}
           >
-            {licenseLoading ? "Verifying..." : "Unlock Access →"}
+            {licenseLoading ? "Verifying..." : "Unlock →"}
           </button>
 
           <div style={{ textAlign: "center", marginTop: "1.5rem", fontSize: "14px", color: c.textMuted, fontFamily: SERIF }}>
