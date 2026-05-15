@@ -234,13 +234,12 @@ export default function BASTInterpreter() {
           <div style={{ fontSize: "10px", letterSpacing: "0.2em", textTransform: "uppercase", color: c.accent, marginBottom: "2px", fontFamily: SANS, fontWeight: 600 }}>Body as Soul Tech</div>
           <div style={{ fontSize: "17px", fontWeight: 700, color: c.textPrimary, fontFamily: SANS }}>Symptom Interpreter</div>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+        <div style={{ display: "flex", alignItems: "center" }}>
           {messages.length > 0 && (
             <button onClick={clearHistory} style={{ background: "transparent", border: `1px solid ${c.borderMid}`, color: c.textMuted, padding: "6px 14px", borderRadius: "4px", fontSize: "12px", cursor: "pointer", fontFamily: SANS, fontWeight: 500 }}>
               Clear history
             </button>
           )}
-          <div style={{ fontSize: "11px", color: c.accent, letterSpacing: "0.08em", fontFamily: SANS, fontWeight: 600 }}>FULL ACCESS</div>
         </div>
       </div>
 
