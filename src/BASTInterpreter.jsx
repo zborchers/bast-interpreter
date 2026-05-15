@@ -5,7 +5,6 @@ const SANS = "'Plus Jakarta Sans','system-ui',sans-serif";
 const SERIF = "'Crimson Text','Georgia',serif";
 const LIFE_CONTEXT_PROMPT = "To take this interpretation even deeper, I want to invite you to share more about what is going on in your life. Go beyond the physical for a moment. What stress are you carrying? What decisions are you facing or avoiding? What feels unresolved? Are you sensing a pull toward something, or away from something? What emotions keep surfacing? Are there relationships, work situations, or life transitions weighing on you? Also, let me know if you would like suggestions for non-medical practices that may support your healing - things like breathwork, movement, journaling, or other lifestyle approaches. The body does not operate in isolation from the rest of your life, and all of that context allows for a much more specific and meaningful reading.";
 const ACCESS_PASSWORD = "bodyspeak";
-const GUMROAD_PRODUCT_PERMALINK = "dxrekr";
 
 async function validateLicenseKey(key) {
   return key.trim().toLowerCase() === ACCESS_PASSWORD;
@@ -51,9 +50,6 @@ export default function BASTInterpreter() {
     userBubbleBorder: "rgba(100,80,60,0.18)",
   };
 
-  const lastAssistantRef = useRef(null);
-
-  // Persist messages, unlocked state, and step to localStorage
   useEffect(() => {
     try { localStorage.setItem('bast_messages', JSON.stringify(messages)); }
     catch {}
@@ -69,6 +65,12 @@ export default function BASTInterpreter() {
     catch {}
   }, [step]);
 
+  useEffect(() => {
+    if (loading) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [loading]);
+
   const clearHistory = () => {
     setMessages([]);
     setStep("symptoms");
@@ -77,12 +79,6 @@ export default function BASTInterpreter() {
       localStorage.removeItem('bast_step');
     } catch {}
   };
-
-  useEffect(() => {
-    if (loading) {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }
-  }, [loading]);
 
   const handleLicenseSubmit = async () => {
     if (!licenseKey.trim()) return;
@@ -217,7 +213,6 @@ export default function BASTInterpreter() {
           </div>
         </div>
         <style>{`
-          @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap');
           * { box-sizing: border-box; }
           body { margin: 0; }
           input::placeholder { color: rgba(30,26,22,0.25); }
@@ -234,7 +229,7 @@ export default function BASTInterpreter() {
           <div style={{ fontSize: "10px", letterSpacing: "0.2em", textTransform: "uppercase", color: c.accent, marginBottom: "2px", fontFamily: SANS, fontWeight: 600 }}>Body as Soul Tech</div>
           <div style={{ fontSize: "17px", fontWeight: 700, color: c.textPrimary, fontFamily: SANS }}>Symptom Interpreter</div>
         </div>
-        <div style={{ display: "flex", alignItems: "center" }}>
+        <div>
           {messages.length > 0 && (
             <button onClick={clearHistory} style={{ background: "transparent", border: `1px solid ${c.borderMid}`, color: c.textMuted, padding: "6px 14px", borderRadius: "4px", fontSize: "12px", cursor: "pointer", fontFamily: SANS, fontWeight: 500 }}>
               Clear history
@@ -288,20 +283,20 @@ export default function BASTInterpreter() {
         <div style={{ flex: 1, display: "flex", flexDirection: "column", maxWidth: "700px", width: "100%", margin: "0 auto", padding: "0 1.5rem" }}>
           <div style={{ paddingTop: "2rem" }}>
             {messages.map((msg, i) => (
-                <div key={i} style={{ marginBottom: "2rem" }}>
-                  {msg.role === "user" ? (
-                    <div style={{ display: "flex", justifyContent: "flex-end" }}>
-                      <div style={{ background: c.userBubble, border: `1px solid ${c.userBubbleBorder}`, borderRadius: "14px 14px 2px 14px", padding: "12px 18px", maxWidth: "85%", fontSize: "18px", lineHeight: 1.65, color: c.textPrimary, whiteSpace: "pre-wrap", fontFamily: SERIF }}>
-                        {msg.content}
-                      </div>
+              <div key={i} style={{ marginBottom: "2rem" }}>
+                {msg.role === "user" ? (
+                  <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                    <div style={{ background: c.userBubble, border: `1px solid ${c.userBubbleBorder}`, borderRadius: "14px 14px 2px 14px", padding: "12px 18px", maxWidth: "85%", fontSize: "18px", lineHeight: 1.65, color: c.textPrimary, whiteSpace: "pre-wrap", fontFamily: SERIF }}>
+                      {msg.content}
                     </div>
-                  ) : (
-                    <div style={{ display: "flex", gap: "12px", alignItems: "flex-start" }}>
-                      <div style={{ width: "28px", height: "28px", borderRadius: "50%", background: c.accentLight, border: `1px solid ${c.borderMid}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", color: c.accent, flexShrink: 0, marginTop: "2px", fontFamily: SANS }}>&#10022;</div>
-                      <div style={{ flex: 1, fontSize: "18px", color: c.textPrimary, fontFamily: SERIF }}>{formatMessage(msg.content)}</div>
-                    </div>
-                  )}
-                </div>
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", gap: "12px", alignItems: "flex-start" }}>
+                    <div style={{ width: "28px", height: "28px", borderRadius: "50%", background: c.accentLight, border: `1px solid ${c.borderMid}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", color: c.accent, flexShrink: 0, marginTop: "2px", fontFamily: SANS }}>&#10022;</div>
+                    <div style={{ flex: 1, fontSize: "18px", color: c.textPrimary, fontFamily: SERIF }}>{formatMessage(msg.content)}</div>
+                  </div>
+                )}
+              </div>
             ))}
 
             {loading && (
@@ -345,7 +340,6 @@ export default function BASTInterpreter() {
       )}
 
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap');
         @keyframes bast-pulse {
           0%, 100% { opacity: 0.2; transform: scale(0.8); }
           50% { opacity: 0.8; transform: scale(1); }
