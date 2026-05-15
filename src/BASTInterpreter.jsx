@@ -11,14 +11,25 @@ async function validateLicenseKey(key) {
 }
 
 export default function BASTInterpreter() {
-  const [messages, setMessages] = useState([]);
+  const [messages, setMessages] = useState(() => {
+    try {
+      const saved = localStorage.getItem('bast_messages');
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
+  });
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [unlocked, setUnlocked] = useState(false);
+  const [unlocked, setUnlocked] = useState(() => {
+    try { return localStorage.getItem('bast_unlocked') === 'true'; }
+    catch { return false; }
+  });
   const [licenseKey, setLicenseKey] = useState("");
   const [licenseError, setLicenseError] = useState("");
   const [licenseLoading, setLicenseLoading] = useState(false);
-  const [step, setStep] = useState("symptoms");
+  const [step, setStep] = useState(() => {
+    try { return localStorage.getItem('bast_step') || 'symptoms'; }
+    catch { return 'symptoms'; }
+  });
   const messagesEndRef = useRef(null);
 
   const c = {
@@ -44,6 +55,30 @@ export default function BASTInterpreter() {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }
   }, [loading]);
+
+  useEffect(() => {
+    try { localStorage.setItem('bast_messages', JSON.stringify(messages)); }
+    catch {}
+  }, [messages]);
+
+  useEffect(() => {
+    try { localStorage.setItem('bast_unlocked', unlocked ? 'true' : 'false'); }
+    catch {}
+  }, [unlocked]);
+
+  useEffect(() => {
+    try { localStorage.setItem('bast_step', step); }
+    catch {}
+  }, [step]);
+
+  const clearHistory = () => {
+    setMessages([]);
+    setStep("symptoms");
+    try {
+      localStorage.removeItem('bast_messages');
+      localStorage.removeItem('bast_step');
+    } catch {}
+  };
 
   const handleLicenseSubmit = async () => {
     if (!licenseKey.trim()) return;
@@ -193,6 +228,13 @@ export default function BASTInterpreter() {
         <div>
           <div style={{ fontSize: "10px", letterSpacing: "0.2em", textTransform: "uppercase", color: c.accent, marginBottom: "2px", fontFamily: SANS, fontWeight: 600 }}>Body as Soul Tech</div>
           <div style={{ fontSize: "17px", fontWeight: 700, color: c.textPrimary, fontFamily: SANS }}>Symptom Interpreter</div>
+        </div>
+        <div>
+          {messages.length > 0 && (
+            <button onClick={clearHistory} style={{ background: "transparent", border: `1px solid ${c.borderMid}`, color: c.textMuted, padding: "6px 14px", borderRadius: "4px", fontSize: "12px", cursor: "pointer", fontFamily: SANS, fontWeight: 500 }}>
+              Clear history
+            </button>
+          )}
         </div>
       </div>
 
