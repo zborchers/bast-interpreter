@@ -166,7 +166,7 @@ export default function BASTInterpreter() {
               Body as Soul Tech
             </div>
             <div style={{ fontSize: "26px", fontWeight: 700, color: "#1e1a16", marginBottom: "1rem", lineHeight: 1.2, fontFamily: SANS, letterSpacing: "-0.01em" }}>
-              Symptom Interpreter
+              Know Yourself
             </div>
             <div style={{ fontSize: "17px", color: "#5c5147", lineHeight: 1.75 }}>
               Enter your access password to unlock the interpreter. Your password was included in your purchase confirmation email.
@@ -227,7 +227,7 @@ export default function BASTInterpreter() {
       <div style={{ borderBottom: `1px solid ${c.border}`, padding: "1.25rem 2rem", display: "flex", alignItems: "center", justifyContent: "space-between", background: c.bgHeader, position: "sticky", top: 0, zIndex: 10 }}>
         <div>
           <div style={{ fontSize: "10px", letterSpacing: "0.2em", textTransform: "uppercase", color: c.accent, marginBottom: "2px", fontFamily: SANS, fontWeight: 600 }}>Body as Soul Tech</div>
-          <div style={{ fontSize: "17px", fontWeight: 700, color: c.textPrimary, fontFamily: SANS }}>Symptom Interpreter</div>
+          <div style={{ fontSize: "17px", fontWeight: 700, color: c.textPrimary, fontFamily: SANS }}>Know Yourself</div>
         </div>
         <div>
           {messages.length > 0 && (
@@ -243,13 +243,13 @@ export default function BASTInterpreter() {
           <div style={{ width: "100%", maxWidth: "620px" }}>
             <div style={{ textAlign: "center", marginBottom: "2rem" }}>
               <div style={{ fontSize: "11px", fontWeight: 600, letterSpacing: "0.2em", textTransform: "uppercase", color: c.accent, marginBottom: "1rem", fontFamily: SANS }}>
-                Symptom Interpreter
+                Know Yourself
               </div>
               <div style={{ fontSize: "27px", fontWeight: 700, color: c.textPrimary, marginBottom: "1.25rem", lineHeight: 1.2, fontFamily: SANS, letterSpacing: "-0.01em" }}>
                 What is your body trying to tell you?
               </div>
               <div style={{ fontSize: "18px", color: c.textSecondary, lineHeight: 1.85, fontFamily: SERIF }}>
-                Describe your symptoms in as much detail as you can. The more context you provide, the more useful the interpretation will be.
+                Describe what is going on in your body in as much detail as you can. The more context you provide, the deeper the reading will be.
               </div>
             </div>
 
@@ -258,7 +258,7 @@ export default function BASTInterpreter() {
                 value={input}
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Describe your symptoms here..."
+                placeholder="Describe what is going on in your body..."
                 rows={5}
                 style={{ background: "transparent", border: "none", outline: "none", color: c.textPrimary, fontSize: "18px", fontFamily: SERIF, lineHeight: 1.7, resize: "none", width: "100%" }}
               />
