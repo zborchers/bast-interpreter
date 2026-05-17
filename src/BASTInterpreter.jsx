@@ -344,7 +344,7 @@ export default function BASTInterpreter() {
                 value={input}
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder={step === "context" ? "Share what is going on in your life..." : "Ask a follow-up or describe another symptom..."}
+                placeholder={step === "context" ? "Share what is going on in your life..." : "Ask a follow-up, describe another symptom, or ask anything..."}
                 rows={2}
                 style={{ background: "transparent", border: "none", outline: "none", color: c.textPrimary, fontSize: "18px", fontFamily: SERIF, lineHeight: 1.6, resize: "none", width: "100%" }}
               />
