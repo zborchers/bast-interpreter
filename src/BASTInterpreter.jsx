@@ -159,10 +159,16 @@ export default function BASTInterpreter() {
     
     if (splitIndex !== -1) {
       const before = content.substring(0, splitIndex).trim();
-      const question = content.substring(splitIndex + matchLength).trim();
+      // Extract only the question — stop at double newline or end of string
+      let rawQuestion = content.substring(splitIndex + matchLength).trim();
+      // Take only the first paragraph/sentence as the question
+      const questionEnd = rawQuestion.search(/\n\n|\n[A-Z]/);
+      const question = questionEnd !== -1 ? rawQuestion.substring(0, questionEnd).trim() : rawQuestion.trim();
+      const remainder = questionEnd !== -1 ? rawQuestion.substring(questionEnd).trim() : "";
       return (
         <>
           <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.82 }}>{before}</div>
+          {remainder ? <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.82, marginTop: "1rem" }}>{remainder}</div> : null}
           <div style={{ marginTop: "1.5rem", padding: "1rem 1.25rem", background: "rgba(193,127,58,0.08)", borderLeft: "3px solid #c17f3a", borderRadius: "0 8px 8px 0" }}>
             <div style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.15em", textTransform: "uppercase", color: "#c17f3a", marginBottom: "0.4rem", fontFamily: SANS }}>
               Soul Guidance Question
