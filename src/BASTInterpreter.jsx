@@ -138,17 +138,37 @@ export default function BASTInterpreter() {
   };
 
   const formatMessage = (content) => {
-    const parts = content.split(/(Soul Guidance Question[:\s]*)/i);
-    if (parts.length > 1) {
+    // Try multiple patterns to find Soul Guidance Question
+    const patterns = [
+      /Soul Guidance Question[:\s]*/i,
+      /Soul Guidance[:\s]*/i,
+      /Guidance Question[:\s]*/i,
+    ];
+    
+    let splitIndex = -1;
+    let matchLength = 0;
+    
+    for (const pattern of patterns) {
+      const match = content.match(pattern);
+      if (match) {
+        splitIndex = content.indexOf(match[0]);
+        matchLength = match[0].length;
+        break;
+      }
+    }
+    
+    if (splitIndex !== -1) {
+      const before = content.substring(0, splitIndex).trim();
+      const question = content.substring(splitIndex + matchLength).trim();
       return (
         <>
-          <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.82 }}>{parts[0]}</div>
+          <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.82 }}>{before}</div>
           <div style={{ marginTop: "1.5rem", padding: "1rem 1.25rem", background: "rgba(193,127,58,0.08)", borderLeft: "3px solid #c17f3a", borderRadius: "0 8px 8px 0" }}>
             <div style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.15em", textTransform: "uppercase", color: "#c17f3a", marginBottom: "0.4rem", fontFamily: SANS }}>
               Soul Guidance Question
             </div>
             <div style={{ fontSize: "18px", fontStyle: "italic", lineHeight: 1.75, color: "#1e1a16", fontFamily: SERIF }}>
-              {parts.slice(2).join("").trim()}
+              {question}
             </div>
           </div>
         </>
