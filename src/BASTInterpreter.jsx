@@ -275,7 +275,7 @@ export default function BASTInterpreter() {
                 What is going on in your life?
               </div>
               <div style={{ fontSize: "18px", color: c.textSecondary, lineHeight: 1.85, fontFamily: SERIF }}>
-                Describe what is happening in your body, your life, your relationships, or your inner world. Or ask anything you want to understand about the soul, the body, and how you are designed.
+                Describe what is happening in your body, your life, your relationships, or your inner world. You can ask me anything you want to understand about the soul, the body, and how you are designed.
               </div>
             </div>
 
