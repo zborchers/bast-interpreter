@@ -3,7 +3,6 @@ import { SYSTEM_PROMPT } from "./systemPrompt.js";
 
 const SANS = "'Plus Jakarta Sans','system-ui',sans-serif";
 const SERIF = "'Crimson Text','Georgia',serif";
-const LIFE_CONTEXT_PROMPT = "To take this interpretation even deeper, I want to invite you to share more about what is going on in your life. Go beyond the physical for a moment. What stress are you carrying? What decisions are you facing or avoiding? What feels unresolved? Are you sensing a pull toward something, or away from something? What emotions keep surfacing? Are there relationships, work situations, or life transitions weighing on you? Also, let me know if you would like suggestions for non-medical practices that may support your healing - things like breathwork, movement, journaling, or other lifestyle approaches. The body does not operate in isolation from the rest of your life, and all of that context allows for a much more specific and meaningful reading.";
 const ACCESS_PASSWORD = "bodyspeak";
 
 async function validateLicenseKey(key) {
@@ -26,10 +25,7 @@ export default function BASTInterpreter() {
   const [licenseKey, setLicenseKey] = useState("");
   const [licenseError, setLicenseError] = useState("");
   const [licenseLoading, setLicenseLoading] = useState(false);
-  const [step, setStep] = useState(() => {
-    try { return localStorage.getItem('bast_step') || 'symptoms'; }
-    catch { return 'symptoms'; }
-  });
+
   const messagesEndRef = useRef(null);
 
   const c = {
@@ -66,17 +62,12 @@ export default function BASTInterpreter() {
     catch {}
   }, [unlocked]);
 
-  useEffect(() => {
-    try { localStorage.setItem('bast_step', step); }
-    catch {}
-  }, [step]);
+
 
   const clearHistory = () => {
     setMessages([]);
-    setStep("symptoms");
     try {
       localStorage.removeItem('bast_messages');
-      localStorage.removeItem('bast_step');
     } catch {}
   };
 
@@ -117,16 +108,7 @@ export default function BASTInterpreter() {
       });
       const data = await response.json();
       const text = data.content?.find(b => b.type === "text")?.text || "Something went wrong. Please try again.";
-      if (step === "symptoms") {
-        setStep("context");
-        setMessages(prev => [
-          ...prev,
-          { role: "assistant", content: text },
-          { role: "assistant", content: LIFE_CONTEXT_PROMPT },
-        ]);
-      } else {
-        setMessages(prev => [...prev, { role: "assistant", content: text }]);
-      }
+      setMessages(prev => [...prev, { role: "assistant", content: text }]);
     } catch {
       setMessages(prev => [...prev, { role: "assistant", content: "There was a connection error. Please try again." }]);
     }
@@ -344,7 +326,7 @@ export default function BASTInterpreter() {
                 value={input}
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder={step === "context" ? "Share what is going on in your life..." : "Ask a follow-up, describe another symptom, or ask anything..."}
+                placeholder="Ask a follow-up, describe another symptom, or ask anything..."
                 rows={2}
                 style={{ background: "transparent", border: "none", outline: "none", color: c.textPrimary, fontSize: "18px", fontFamily: SERIF, lineHeight: 1.6, resize: "none", width: "100%" }}
               />
