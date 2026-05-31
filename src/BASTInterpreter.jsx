@@ -176,63 +176,56 @@ export default function BASTInterpreter() {
     return <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.82 }}>{content}</div>;
   };
 
-  // Paywall overlay
-  const PaywallOverlay = () => (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(30,26,22,0.6)", zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", padding: "1.5rem" }}>
-      <div style={{ background: "#faf8f4", borderRadius: "12px", padding: "2.5rem", maxWidth: "480px", width: "100%", textAlign: "center" }}>
-        <div style={{ fontSize: "11px", fontWeight: 600, letterSpacing: "0.2em", textTransform: "uppercase", color: c.accent, marginBottom: "0.75rem", fontFamily: SANS }}>
-          Body as Soul Tech
-        </div>
-        <div style={{ fontSize: "24px", fontWeight: 700, color: c.textPrimary, marginBottom: "1rem", fontFamily: SANS, lineHeight: 1.2 }}>
-          You've experienced your 2 free responses
-        </div>
-        <div style={{ fontSize: "18px", color: c.textSecondary, lineHeight: 1.75, fontFamily: SERIF, marginBottom: "1.75rem" }}>
-          Unlock unlimited conversations — your body, your life, your relationships, and your deepest questions, interpreted through a soul lens.
-        </div>
-
-        <a href="https://zborchster.gumroad.com/l/dxrekr" target="_blank" style={{ display: "block", background: c.accent, color: "#fff", padding: "14px", borderRadius: "6px", fontSize: "15px", fontWeight: 700, fontFamily: SANS, letterSpacing: "0.04em", textDecoration: "none", marginBottom: "1.25rem" }}>
-          Get Unlimited Access — $22
-        </a>
-
-        <div style={{ fontSize: "13px", color: c.textMuted, fontFamily: SERIF, marginBottom: "1.5rem" }}>
-          Already purchased?
-        </div>
-
-        <div style={{ background: c.bgInput, border: `1px solid ${c.borderMid}`, borderRadius: "8px", padding: "10px 14px", marginBottom: "0.75rem" }}>
-          <input
-            type="password"
-            value={licenseKey}
-            onChange={e => { setLicenseKey(e.target.value); setLicenseError(""); }}
-            onKeyDown={handleLicenseKeyDown}
-            placeholder="Enter your access password"
-            style={{ width: "100%", background: "transparent", border: "none", outline: "none", color: c.textPrimary, fontSize: "15px", fontFamily: SANS }}
-          />
-        </div>
-
-        {licenseError && (
-          <div style={{ fontSize: "13px", color: "#b94040", fontFamily: SERIF, marginBottom: "0.75rem" }}>
-            {licenseError}
-          </div>
-        )}
-
-        <button
-          onClick={handleLicenseSubmit}
-          disabled={!licenseKey.trim() || licenseLoading}
-          style={{ width: "100%", background: licenseKey.trim() && !licenseLoading ? c.accent : c.accentMid, border: "none", borderRadius: "6px", padding: "12px", fontSize: "14px", color: licenseKey.trim() && !licenseLoading ? "#fff" : c.textMuted, cursor: licenseKey.trim() && !licenseLoading ? "pointer" : "default", fontFamily: SANS, fontWeight: 700, letterSpacing: "0.04em" }}>
-          {licenseLoading ? "Verifying..." : "Unlock \u2192"}
-        </button>
-
-        <div style={{ marginTop: "1rem", fontSize: "11px", color: c.textMuted, fontFamily: SANS, letterSpacing: "0.03em" }}>
-          🔒 All conversations are private and confidential
-        </div>
-      </div>
-    </div>
-  );
 
   return (
     <div style={{ minHeight: "100vh", background: c.bg, color: c.textPrimary, fontFamily: SERIF, display: "flex", flexDirection: "column" }}>
 
-      {showPaywall && <PaywallOverlay />}
+      {showPaywall && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(30,26,22,0.6)", zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", padding: "1.5rem" }}>
+          <div style={{ background: "#faf8f4", borderRadius: "12px", padding: "2.5rem", maxWidth: "480px", width: "100%", textAlign: "center" }}>
+            <div style={{ fontSize: "11px", fontWeight: 600, letterSpacing: "0.2em", textTransform: "uppercase", color: c.accent, marginBottom: "0.75rem", fontFamily: SANS }}>
+              Body as Soul Tech
+            </div>
+            <div style={{ fontSize: "24px", fontWeight: 700, color: c.textPrimary, marginBottom: "1rem", fontFamily: SANS, lineHeight: 1.2 }}>
+              You've experienced your 2 free responses
+            </div>
+            <div style={{ fontSize: "18px", color: c.textSecondary, lineHeight: 1.75, fontFamily: SERIF, marginBottom: "1.75rem" }}>
+              Unlock unlimited conversations — your body, your life, your relationships, and your deepest questions, interpreted through a soul lens.
+            </div>
+            <a href="https://zborchster.gumroad.com/l/dxrekr" target="_blank" style={{ display: "block", background: c.accent, color: "#fff", padding: "14px", borderRadius: "6px", fontSize: "15px", fontWeight: 700, fontFamily: SANS, letterSpacing: "0.04em", textDecoration: "none", marginBottom: "1.25rem" }}>
+              Get Unlimited Access — $22
+            </a>
+            <div style={{ fontSize: "13px", color: c.textMuted, fontFamily: SERIF, marginBottom: "1.5rem" }}>
+              Already purchased?
+            </div>
+            <div style={{ background: c.bgInput, border: `1px solid ${c.borderMid}`, borderRadius: "8px", padding: "10px 14px", marginBottom: "0.75rem" }}>
+              <input
+                type="password"
+                value={licenseKey}
+                onChange={e => { setLicenseKey(e.target.value); setLicenseError(""); }}
+                onKeyDown={handleLicenseKeyDown}
+                placeholder="Enter your access password"
+                autoFocus
+                style={{ width: "100%", background: "transparent", border: "none", outline: "none", color: c.textPrimary, fontSize: "15px", fontFamily: SANS }}
+              />
+            </div>
+            {licenseError && (
+              <div style={{ fontSize: "13px", color: "#b94040", fontFamily: SERIF, marginBottom: "0.75rem" }}>
+                {licenseError}
+              </div>
+            )}
+            <button
+              onClick={handleLicenseSubmit}
+              disabled={!licenseKey.trim() || licenseLoading}
+              style={{ width: "100%", background: licenseKey.trim() && !licenseLoading ? c.accent : c.accentMid, border: "none", borderRadius: "6px", padding: "12px", fontSize: "14px", color: licenseKey.trim() && !licenseLoading ? "#fff" : c.textMuted, cursor: licenseKey.trim() && !licenseLoading ? "pointer" : "default", fontFamily: SANS, fontWeight: 700, letterSpacing: "0.04em" }}>
+              {licenseLoading ? "Verifying..." : "Unlock →"}
+            </button>
+            <div style={{ marginTop: "1rem", fontSize: "11px", color: c.textMuted, fontFamily: SANS, letterSpacing: "0.03em" }}>
+              🔒 All conversations are private and confidential
+            </div>
+          </div>
+        </div>
+      )}
 
       <div style={{ borderBottom: `1px solid ${c.border}`, padding: "1.25rem 2rem", display: "flex", alignItems: "center", justifyContent: "space-between", background: c.bgHeader, position: "sticky", top: 0, zIndex: 10 }}>
         <div>
