@@ -4,6 +4,7 @@ import { SYSTEM_PROMPT } from "./systemPrompt.js";
 const SANS = "'Plus Jakarta Sans','system-ui',sans-serif";
 const SERIF = "'Crimson Text','Georgia',serif";
 const ACCESS_PASSWORD = "bodyspeak";
+const FREE_RESPONSE_LIMIT = 2;
 
 async function validateLicenseKey(key) {
   return key.trim().toLowerCase() === ACCESS_PASSWORD;
@@ -22,6 +23,11 @@ export default function BASTInterpreter() {
     try { return localStorage.getItem('bast_unlocked') === 'true'; }
     catch { return false; }
   });
+  const [freeResponsesUsed, setFreeResponsesUsed] = useState(() => {
+    try { return parseInt(localStorage.getItem('bast_free_used') || '0'); }
+    catch { return 0; }
+  });
+  const [showPaywall, setShowPaywall] = useState(false);
   const [licenseKey, setLicenseKey] = useState("");
   const [licenseError, setLicenseError] = useState("");
   const [licenseLoading, setLicenseLoading] = useState(false);
@@ -32,7 +38,6 @@ export default function BASTInterpreter() {
     bg: "#faf8f4",
     bgHeader: "#f3f0e9",
     bgInput: "#ede8dd",
-    bgModal: "#faf8f4",
     border: "rgba(100,80,60,0.1)",
     borderMid: "rgba(100,80,60,0.18)",
     accent: "#2d5a3d",
@@ -46,10 +51,11 @@ export default function BASTInterpreter() {
     userBubbleBorder: "rgba(100,80,60,0.18)",
   };
 
+  const isFree = !unlocked;
+  const hitLimit = isFree && freeResponsesUsed >= FREE_RESPONSE_LIMIT;
+
   useEffect(() => {
-    if (loading) {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }
+    if (loading) messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [loading]);
 
   useEffect(() => {
@@ -62,13 +68,16 @@ export default function BASTInterpreter() {
     catch {}
   }, [unlocked]);
 
-
+  useEffect(() => {
+    try { localStorage.setItem('bast_free_used', String(freeResponsesUsed)); }
+    catch {}
+  }, [freeResponsesUsed]);
 
   const clearHistory = () => {
     setMessages([]);
-    try {
-      localStorage.removeItem('bast_messages');
-    } catch {}
+    setShowPaywall(false);
+    try { localStorage.removeItem('bast_messages'); }
+    catch {}
   };
 
   const handleLicenseSubmit = async () => {
@@ -78,6 +87,7 @@ export default function BASTInterpreter() {
     const valid = await validateLicenseKey(licenseKey);
     if (valid) {
       setUnlocked(true);
+      setShowPaywall(false);
     } else {
       setLicenseError("That password doesn't appear to be correct. Please check your purchase confirmation email and try again.");
     }
@@ -90,6 +100,8 @@ export default function BASTInterpreter() {
 
   const handleSubmit = async () => {
     if (!input.trim() || loading) return;
+    if (hitLimit) { setShowPaywall(true); return; }
+
     const userMessage = { role: "user", content: input.trim() };
     const newMessages = [...messages, userMessage];
     setMessages(newMessages);
@@ -109,6 +121,11 @@ export default function BASTInterpreter() {
       const data = await response.json();
       const text = data.content?.find(b => b.type === "text")?.text || "Something went wrong. Please try again.";
       setMessages(prev => [...prev, { role: "assistant", content: text }]);
+      if (isFree) {
+        const newCount = freeResponsesUsed + 1;
+        setFreeResponsesUsed(newCount);
+        if (newCount >= FREE_RESPONSE_LIMIT) setShowPaywall(true);
+      }
     } catch {
       setMessages(prev => [...prev, { role: "assistant", content: "There was a connection error. Please try again." }]);
     }
@@ -120,16 +137,13 @@ export default function BASTInterpreter() {
   };
 
   const formatMessage = (content) => {
-    // Try multiple patterns to find Soul Guidance Question
     const patterns = [
       /Soul Guidance Question[:\s]*/i,
       /Soul Guidance[:\s]*/i,
       /Guidance Question[:\s]*/i,
     ];
-    
     let splitIndex = -1;
     let matchLength = 0;
-    
     for (const pattern of patterns) {
       const match = content.match(pattern);
       if (match) {
@@ -138,12 +152,9 @@ export default function BASTInterpreter() {
         break;
       }
     }
-    
     if (splitIndex !== -1) {
       const before = content.substring(0, splitIndex).trim();
-      // Extract only the question — stop at double newline or end of string
       let rawQuestion = content.substring(splitIndex + matchLength).trim();
-      // Take only the first paragraph/sentence as the question
       const questionEnd = rawQuestion.search(/\n\n|\n[A-Z]/);
       const question = questionEnd !== -1 ? rawQuestion.substring(0, questionEnd).trim() : rawQuestion.trim();
       const remainder = questionEnd !== -1 ? rawQuestion.substring(questionEnd).trim() : "";
@@ -165,79 +176,75 @@ export default function BASTInterpreter() {
     return <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.82 }}>{content}</div>;
   };
 
-  if (!unlocked) {
-    return (
-      <div style={{ minHeight: "100vh", background: "#faf8f4", display: "flex", alignItems: "center", justifyContent: "center", padding: "2rem", fontFamily: SERIF }}>
-        <div style={{ width: "100%", maxWidth: "460px" }}>
-          <div style={{ textAlign: "center", marginBottom: "2.5rem" }}>
-            <div style={{ fontSize: "11px", fontWeight: 600, letterSpacing: "0.2em", textTransform: "uppercase", color: "#2d5a3d", marginBottom: "0.75rem", fontFamily: SANS }}>
-              Body as Soul Tech
-            </div>
-            <div style={{ fontSize: "26px", fontWeight: 700, color: "#1e1a16", marginBottom: "1rem", lineHeight: 1.2, fontFamily: SANS, letterSpacing: "-0.01em" }}>
-              Know Yourself
-            </div>
-            <div style={{ fontSize: "17px", color: "#5c5147", lineHeight: 1.75 }}>
-              Enter your access password to unlock the interpreter. Your password was included in your purchase confirmation email.
-            </div>
-          </div>
-
-          <div style={{ background: "#ede8dd", border: "1px solid rgba(100,80,60,0.18)", borderRadius: "10px", padding: "1.25rem" }}>
-            <div style={{ fontSize: "12px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "rgba(30,26,22,0.38)", marginBottom: "0.6rem", fontFamily: SANS }}>
-              Access Password
-            </div>
-            <input
-              type="password"
-              value={licenseKey}
-              onChange={e => { setLicenseKey(e.target.value); setLicenseError(""); }}
-              onKeyDown={handleLicenseKeyDown}
-              placeholder="Enter your access password"
-              style={{ width: "100%", background: "transparent", border: "none", outline: "none", color: "#1e1a16", fontSize: "16px", fontFamily: SANS, padding: "0.25rem 0" }}
-            />
-          </div>
-
-          {licenseError && (
-            <div style={{ marginTop: "0.75rem", fontSize: "14px", color: "#b94040", fontFamily: SERIF, lineHeight: 1.6 }}>
-              {licenseError}
-            </div>
-          )}
-
-          <button
-            onClick={handleLicenseSubmit}
-            disabled={!licenseKey.trim() || licenseLoading}
-            style={{ width: "100%", marginTop: "1rem", background: licenseKey.trim() && !licenseLoading ? "#2d5a3d" : "rgba(45,90,61,0.18)", border: "none", borderRadius: "6px", padding: "14px", fontSize: "15px", color: licenseKey.trim() && !licenseLoading ? "#fff" : "rgba(30,26,22,0.38)", cursor: licenseKey.trim() && !licenseLoading ? "pointer" : "default", fontFamily: SANS, fontWeight: 700, letterSpacing: "0.04em", transition: "all 0.15s" }}
-          >
-            {licenseLoading ? "Verifying..." : "Unlock \u2192"}
-          </button>
-
-          <div style={{ textAlign: "center", marginTop: "1.5rem", fontSize: "14px", color: "rgba(30,26,22,0.38)", fontFamily: SERIF }}>
-            Do not have an access password?{" "}
-            <a href="https://zborchster.gumroad.com/l/dxrekr" style={{ color: "#2d5a3d", textDecoration: "underline" }}>
-              Purchase access here
-            </a>
-          </div>
-
-          <div style={{ textAlign: "center", marginTop: "2rem", fontSize: "11px", color: "rgba(30,26,22,0.38)", letterSpacing: "0.04em", fontFamily: SANS }}>
-            Spiritual and energetic interpretation — not a substitute for medical care.
-          </div>
+  // Paywall overlay
+  const PaywallOverlay = () => (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(30,26,22,0.6)", zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", padding: "1.5rem" }}>
+      <div style={{ background: "#faf8f4", borderRadius: "12px", padding: "2.5rem", maxWidth: "480px", width: "100%", textAlign: "center" }}>
+        <div style={{ fontSize: "11px", fontWeight: 600, letterSpacing: "0.2em", textTransform: "uppercase", color: c.accent, marginBottom: "0.75rem", fontFamily: SANS }}>
+          Body as Soul Tech
         </div>
-        <style>{`
-          * { box-sizing: border-box; }
-          body { margin: 0; }
-          input::placeholder { color: rgba(30,26,22,0.25); }
-        `}</style>
+        <div style={{ fontSize: "24px", fontWeight: 700, color: c.textPrimary, marginBottom: "1rem", fontFamily: SANS, lineHeight: 1.2 }}>
+          You've experienced your 2 free responses
+        </div>
+        <div style={{ fontSize: "18px", color: c.textSecondary, lineHeight: 1.75, fontFamily: SERIF, marginBottom: "1.75rem" }}>
+          Unlock unlimited conversations — your body, your life, your relationships, and your deepest questions, interpreted through a soul lens.
+        </div>
+
+        <a href="https://zborchster.gumroad.com/l/dxrekr" target="_blank" style={{ display: "block", background: c.accent, color: "#fff", padding: "14px", borderRadius: "6px", fontSize: "15px", fontWeight: 700, fontFamily: SANS, letterSpacing: "0.04em", textDecoration: "none", marginBottom: "1.25rem" }}>
+          Get Unlimited Access — $22
+        </a>
+
+        <div style={{ fontSize: "13px", color: c.textMuted, fontFamily: SERIF, marginBottom: "1.5rem" }}>
+          Already purchased?
+        </div>
+
+        <div style={{ background: c.bgInput, border: `1px solid ${c.borderMid}`, borderRadius: "8px", padding: "10px 14px", marginBottom: "0.75rem" }}>
+          <input
+            type="password"
+            value={licenseKey}
+            onChange={e => { setLicenseKey(e.target.value); setLicenseError(""); }}
+            onKeyDown={handleLicenseKeyDown}
+            placeholder="Enter your access password"
+            style={{ width: "100%", background: "transparent", border: "none", outline: "none", color: c.textPrimary, fontSize: "15px", fontFamily: SANS }}
+          />
+        </div>
+
+        {licenseError && (
+          <div style={{ fontSize: "13px", color: "#b94040", fontFamily: SERIF, marginBottom: "0.75rem" }}>
+            {licenseError}
+          </div>
+        )}
+
+        <button
+          onClick={handleLicenseSubmit}
+          disabled={!licenseKey.trim() || licenseLoading}
+          style={{ width: "100%", background: licenseKey.trim() && !licenseLoading ? c.accent : c.accentMid, border: "none", borderRadius: "6px", padding: "12px", fontSize: "14px", color: licenseKey.trim() && !licenseLoading ? "#fff" : c.textMuted, cursor: licenseKey.trim() && !licenseLoading ? "pointer" : "default", fontFamily: SANS, fontWeight: 700, letterSpacing: "0.04em" }}>
+          {licenseLoading ? "Verifying..." : "Unlock \u2192"}
+        </button>
+
+        <div style={{ marginTop: "1rem", fontSize: "11px", color: c.textMuted, fontFamily: SANS, letterSpacing: "0.03em" }}>
+          🔒 All conversations are private and confidential
+        </div>
       </div>
-    );
-  }
+    </div>
+  );
 
   return (
     <div style={{ minHeight: "100vh", background: c.bg, color: c.textPrimary, fontFamily: SERIF, display: "flex", flexDirection: "column" }}>
+
+      {showPaywall && <PaywallOverlay />}
 
       <div style={{ borderBottom: `1px solid ${c.border}`, padding: "1.25rem 2rem", display: "flex", alignItems: "center", justifyContent: "space-between", background: c.bgHeader, position: "sticky", top: 0, zIndex: 10 }}>
         <div>
           <div style={{ fontSize: "10px", letterSpacing: "0.2em", textTransform: "uppercase", color: c.accent, marginBottom: "2px", fontFamily: SANS, fontWeight: 600 }}>Body as Soul Tech</div>
           <div style={{ fontSize: "17px", fontWeight: 700, color: c.textPrimary, fontFamily: SANS }}>Know Yourself</div>
         </div>
-        <div>
+        <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
+          {isFree && !showPaywall && (
+            <div style={{ fontSize: "11px", color: c.textMuted, fontFamily: SANS }}>
+              {FREE_RESPONSE_LIMIT - freeResponsesUsed} free {FREE_RESPONSE_LIMIT - freeResponsesUsed === 1 ? "response" : "responses"} remaining
+            </div>
+          )}
           {messages.length > 0 && (
             <button onClick={clearHistory} style={{ background: "transparent", border: `1px solid ${c.borderMid}`, color: c.textMuted, padding: "6px 14px", borderRadius: "4px", fontSize: "12px", cursor: "pointer", fontFamily: SANS, fontWeight: 500 }}>
               Clear history
