@@ -4,7 +4,7 @@ import { SYSTEM_PROMPT } from "./systemPrompt.js";
 const SANS = "'Plus Jakarta Sans','system-ui',sans-serif";
 const SERIF = "'Crimson Text','Georgia',serif";
 const ACCESS_PASSWORD = "bodyspeak";
-const FREE_RESPONSE_LIMIT = 1;
+const FREE_RESPONSE_LIMIT = 2;
 
 async function validateLicenseKey(key) {
   return key.trim().toLowerCase() === ACCESS_PASSWORD;
@@ -181,13 +181,13 @@ export default function BASTInterpreter() {
     <div style={{ minHeight: "100vh", background: c.bg, color: c.textPrimary, fontFamily: SERIF, display: "flex", flexDirection: "column" }}>
 
       {showPaywall && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(30,26,22,0.6)", zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", padding: "1.5rem" }}>
+        <div style={{ position: "fixed", inset: 0, background: "rgba(30,26,22,0.85)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", padding: "1.5rem" }}>
           <div style={{ background: "#faf8f4", borderRadius: "12px", padding: "2.5rem", maxWidth: "480px", width: "100%", textAlign: "center" }}>
             <div style={{ fontSize: "11px", fontWeight: 600, letterSpacing: "0.2em", textTransform: "uppercase", color: c.accent, marginBottom: "0.75rem", fontFamily: SANS }}>
               Body as Soul Tech
             </div>
             <div style={{ fontSize: "24px", fontWeight: 700, color: c.textPrimary, marginBottom: "1rem", fontFamily: SANS, lineHeight: 1.2 }}>
-              You've experienced your free response
+              You've experienced your 2 free responses
             </div>
             <div style={{ fontSize: "18px", color: c.textSecondary, lineHeight: 1.75, fontFamily: SERIF, marginBottom: "1.75rem" }}>
               Unlock unlimited conversations — your body, your life, your relationships, and your deepest questions, interpreted through a soul lens.
