@@ -6,6 +6,16 @@ const SERIF = "'Crimson Text','Georgia',serif";
 const ACCESS_PASSWORD = "bodyspeak";
 const FREE_RESPONSE_LIMIT = 2;
 
+const LOADING_MESSAGES = [
+  "Reading what your soul is communicating…",
+  "Translating the body’s language…",
+  "Finding the pattern underneath the symptom…",
+  "Listening to what’s been trying to reach you…",
+  "Your body has been speaking. We’re listening…",
+  "Tracing the soul’s message through the body…",
+  "Uncovering what the pattern is pointing to…",
+];
+
 async function validateLicenseKey(key) {
   return key.trim().toLowerCase() === ACCESS_PASSWORD;
 }
@@ -33,6 +43,8 @@ export default function BASTInterpreter() {
   const [licenseLoading, setLicenseLoading] = useState(false);
 
   const messagesEndRef = useRef(null);
+  const [loadingMessage, setLoadingMessage] = useState(LOADING_MESSAGES[0]);
+  const loadingIntervalRef = useRef(null);
 
   const c = {
     bg: "#faf8f4",
@@ -55,7 +67,18 @@ export default function BASTInterpreter() {
   const hitLimit = isFree && freeResponsesUsed >= FREE_RESPONSE_LIMIT;
 
   useEffect(() => {
-    if (loading) messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (loading) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      let i = 0;
+      loadingIntervalRef.current = setInterval(() => {
+        i = (i + 1) % LOADING_MESSAGES.length;
+        setLoadingMessage(LOADING_MESSAGES[i]);
+      }, 2800);
+    } else {
+      clearInterval(loadingIntervalRef.current);
+      setLoadingMessage(LOADING_MESSAGES[0]);
+    }
+    return () => clearInterval(loadingIntervalRef.current);
   }, [loading]);
 
   // Auto-submit if landing page passed a query parameter
@@ -349,10 +372,13 @@ export default function BASTInterpreter() {
             {loading && (
               <div style={{ display: "flex", gap: "12px", alignItems: "flex-start", marginBottom: "2rem" }}>
                 <div style={{ width: "28px", height: "28px", borderRadius: "50%", background: c.accentLight, border: `1px solid ${c.borderMid}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", color: c.accent, flexShrink: 0 }}>&#10022;</div>
-                <div style={{ paddingTop: "8px", display: "flex", gap: "5px" }}>
-                  {[0, 1, 2].map(i => (
-                    <div key={i} style={{ width: "6px", height: "6px", borderRadius: "50%", background: c.accent, animation: `bast-pulse 1.2s ease-in-out ${i * 0.2}s infinite`, opacity: 0.45 }} />
-                  ))}
+                <div style={{ paddingTop: "4px" }}>
+                  <div style={{ fontSize: "16px", fontFamily: SERIF, color: c.textSecondary, fontStyle: "italic", marginBottom: "6px", transition: "opacity 0.5s" }}>{loadingMessage}</div>
+                  <div style={{ display: "flex", gap: "5px" }}>
+                    {[0, 1, 2].map(i => (
+                      <div key={i} style={{ width: "5px", height: "5px", borderRadius: "50%", background: c.accent, animation: `bast-pulse 1.2s ease-in-out ${i * 0.2}s infinite`, opacity: 0.45 }} />
+                    ))}
+                  </div>
                 </div>
               </div>
             )}
