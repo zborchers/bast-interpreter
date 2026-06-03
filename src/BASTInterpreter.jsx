@@ -293,10 +293,10 @@ export default function BASTInterpreter() {
                 Know Yourself
               </div>
               <div style={{ fontSize: "27px", fontWeight: 700, color: c.textPrimary, marginBottom: "1.25rem", lineHeight: 1.2, fontFamily: SANS, letterSpacing: "-0.01em" }}>
-                What is going on in your life?
+                What is your soul trying to tell you?
               </div>
               <div style={{ fontSize: "18px", color: c.textSecondary, lineHeight: 1.85, fontFamily: SERIF }}>
-                Describe what is happening in your body, your life, your relationships, or your inner world. You can ask me anything you want to understand about the soul, the body, and how you are designed.
+                Your soul speaks through your body, your patterns, your relationships, and the questions that won't leave you alone. Describe what's been showing up — and we'll tell you what it means.
               </div>
             </div>
 
@@ -305,7 +305,7 @@ export default function BASTInterpreter() {
                 value={input}
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Describe what is going on in your life..."
+                placeholder="What keeps showing up in your body, your life, or your mind that you can't explain?"
                 rows={5}
                 style={{ background: "transparent", border: "none", outline: "none", color: c.textPrimary, fontSize: "18px", fontFamily: SERIF, lineHeight: 1.7, resize: "none", width: "100%" }}
               />
