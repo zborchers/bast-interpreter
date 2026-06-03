@@ -74,7 +74,7 @@ export default function BASTInterpreter() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "claude-opus-4-8",
+          model: "claude-sonnet-4-6",
           max_tokens: 4000,
           system: SYSTEM_PROMPT,
           messages: [userMessage],
@@ -151,7 +151,7 @@ export default function BASTInterpreter() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "claude-opus-4-8",
+          model: "claude-sonnet-4-6",
           max_tokens: 4000,
           system: SYSTEM_PROMPT,
           messages: newMessages,
