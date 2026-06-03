@@ -274,7 +274,7 @@ export default function BASTInterpreter() {
         <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
           {isFree && !showPaywall && (
             <div style={{ fontSize: "11px", color: c.textMuted, fontFamily: SANS }}>
-              {FREE_RESPONSE_LIMIT - freeResponsesUsed} free {FREE_RESPONSE_LIMIT - freeResponsesUsed === 1 ? "response" : "responses"} remaining
+              1 free response remaining
             </div>
           )}
           {messages.length > 0 && (
