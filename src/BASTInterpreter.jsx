@@ -58,6 +58,45 @@ export default function BASTInterpreter() {
     if (loading) messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [loading]);
 
+  // Auto-submit if landing page passed a query parameter
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const q = params.get('q');
+    if (q && messages.length === 0) {
+      // Clean the URL without reloading
+      window.history.replaceState({}, '', window.location.pathname);
+      // Auto-submit the message
+      const userMessage = { role: "user", content: q };
+      setMessages([userMessage]);
+      setInput("");
+      setLoading(true);
+      fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-5",
+          max_tokens: 4000,
+          system: SYSTEM_PROMPT,
+          messages: [userMessage],
+        }),
+      })
+        .then(r => r.json())
+        .then(data => {
+          const text = data.content?.find(b => b.type === "text")?.text || "Something went wrong. Please try again.";
+          setMessages([userMessage, { role: "assistant", content: text }]);
+          if (isFree) {
+            const newCount = freeResponsesUsed + 1;
+            setFreeResponsesUsed(newCount);
+            if (newCount >= FREE_RESPONSE_LIMIT) setShowPaywall(true);
+          }
+        })
+        .catch(() => {
+          setMessages([userMessage, { role: "assistant", content: "There was a connection error. Please try again." }]);
+        })
+        .finally(() => setLoading(false));
+    }
+  }, []);
+
   useEffect(() => {
     try { localStorage.setItem('bast_messages', JSON.stringify(messages)); }
     catch {}
