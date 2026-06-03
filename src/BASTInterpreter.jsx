@@ -4,7 +4,7 @@ import { SYSTEM_PROMPT } from "./systemPrompt.js";
 const SANS = "'Plus Jakarta Sans','system-ui',sans-serif";
 const SERIF = "'Crimson Text','Georgia',serif";
 const ACCESS_PASSWORD = "bodyspeak";
-const FREE_RESPONSE_LIMIT = 2;
+const FREE_RESPONSE_LIMIT = 1;
 
 async function validateLicenseKey(key) {
   return key.trim().toLowerCase() === ACCESS_PASSWORD;
@@ -187,7 +187,7 @@ export default function BASTInterpreter() {
               Body as Soul Tech
             </div>
             <div style={{ fontSize: "24px", fontWeight: 700, color: c.textPrimary, marginBottom: "1rem", fontFamily: SANS, lineHeight: 1.2 }}>
-              You've experienced your 2 free responses
+              You've experienced your free response
             </div>
             <div style={{ fontSize: "18px", color: c.textSecondary, lineHeight: 1.75, fontFamily: SERIF, marginBottom: "1.75rem" }}>
               Unlock unlimited conversations — your body, your life, your relationships, and your deepest questions, interpreted through a soul lens.
