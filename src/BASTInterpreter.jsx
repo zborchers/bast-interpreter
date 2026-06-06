@@ -6,6 +6,12 @@ const SERIF = "'Crimson Text','Georgia',serif";
 const ACCESS_PASSWORD = "bodyspeak";
 const FREE_RESPONSE_LIMIT = 2;
 
+const trackEvent = (eventName, params = {}) => {
+  if (typeof window.gtag === 'function') {
+    window.gtag('event', eventName, params);
+  }
+};
+
 const LOADING_MESSAGES = [
   "Reading what your soul is communicating…",
   "Translating the body’s language…",
@@ -150,7 +156,9 @@ export default function BASTInterpreter() {
     if (valid) {
       setUnlocked(true);
       setShowPaywall(false);
+      trackEvent('unlock_success');
     } else {
+      trackEvent('unlock_failed');
       setLicenseError("That password doesn't appear to be correct. Please check your purchase confirmation email and try again.");
     }
     setLicenseLoading(false);
@@ -169,6 +177,14 @@ export default function BASTInterpreter() {
     setMessages(newMessages);
     setInput("");
     setLoading(true);
+
+    // Track message sent
+    if (messages.length === 0) {
+      trackEvent('first_message_sent', { free_user: isFree });
+    } else {
+      trackEvent('follow_up_message_sent', { message_number: messages.filter(m => m.role === 'user').length + 1 });
+    }
+
     try {
       const response = await fetch("/api/chat", {
         method: "POST",
@@ -186,7 +202,10 @@ export default function BASTInterpreter() {
       if (isFree) {
         const newCount = freeResponsesUsed + 1;
         setFreeResponsesUsed(newCount);
-        if (newCount >= FREE_RESPONSE_LIMIT) setShowPaywall(true);
+        if (newCount >= FREE_RESPONSE_LIMIT) {
+          setShowPaywall(true);
+          trackEvent('paywall_shown');
+        }
       }
     } catch {
       setMessages(prev => [...prev, { role: "assistant", content: "There was a connection error. Please try again." }]);
