@@ -76,9 +76,9 @@ function Disclaimer() {
 // ---- QUESTION WIZARD SCREEN (also hoisted — this is the one that was
 // causing the reversed-typing bug in the free-text answers) ----
 
-function QuestionScreen({ questions, index, tierLabel, loading, textDraft, setTextDraft, handleTextKeyDown, selectT1, submitT1Text, submitT2Text, skipT2 }) {
+function QuestionScreen({ questions, index, tierLabel, loading, textDraft, setTextDraft, handleTextKeyDown, multiSelected, toggleMultiSelect1, submitT1Multi, submitT2Text, skipT2 }) {
   const q = questions[index];
-  const isSelect = q.type === "select";
+  const isMultiSelect = q.type === "multiselect";
 
   return (
     <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "2rem 1.5rem" }}>
@@ -95,6 +95,11 @@ function QuestionScreen({ questions, index, tierLabel, loading, textDraft, setTe
               {q.hint}
             </div>
           )}
+          {isMultiSelect && (
+            <div style={{ fontSize: "12px", color: c.textMuted, marginTop: "0.5rem", fontFamily: SANS, fontStyle: "italic" }}>
+              Select all that apply
+            </div>
+          )}
           {q.optional && (
             <div style={{ fontSize: "12px", color: c.accentPop, marginTop: "0.5rem", fontFamily: SANS, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }}>
               Optional — skip if unsure
@@ -102,18 +107,56 @@ function QuestionScreen({ questions, index, tierLabel, loading, textDraft, setTe
           )}
         </div>
 
-        {isSelect ? (
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", justifyContent: "center" }}>
-            {q.options.map(opt => (
-              <button
-                key={opt}
-                onClick={() => selectT1(opt)}
-                disabled={loading}
-                style={{ background: c.bgInput, border: `1px solid ${c.borderMid}`, borderRadius: "10px", padding: "12px 20px", fontSize: "16px", color: c.textPrimary, cursor: loading ? "default" : "pointer", fontFamily: SERIF, transition: "all 0.15s" }}
-              >
-                {opt}
-              </button>
-            ))}
+        {isMultiSelect ? (
+          <div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", justifyContent: "center", marginBottom: "1.1rem" }}>
+              {q.options.map(opt => {
+                const selected = multiSelected.includes(opt);
+                return (
+                  <button
+                    key={opt}
+                    onClick={() => toggleMultiSelect1(opt)}
+                    disabled={loading}
+                    style={{
+                      background: selected ? c.accent : c.bgInput,
+                      border: `1.5px solid ${selected ? c.accent : c.borderMid}`,
+                      borderRadius: "10px",
+                      padding: "12px 20px",
+                      fontSize: "16px",
+                      color: selected ? "#fff" : c.textPrimary,
+                      cursor: loading ? "default" : "pointer",
+                      fontFamily: SERIF,
+                      fontWeight: selected ? 600 : 400,
+                      transition: "all 0.15s",
+                    }}
+                  >
+                    {selected ? "✓ " : ""}{opt}
+                  </button>
+                );
+              })}
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px", background: c.bgInput, border: `1px solid ${c.borderMid}`, borderRadius: "12px", padding: "12px 16px" }}>
+              <div style={{ fontSize: "12px", color: c.textMuted, fontFamily: SANS, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                {q.detailLabel || "Anything else to add? (optional)"}
+              </div>
+              <textarea
+                value={textDraft}
+                onChange={e => setTextDraft(e.target.value)}
+                onKeyDown={handleTextKeyDown(submitT1Multi)}
+                placeholder="Type here..."
+                rows={3}
+                style={{ background: "transparent", border: "none", outline: "none", color: c.textPrimary, fontSize: "17px", fontFamily: SERIF, lineHeight: 1.7, resize: "none", width: "100%" }}
+              />
+              <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                <button
+                  onClick={submitT1Multi}
+                  disabled={loading}
+                  style={{ background: loading ? c.accentMid : c.accent, border: "none", borderRadius: "4px", padding: "8px 20px", cursor: loading ? "default" : "pointer", color: loading ? c.textMuted : "#fff", fontSize: "13px", fontFamily: SANS, fontWeight: 700, letterSpacing: "0.04em", transition: "all 0.15s" }}
+                >
+                  {loading ? "Reading…" : "Next \u2192"}
+                </button>
+              </div>
+            </div>
           </div>
         ) : (
           <div>
@@ -135,7 +178,7 @@ function QuestionScreen({ questions, index, tierLabel, loading, textDraft, setTe
               <textarea
                 value={textDraft}
                 onChange={e => setTextDraft(e.target.value)}
-                onKeyDown={handleTextKeyDown(tierLabel === "Free Reading" ? submitT1Text : submitT2Text)}
+                onKeyDown={handleTextKeyDown(submitT2Text)}
                 placeholder="Tap a suggestion above, or type your own answer here..."
                 rows={4}
                 autoFocus
@@ -148,15 +191,15 @@ function QuestionScreen({ questions, index, tierLabel, loading, textDraft, setTe
                   </button>
                 ) : <div />}
                 <button
-                  onClick={tierLabel === "Free Reading" ? submitT1Text : submitT2Text}
-                disabled={loading}
-                style={{ background: loading ? c.accentMid : c.accent, border: "none", borderRadius: "4px", padding: "8px 20px", cursor: loading ? "default" : "pointer", color: loading ? c.textMuted : "#fff", fontSize: "13px", fontFamily: SANS, fontWeight: 700, letterSpacing: "0.04em", transition: "all 0.15s" }}
-              >
-                {loading ? "Reading…" : "Next \u2192"}
-              </button>
+                  onClick={submitT2Text}
+                  disabled={loading}
+                  style={{ background: loading ? c.accentMid : c.accent, border: "none", borderRadius: "4px", padding: "8px 20px", cursor: loading ? "default" : "pointer", color: loading ? c.textMuted : "#fff", fontSize: "13px", fontFamily: SANS, fontWeight: 700, letterSpacing: "0.04em", transition: "all 0.15s" }}
+                >
+                  {loading ? "Reading…" : "Next \u2192"}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
         )}
         <Disclaimer />
       </div>
@@ -175,7 +218,7 @@ function Transcript({ messages, loading, messagesEndRef, ctaSlot }) {
             {msg.role === "user" ? (
               <div style={{ display: "flex", justifyContent: "flex-end" }}>
                 <div style={{ background: c.userBubble, border: `1px solid ${c.userBubbleBorder}`, borderRadius: "14px 14px 2px 14px", padding: "12px 18px", maxWidth: "85%", fontSize: "15px", lineHeight: 1.65, color: c.textSecondary, whiteSpace: "pre-wrap", fontFamily: SERIF }}>
-                  {msg.content}
+                  {msg.display || msg.content}
                 </div>
               </div>
             ) : (
@@ -212,8 +255,9 @@ function Transcript({ messages, loading, messagesEndRef, ctaSlot }) {
 const QUESTIONS_TIER1 = [
   {
     id: "region",
-    type: "select",
+    type: "multiselect",
     q: "Where in the body is this happening?",
+    detailLabel: "Anything else to add about where or how it shows up? (optional)",
     options: [
       "Head / Mind", "Neck / Throat", "Shoulders", "Chest / Heart",
       "Upper Back", "Lower Back", "Abdomen / Gut", "Hips / Pelvis",
@@ -222,32 +266,38 @@ const QUESTIONS_TIER1 = [
   },
   {
     id: "side",
-    type: "select",
+    type: "multiselect",
     q: "Is it more on the left side, the right side, centered, or on both sides?",
+    detailLabel: "Anything else to add? (optional)",
     options: ["Left side", "Right side", "Centered", "Both sides"],
   },
   {
     id: "plane",
-    type: "select",
+    type: "multiselect",
     q: "Do you feel it more toward the front, more toward the back, or both at once?",
+    detailLabel: "Anything else to add? (optional)",
     options: ["Front", "Back", "Both at once"],
   },
   {
     id: "quality",
-    type: "select",
+    type: "multiselect",
     q: "How would you describe it?",
+    detailLabel: "Anything else to add about how it feels? (optional)",
     options: ["Sharp", "Dull ache", "Burning", "Tight", "Throbbing", "Numb", "Cramping", "Tingling"],
   },
   {
     id: "pattern",
-    type: "select",
+    type: "multiselect",
     q: "Is this the first time you've had this, does it come and go, or is it constant / ongoing?",
+    detailLabel: "Anything else to add about the pattern? (optional)",
     options: ["First time", "Comes and goes", "Constant / ongoing"],
   },
   {
     id: "context",
-    type: "text",
+    type: "multiselect",
     q: "What's actually going on in your life right now — what's been on your mind or on your plate?",
+    detailLabel: "Explain more — what's going on, specifically?",
+    options: ["Work stress", "Relationship or family stress", "Grief or loss", "Major life transition", "Financial stress", "Caregiving responsibilities"],
   },
 ];
 
@@ -361,12 +411,20 @@ const QUESTIONS_TIER2 = [
   },
 ];
 
+function formatAnswerValue(ans) {
+  if (ans && typeof ans === "object" && ("selected" in ans || "detail" in ans)) {
+    const parts = [];
+    if (ans.selected && ans.selected.length) parts.push(ans.selected.join(", "));
+    if (ans.detail && ans.detail.trim()) parts.push(`Additional detail: ${ans.detail.trim()}`);
+    return parts.length ? parts.join(" — ") : "(skipped)";
+  }
+  const trimmed = (ans || "").toString().trim();
+  return trimmed ? trimmed : "(skipped)";
+}
+
 function compileAnswers(questions, answers) {
   return questions
-    .map(q => {
-      const val = (answers[q.id] || "").trim();
-      return `${q.q}\n${val ? val : "(skipped)"}`;
-    })
+    .map(q => `${q.q}\n${formatAnswerValue(answers[q.id])}`)
     .join("\n\n");
 }
 
@@ -403,14 +461,33 @@ const CONTEXT_KEYWORD_TAGS = {
   financial: ["money", "debt", "bills", "financial", "afford"],
 };
 
+const CONTEXT_CHIP_TAGS = {
+  "Work stress": ["work"],
+  "Relationship or family stress": ["relationship"],
+  "Grief or loss": ["relationship"],
+  "Major life transition": ["fear of change"],
+  "Financial stress": ["financial"],
+  "Caregiving responsibilities": ["caregiving"],
+};
+
 function buildTier1Signals(answersT1) {
   const signals = new Set();
-  (REGION_SIGNAL_TAGS[answersT1.region] || []).forEach(t => signals.add(t));
-  (PATTERN_SIGNAL_TAGS[answersT1.pattern] || []).forEach(t => signals.add(t));
-  const context = (answersT1.context || "").toLowerCase();
+
+  const regionSelected = (answersT1.region && answersT1.region.selected) || [];
+  regionSelected.forEach(r => (REGION_SIGNAL_TAGS[r] || []).forEach(t => signals.add(t)));
+
+  const patternSelected = (answersT1.pattern && answersT1.pattern.selected) || [];
+  patternSelected.forEach(p => (PATTERN_SIGNAL_TAGS[p] || []).forEach(t => signals.add(t)));
+
+  const contextAnswer = answersT1.context || {};
+  const contextSelected = contextAnswer.selected || [];
+  contextSelected.forEach(chip => (CONTEXT_CHIP_TAGS[chip] || []).forEach(t => signals.add(t)));
+
+  const contextDetail = (contextAnswer.detail || "").toLowerCase();
   Object.entries(CONTEXT_KEYWORD_TAGS).forEach(([tag, words]) => {
-    if (words.some(w => context.includes(w))) signals.add(tag);
+    if (words.some(w => contextDetail.includes(w))) signals.add(tag);
   });
+
   return signals;
 }
 
@@ -462,6 +539,7 @@ export default function BASTInterpreter() {
   const [t1Index, setT1Index] = useState(0);
   const [t2Index, setT2Index] = useState(0);
   const [answersT1, setAnswersT1] = useState({});
+  const [multiSelected, setMultiSelected] = useState([]);
   const [answersT2, setAnswersT2] = useState({});
   const [tier2Questions, setTier2Questions] = useState(QUESTIONS_TIER2);
   const [textDraft, setTextDraft] = useState("");
@@ -488,6 +566,7 @@ export default function BASTInterpreter() {
   const clearHistory = () => {
     setMessages([]);
     setAnswersT1({});
+    setMultiSelected([]);
     setAnswersT2({});
     setT1Index(0);
     setT2Index(0);
@@ -535,19 +614,19 @@ export default function BASTInterpreter() {
       || "Something went wrong. Please try again.";
   }
 
-  // ---- TIER 1 SELECT/TEXT ANSWER HANDLING ----
+  // ---- TIER 1 MULTI-SELECT ANSWER HANDLING ----
 
-  const selectT1 = (option) => {
-    const q = QUESTIONS_TIER1[t1Index];
-    const latest = { ...answersT1, [q.id]: option };
-    setAnswersT1(latest);
-    advanceT1(latest);
+  const toggleMultiSelect1 = (option) => {
+    setMultiSelected(prev =>
+      prev.includes(option) ? prev.filter(o => o !== option) : [...prev, option]
+    );
   };
 
-  const submitT1Text = () => {
+  const submitT1Multi = () => {
     const q = QUESTIONS_TIER1[t1Index];
-    const latest = { ...answersT1, [q.id]: textDraft };
+    const latest = { ...answersT1, [q.id]: { selected: multiSelected, detail: textDraft } };
     setAnswersT1(latest);
+    setMultiSelected([]);
     setTextDraft("");
     advanceT1(latest);
   };
@@ -559,6 +638,7 @@ export default function BASTInterpreter() {
     const userMsg = {
       role: "user",
       content: `Here is the intake for an Initial Reading:\n\n${compiled}\n\nProvide an Initial Reading based on this intake.`,
+      display: compiled,
     };
     const newMessages = [...messages, userMsg];
     setMessages(newMessages);
@@ -584,6 +664,8 @@ export default function BASTInterpreter() {
   // Pick up Tier 1 answers passed in via URL params (e.g. from a landing-page
   // quiz) so a returning visitor doesn't have to answer the same six
   // questions twice. Only fires once, on a completely fresh session.
+  // Each question's selections arrive as "id=Option A||Option B" (pipe-
+  // separated, URL-encoded) with an optional "id_detail=..." param.
   useEffect(() => {
     if (messages.length > 0 || t1Index > 0) return;
     try {
@@ -591,7 +673,12 @@ export default function BASTInterpreter() {
       const ids = QUESTIONS_TIER1.map(q => q.id);
       if (ids.every(id => params.get(id))) {
         const fromUrl = {};
-        ids.forEach(id => { fromUrl[id] = params.get(id); });
+        ids.forEach(id => {
+          const raw = params.get(id) || "";
+          const selected = raw.split("||").map(s => s.trim()).filter(Boolean);
+          const detail = params.get(`${id}_detail`) || "";
+          fromUrl[id] = { selected, detail };
+        });
         setAnswersT1(fromUrl);
         fetchInitialReading(fromUrl);
       }
@@ -631,6 +718,7 @@ export default function BASTInterpreter() {
       const userMsg = {
         role: "user",
         content: `The person would like to go deeper. Here are additional intake answers for a full Root Cause Reading:\n\n${compiled}\n\nUsing everything shared so far — the original symptom details and this deeper context — provide a complete Root Cause Reading using the full Deep Reading sequence: location, power, shadow, and synthesized soul message.`,
+        display: compiled,
       };
       const newMessages = [...messages, userMsg];
       setMessages(newMessages);
@@ -642,11 +730,13 @@ export default function BASTInterpreter() {
         setMessages(prev => [...prev, { role: "assistant", content: "There was a connection error. Please try again." }]);
       }
     } else {
-      // Any other Tier 2 answer — request a brief reflection on just this one.
+      // Any other Tier 2 answer — request an in-depth reflection on just this one.
       const trimmed = answerText.trim();
+      const answerLine = trimmed ? trimmed : "(skipped)";
       const userMsg = {
         role: "user",
-        content: `${q.q}\n${trimmed ? trimmed : "(skipped)"}\n\nOffer a brief reflection (2-4 sentences) connecting this specific answer to the pattern already established. Don't provide the full synthesis yet — more questions are coming.`,
+        content: `${q.q}\n${answerLine}\n\nThis is paid, in-depth work — offer a thorough reflection (several substantial paragraphs) connecting this specific answer to the pattern already established. Go deep on this answer specifically. Don't provide the full synthesis yet — more questions are coming.`,
+        display: `${q.q}\n${answerLine}`,
       };
       const newMessages = [...messages, userMsg];
       setMessages(newMessages);
@@ -708,7 +798,7 @@ export default function BASTInterpreter() {
             </div>
           </div>
         )}
-        <QuestionScreen questions={QUESTIONS_TIER1} index={t1Index} tierLabel="Free Reading" loading={loading} textDraft={textDraft} setTextDraft={setTextDraft} handleTextKeyDown={handleTextKeyDown} selectT1={selectT1} submitT1Text={submitT1Text} submitT2Text={submitT2Text} skipT2={skipT2} />
+        <QuestionScreen questions={QUESTIONS_TIER1} index={t1Index} tierLabel="Free Reading" loading={loading} textDraft={textDraft} setTextDraft={setTextDraft} handleTextKeyDown={handleTextKeyDown} multiSelected={multiSelected} toggleMultiSelect1={toggleMultiSelect1} submitT1Multi={submitT1Multi} submitT2Text={submitT2Text} skipT2={skipT2} />
         <style>{`* { box-sizing: border-box; } body { margin: 0; } textarea::placeholder { color: rgba(30,26,22,0.3); }`}</style>
       </div>
     );
@@ -820,7 +910,7 @@ export default function BASTInterpreter() {
     return (
       <div style={{ minHeight: "100vh", background: c.bg, color: c.textPrimary, fontFamily: SERIF, display: "flex", flexDirection: "column" }}>
         <Header messages={messages} t1Index={t1Index} clearHistory={clearHistory} />
-        <QuestionScreen questions={tier2Questions} index={t2Index} tierLabel="Root Cause" loading={loading} textDraft={textDraft} setTextDraft={setTextDraft} handleTextKeyDown={handleTextKeyDown} selectT1={selectT1} submitT1Text={submitT1Text} submitT2Text={submitT2Text} skipT2={skipT2} />
+        <QuestionScreen questions={tier2Questions} index={t2Index} tierLabel="Root Cause" loading={loading} textDraft={textDraft} setTextDraft={setTextDraft} handleTextKeyDown={handleTextKeyDown} multiSelected={multiSelected} toggleMultiSelect1={toggleMultiSelect1} submitT1Multi={submitT1Multi} submitT2Text={submitT2Text} skipT2={skipT2} />
         <style>{`* { box-sizing: border-box; } body { margin: 0; } textarea::placeholder { color: rgba(30,26,22,0.3); }`}</style>
       </div>
     );
