@@ -27,7 +27,13 @@ const c = {
 };
 
 function formatMessage(content) {
-  const parts = content.split(/(Guiding Question[:\s]*)/i);
+  // A per-turn conversational question, tagged by the model so it can be
+  // visually set apart from the surrounding reflection.
+  const qMatch = content.match(/\[\[Q\]\]([\s\S]*?)\[\[\/Q\]\]/i);
+  const mainText = qMatch ? content.replace(qMatch[0], "").trim() : content;
+  const questionText = qMatch ? qMatch[1].trim() : null;
+
+  const parts = mainText.split(/(Guiding Question[:\s]*)/i);
   if (parts.length > 1) {
     return (
       <>
@@ -43,7 +49,22 @@ function formatMessage(content) {
       </>
     );
   }
-  return <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.82 }}>{content}</div>;
+
+  return (
+    <>
+      <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.82 }}>{mainText}</div>
+      {questionText && (
+        <div style={{ marginTop: "1.25rem", padding: "0.9rem 1.1rem", background: c.accentLight, borderLeft: `3px solid ${c.accent}`, borderRadius: "0 8px 8px 0" }}>
+          <div style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.15em", textTransform: "uppercase", color: c.accent, marginBottom: "0.35rem", fontFamily: SANS }}>
+            Question
+          </div>
+          <div style={{ fontSize: "17px", lineHeight: 1.65, color: c.textPrimary, fontFamily: SERIF }}>
+            {questionText}
+          </div>
+        </div>
+      )}
+    </>
+  );
 }
 
 // ---- SHARED HEADER (hoisted to module scope so it isn't recreated, and
@@ -180,7 +201,7 @@ function QuestionScreen({ questions, index, tierLabel, loading, textDraft, setTe
 
 function Tier2ProgressBar({ progress }) {
   return (
-    <div style={{ marginBottom: "0.6rem" }}>
+    <div style={{ marginBottom: "0.75rem" }}>
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
         <div style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: c.textMuted, fontFamily: SANS }}>
           Root Cause Reading
@@ -189,6 +210,9 @@ function Tier2ProgressBar({ progress }) {
       </div>
       <div style={{ height: "3px", background: c.borderMid, borderRadius: "2px", overflow: "hidden" }}>
         <div style={{ height: "100%", width: `${progress}%`, background: c.accent, transition: "width 0.5s ease" }} />
+      </div>
+      <div style={{ fontSize: "11px", color: c.textMuted, fontFamily: SANS, fontStyle: "italic", marginTop: "5px" }}>
+        Your complete, in-depth reading unlocks at 100% — the more detail you share, the faster it gets there.
       </div>
     </div>
   );
