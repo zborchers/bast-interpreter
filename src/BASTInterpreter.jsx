@@ -27,14 +27,14 @@ const c = {
 };
 
 function formatMessage(content) {
-  const parts = content.split(/(Soul Guidance Question[:\s]*)/i);
+  const parts = content.split(/(Guiding Question[:\s]*)/i);
   if (parts.length > 1) {
     return (
       <>
         <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.82 }}>{parts[0]}</div>
         <div style={{ marginTop: "1.5rem", padding: "1rem 1.25rem", background: "rgba(193,127,58,0.08)", borderLeft: "3px solid #c17f3a", borderRadius: "0 8px 8px 0" }}>
           <div style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.15em", textTransform: "uppercase", color: "#c17f3a", marginBottom: "0.4rem", fontFamily: SANS }}>
-            Soul Guidance Question
+            Guiding Question
           </div>
           <div style={{ fontSize: "18px", fontStyle: "italic", lineHeight: 1.75, color: "#1e1a16", fontFamily: SERIF }}>
             {parts.slice(2).join("").trim()}
@@ -68,7 +68,7 @@ function Header({ messages, t1Index, clearHistory }) {
 function Disclaimer() {
   return (
     <div style={{ textAlign: "center", fontSize: "11px", color: c.textMuted, marginTop: "0.75rem", letterSpacing: "0.03em", fontFamily: SANS }}>
-      Spiritual and energetic interpretation — not a substitute for medical care.
+      Energetic root cause interpretation — not a substitute for medical care.
     </div>
   );
 }
@@ -288,41 +288,45 @@ function InlineTier2Question({ q, index, total, loading, textDraft, setTextDraft
 
 function Transcript({ messages, loading, messagesEndRef, ctaSlot }) {
   return (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", maxWidth: "700px", width: "100%", margin: "0 auto", padding: "0 1.5rem" }}>
-      <div style={{ paddingTop: "2rem" }}>
-        {messages.map((msg, i) => (
-          <div key={i} style={{ marginBottom: "2rem" }}>
-            {msg.role === "user" ? (
-              <div style={{ display: "flex", justifyContent: "flex-end" }}>
-                <div style={{ background: c.userBubble, border: `1px solid ${c.userBubbleBorder}`, borderRadius: "14px 14px 2px 14px", padding: "12px 18px", maxWidth: "85%", fontSize: "15px", lineHeight: 1.65, color: c.textSecondary, whiteSpace: "pre-wrap", fontFamily: SERIF }}>
-                  {msg.display || msg.content}
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", maxWidth: "700px", width: "100%", margin: "0 auto" }}>
+      <div style={{ flex: 1, overflowY: "auto", padding: "0 1.5rem" }}>
+        <div style={{ paddingTop: "2rem" }}>
+          {messages.map((msg, i) => (
+            <div key={i} style={{ marginBottom: "2rem" }}>
+              {msg.role === "user" ? (
+                <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                  <div style={{ background: c.userBubble, border: `1px solid ${c.userBubbleBorder}`, borderRadius: "14px 14px 2px 14px", padding: "12px 18px", maxWidth: "85%", fontSize: "15px", lineHeight: 1.65, color: c.textSecondary, whiteSpace: "pre-wrap", fontFamily: SERIF }}>
+                    {msg.display || msg.content}
+                  </div>
                 </div>
-              </div>
-            ) : (
-              <div style={{ display: "flex", gap: "12px", alignItems: "flex-start" }}>
-                <div style={{ width: "28px", height: "28px", borderRadius: "50%", background: c.accentLight, border: `1px solid ${c.borderMid}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", color: c.accent, flexShrink: 0, marginTop: "2px", fontFamily: SANS }}>&#10022;</div>
-                <div style={{ flex: 1, fontSize: "18px", color: c.textPrimary, fontFamily: SERIF }}>{formatMessage(msg.content)}</div>
-              </div>
-            )}
-          </div>
-        ))}
-
-        {loading && (
-          <div style={{ display: "flex", gap: "12px", alignItems: "flex-start", marginBottom: "2rem" }}>
-            <div style={{ width: "28px", height: "28px", borderRadius: "50%", background: c.accentLight, border: `1px solid ${c.borderMid}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", color: c.accent, flexShrink: 0 }}>&#10022;</div>
-            <div style={{ paddingTop: "8px", display: "flex", gap: "5px" }}>
-              {[0, 1, 2].map(i => (
-                <div key={i} style={{ width: "6px", height: "6px", borderRadius: "50%", background: c.accent, animation: `bast-pulse 1.2s ease-in-out ${i * 0.2}s infinite`, opacity: 0.45 }} />
-              ))}
+              ) : (
+                <div style={{ display: "flex", gap: "12px", alignItems: "flex-start" }}>
+                  <div style={{ width: "28px", height: "28px", borderRadius: "50%", background: c.accentLight, border: `1px solid ${c.borderMid}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", color: c.accent, flexShrink: 0, marginTop: "2px", fontFamily: SANS }}>&#10022;</div>
+                  <div style={{ flex: 1, fontSize: "18px", color: c.textPrimary, fontFamily: SERIF }}>{formatMessage(msg.content)}</div>
+                </div>
+              )}
             </div>
-          </div>
-        )}
-        <div ref={messagesEndRef} />
+          ))}
+
+          {loading && (
+            <div style={{ display: "flex", gap: "12px", alignItems: "flex-start", marginBottom: "2rem" }}>
+              <div style={{ width: "28px", height: "28px", borderRadius: "50%", background: c.accentLight, border: `1px solid ${c.borderMid}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", color: c.accent, flexShrink: 0 }}>&#10022;</div>
+              <div style={{ paddingTop: "8px", display: "flex", gap: "5px" }}>
+                {[0, 1, 2].map(i => (
+                  <div key={i} style={{ width: "6px", height: "6px", borderRadius: "50%", background: c.accent, animation: `bast-pulse 1.2s ease-in-out ${i * 0.2}s infinite`, opacity: 0.45 }} />
+                ))}
+              </div>
+            </div>
+          )}
+          <div ref={messagesEndRef} style={{ paddingBottom: "1rem" }} />
+        </div>
       </div>
 
-      <div style={{ position: "sticky", bottom: 0, background: `linear-gradient(to bottom, transparent, ${c.bg} 28%)`, paddingTop: "2rem", paddingBottom: "1.25rem" }}>
-        {ctaSlot}
-      </div>
+      {ctaSlot && (
+        <div style={{ flexShrink: 0, background: c.bg, borderTop: `1px solid ${c.border}`, padding: "1rem 1.5rem 1.25rem" }}>
+          {ctaSlot}
+        </div>
+      )}
     </div>
   );
 }
@@ -896,7 +900,7 @@ export default function BASTInterpreter() {
       const compiled = compileAnswers(tier2Questions, latestAnswers);
       const userMsg = {
         role: "user",
-        content: `The person would like to go deeper. Here are additional intake answers for a full Root Cause Reading:\n\n${compiled}\n\nUsing everything shared so far — the original symptom details and this deeper context — provide a complete Root Cause Reading using the full Deep Reading sequence: location, power, shadow, and synthesized soul message.`,
+        content: `The person would like to go deeper. Here are additional intake answers for a full Root Cause Reading:\n\n${compiled}\n\nUsing everything shared so far — the original symptom details and this deeper context — provide a complete Root Cause Reading using the full Deep Reading sequence: location, power, shadow, and synthesized energetic root cause message.`,
         display: compiled,
       };
       const newMessages = [...messages, userMsg];
@@ -982,48 +986,51 @@ export default function BASTInterpreter() {
 
   if (step === "paywall" && !unlocked) {
     return (
-      <div style={{ minHeight: "100vh", background: c.bg, color: c.textPrimary, fontFamily: SERIF, display: "flex", flexDirection: "column" }}>
+      <div style={{ height: "100vh", overflow: "hidden", background: c.bg, color: c.textPrimary, fontFamily: SERIF, display: "flex", flexDirection: "column" }}>
         <Header messages={messages} t1Index={t1Index} clearHistory={clearHistory} />
-        <Transcript messages={messages} loading={loading} messagesEndRef={messagesEndRef} ctaSlot={null} />
-        <div style={{ maxWidth: "460px", margin: "0 auto 2.5rem", width: "100%", padding: "0 1.5rem" }}>
-          <div style={{ textAlign: "center", marginBottom: "1.5rem" }}>
-            <div style={{ fontSize: "20px", fontWeight: 700, color: c.textPrimary, marginBottom: "0.5rem", fontFamily: SANS }}>
-              Go deeper: get your Root Cause Reading
+        <Transcript messages={messages} loading={loading} messagesEndRef={messagesEndRef}
+          ctaSlot={
+            <div style={{ maxWidth: "460px", margin: "0 auto", width: "100%" }}>
+              <div style={{ textAlign: "center", marginBottom: "1.5rem" }}>
+                <div style={{ fontSize: "20px", fontWeight: 700, color: c.textPrimary, marginBottom: "0.5rem", fontFamily: SANS }}>
+                  Go deeper: get your Root Cause Reading
+                </div>
+                <div style={{ fontSize: "16px", color: c.textSecondary, lineHeight: 1.7 }}>
+                  Answer 9 more questions and unlock the full root-cause interpretation — the energetic pattern actually driving this symptom.
+                </div>
+              </div>
+              <div style={{ background: c.bgInput, border: `1px solid ${c.borderMid}`, borderRadius: "10px", padding: "1.25rem" }}>
+                <div style={{ fontSize: "12px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: c.textMuted, marginBottom: "0.6rem", fontFamily: SANS }}>
+                  Access Password
+                </div>
+                <input
+                  type="password"
+                  value={licenseKey}
+                  onChange={e => { setLicenseKey(e.target.value); setLicenseError(""); }}
+                  onKeyDown={handleLicenseKeyDown}
+                  placeholder="Enter your access password"
+                  style={{ width: "100%", background: "transparent", border: "none", outline: "none", color: c.textPrimary, fontSize: "16px", fontFamily: SANS, padding: "0.25rem 0" }}
+                />
+              </div>
+              {licenseError && (
+                <div style={{ marginTop: "0.75rem", fontSize: "14px", color: "#b94040", lineHeight: 1.6 }}>{licenseError}</div>
+              )}
+              <button
+                onClick={handleLicenseSubmit}
+                disabled={!licenseKey.trim() || licenseLoading}
+                style={{ width: "100%", marginTop: "1rem", background: licenseKey.trim() && !licenseLoading ? c.accent : c.accentMid, border: "none", borderRadius: "6px", padding: "14px", fontSize: "15px", color: licenseKey.trim() && !licenseLoading ? "#fff" : c.textMuted, cursor: licenseKey.trim() && !licenseLoading ? "pointer" : "default", fontFamily: SANS, fontWeight: 700, letterSpacing: "0.04em" }}
+              >
+                {licenseLoading ? "Verifying..." : "Unlock Root Cause Reading \u2192"}
+              </button>
+              <div style={{ textAlign: "center", marginTop: "1.5rem", fontSize: "14px", color: c.textMuted, fontFamily: SERIF }}>
+                Don't have an access password?{" "}
+                <a href="https://zborchster.gumroad.com/l/dxrekr" style={{ color: c.accent, textDecoration: "underline" }}>
+                  Purchase access here
+                </a>
+              </div>
             </div>
-            <div style={{ fontSize: "16px", color: c.textSecondary, lineHeight: 1.7 }}>
-              Answer 9 more questions and unlock the full root-cause interpretation — the energetic pattern actually driving this symptom.
-            </div>
-          </div>
-          <div style={{ background: c.bgInput, border: `1px solid ${c.borderMid}`, borderRadius: "10px", padding: "1.25rem" }}>
-            <div style={{ fontSize: "12px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: c.textMuted, marginBottom: "0.6rem", fontFamily: SANS }}>
-              Access Password
-            </div>
-            <input
-              type="password"
-              value={licenseKey}
-              onChange={e => { setLicenseKey(e.target.value); setLicenseError(""); }}
-              onKeyDown={handleLicenseKeyDown}
-              placeholder="Enter your access password"
-              style={{ width: "100%", background: "transparent", border: "none", outline: "none", color: c.textPrimary, fontSize: "16px", fontFamily: SANS, padding: "0.25rem 0" }}
-            />
-          </div>
-          {licenseError && (
-            <div style={{ marginTop: "0.75rem", fontSize: "14px", color: "#b94040", lineHeight: 1.6 }}>{licenseError}</div>
-          )}
-          <button
-            onClick={handleLicenseSubmit}
-            disabled={!licenseKey.trim() || licenseLoading}
-            style={{ width: "100%", marginTop: "1rem", background: licenseKey.trim() && !licenseLoading ? c.accent : c.accentMid, border: "none", borderRadius: "6px", padding: "14px", fontSize: "15px", color: licenseKey.trim() && !licenseLoading ? "#fff" : c.textMuted, cursor: licenseKey.trim() && !licenseLoading ? "pointer" : "default", fontFamily: SANS, fontWeight: 700, letterSpacing: "0.04em" }}
-          >
-            {licenseLoading ? "Verifying..." : "Unlock Root Cause Reading \u2192"}
-          </button>
-          <div style={{ textAlign: "center", marginTop: "1.5rem", fontSize: "14px", color: c.textMuted, fontFamily: SERIF }}>
-            Don't have an access password?{" "}
-            <a href="https://zborchster.gumroad.com/l/dxrekr" style={{ color: c.accent, textDecoration: "underline" }}>
-              Purchase access here
-            </a>
-          </div>
-        </div>
+          }
+        />
       </div>
     );
   }
@@ -1032,7 +1039,7 @@ export default function BASTInterpreter() {
 
   if (step === "post-initial" && !loading) {
     return (
-      <div style={{ minHeight: "100vh", background: c.bg, color: c.textPrimary, fontFamily: SERIF, display: "flex", flexDirection: "column" }}>
+      <div style={{ height: "100vh", overflow: "hidden", background: c.bg, color: c.textPrimary, fontFamily: SERIF, display: "flex", flexDirection: "column" }}>
         <Header messages={messages} t1Index={t1Index} clearHistory={clearHistory} />
         <Transcript messages={messages} loading={loading} messagesEndRef={messagesEndRef}
           ctaSlot={
@@ -1059,7 +1066,7 @@ export default function BASTInterpreter() {
   if (step === "tier2" && !loading) {
     const q = tier2Questions[t2Index];
     return (
-      <div style={{ minHeight: "100vh", background: c.bg, color: c.textPrimary, fontFamily: SERIF, display: "flex", flexDirection: "column" }}>
+      <div style={{ height: "100vh", overflow: "hidden", background: c.bg, color: c.textPrimary, fontFamily: SERIF, display: "flex", flexDirection: "column" }}>
         <Header messages={messages} t1Index={t1Index} clearHistory={clearHistory} />
         <Transcript messages={messages} loading={loading} messagesEndRef={messagesEndRef}
           ctaSlot={
@@ -1087,7 +1094,7 @@ export default function BASTInterpreter() {
   // ---- RENDER: CHAT (post Root Cause Reading, or mid-request loading state) ----
 
   return (
-    <div style={{ minHeight: "100vh", background: c.bg, color: c.textPrimary, fontFamily: SERIF, display: "flex", flexDirection: "column" }}>
+    <div style={{ height: "100vh", overflow: "hidden", background: c.bg, color: c.textPrimary, fontFamily: SERIF, display: "flex", flexDirection: "column" }}>
       <Header messages={messages} t1Index={t1Index} clearHistory={clearHistory} />
       <Transcript messages={messages} loading={loading} messagesEndRef={messagesEndRef}
         ctaSlot={
