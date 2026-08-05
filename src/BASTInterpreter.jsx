@@ -302,9 +302,9 @@ const QUESTIONS_TIER1 = [
     q: "Do you have a medical diagnosis (or diagnoses) connected to what's going on?",
     detailLabel: "If yes, what's the diagnosis? (optional, but helpful)",
     options: [
-      "Yes, and I want this reading focused on that diagnosis",
-      "Yes, but I want to explore something separate from that diagnosis",
-      "No diagnosis — just exploring a symptom or pattern",
+      "Yes",
+      "Yes, and I also want to explore something separate from that diagnosis",
+      "No diagnosis — just exploring a symptom or health issue",
     ],
   },
   {
@@ -366,8 +366,8 @@ const QUESTIONS_TIER1 = [
 //   - anything else (separate only, no diagnosis, or skipped) -> normal,
 //     unmodified flow.
 
-const DIAGNOSIS_FOCUSED = "Yes, and I want this reading focused on that diagnosis";
-const DIAGNOSIS_SEPARATE = "Yes, but I want to explore something separate from that diagnosis";
+const DIAGNOSIS_YES = "Yes";
+const DIAGNOSIS_ALSO_SEPARATE = "Yes, and I also want to explore something separate from that diagnosis";
 
 const SEPARATE_REFRAME = {
   region: "Setting the diagnosis aside for a moment — where in the body is this separate thing happening?",
@@ -392,18 +392,21 @@ const DIAGNOSIS_NAME_QUESTION = {
 
 function buildEffectiveTier1Questions(diagnosisAnswer) {
   const selected = (diagnosisAnswer && diagnosisAnswer.selected) || [];
-  const focused = selected.includes(DIAGNOSIS_FOCUSED);
-  const alsoSeparate = selected.includes(DIAGNOSIS_SEPARATE);
+  // "Yes, and I also want to explore something separate..." already implies
+  // "Yes" on its own, so it alone is enough to trigger the combined case
+  // regardless of whether "Yes" was also separately toggled.
+  const alsoSeparate = selected.includes(DIAGNOSIS_ALSO_SEPARATE);
+  const hasDiagnosis = alsoSeparate || selected.includes(DIAGNOSIS_YES);
   const alreadyNamed = !!(diagnosisAnswer && diagnosisAnswer.detail && diagnosisAnswer.detail.trim());
   const nameStep = alreadyNamed ? [] : [DIAGNOSIS_NAME_QUESTION];
 
-  if (focused && !alsoSeparate) {
+  if (hasDiagnosis && !alsoSeparate) {
     // Reading will be built entirely from the diagnosis — nothing else
     // needed, but we do need to actually know what it is first.
     return [QUESTIONS_TIER1[0], ...nameStep];
   }
 
-  if (focused && alsoSeparate) {
+  if (hasDiagnosis && alsoSeparate) {
     // They want both — get the diagnosis name if we don't have it yet,
     // then reword the rest so it's unambiguous those questions are about
     // the separate issue, not the diagnosis.
@@ -414,7 +417,7 @@ function buildEffectiveTier1Questions(diagnosisAnswer) {
     return [QUESTIONS_TIER1[0], ...nameStep, ...reframed];
   }
 
-  // Separate-only, no diagnosis, or skipped — normal flow.
+  // No diagnosis, or skipped — normal flow.
   return QUESTIONS_TIER1;
 }
 
