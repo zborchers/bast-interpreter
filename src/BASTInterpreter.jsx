@@ -263,7 +263,7 @@ export default function BASTInterpreter() {
     try {
       const text = await callAPI(newMessages);
       setMessages(prev => [...prev, { role: "assistant", content: text }]);
-      setStep(unlocked ? "tier2" : "paywall");
+      setStep(unlocked ? "post-initial" : "paywall");
     } catch {
       setMessages(prev => [...prev, { role: "assistant", content: "There was a connection error. Please try again." }]);
     }
@@ -585,6 +585,31 @@ export default function BASTInterpreter() {
             </a>
           </div>
         </div>
+      </div>
+    );
+  }
+
+  // ---- RENDER: POST-INITIAL (already-unlocked users see the reading before continuing) ----
+
+  if (step === "post-initial" && !loading) {
+    return (
+      <div style={{ minHeight: "100vh", background: c.bg, color: c.textPrimary, fontFamily: SERIF, display: "flex", flexDirection: "column" }}>
+        <Header />
+        <Transcript
+          ctaSlot={
+            <>
+              <div style={{ display: "flex", justifyContent: "center" }}>
+                <button
+                  onClick={() => setStep("tier2")}
+                  style={{ background: c.accent, border: "none", borderRadius: "6px", padding: "14px 28px", fontSize: "15px", color: "#fff", cursor: "pointer", fontFamily: SANS, fontWeight: 700, letterSpacing: "0.04em" }}
+                >
+                  Go Deeper: Get My Root Cause Reading &rarr;
+                </button>
+              </div>
+              <Disclaimer />
+            </>
+          }
+        />
       </div>
     );
   }
