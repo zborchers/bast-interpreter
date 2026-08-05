@@ -76,9 +76,8 @@ function Disclaimer() {
 // ---- QUESTION WIZARD SCREEN (also hoisted — this is the one that was
 // causing the reversed-typing bug in the free-text answers) ----
 
-function QuestionScreen({ questions, index, tierLabel, loading, textDraft, setTextDraft, handleTextKeyDown, multiSelected, toggleMultiSelect1, submitT1Multi, submitT2Text, skipT2 }) {
+function QuestionScreen({ questions, index, tierLabel, loading, textDraft, setTextDraft, handleTextKeyDown, multiSelected, toggleMultiSelect1, submitT1Multi }) {
   const q = questions[index];
-  const isMultiSelect = q.type === "multiselect";
 
   return (
     <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "2rem 1.5rem" }}>
@@ -95,7 +94,7 @@ function QuestionScreen({ questions, index, tierLabel, loading, textDraft, setTe
               {q.hint}
             </div>
           )}
-          {isMultiSelect && q.options.length > 0 && (
+          {q.options.length > 0 && (
             <div style={{ fontSize: "12px", color: c.textMuted, marginTop: "0.5rem", fontFamily: SANS, fontStyle: "italic" }}>
               Select all that apply
             </div>
@@ -112,172 +111,111 @@ function QuestionScreen({ questions, index, tierLabel, loading, textDraft, setTe
           )}
         </div>
 
-        {isMultiSelect ? (
-          <div>
-            {q.options.length > 0 && (
-              <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", justifyContent: "center", marginBottom: "1.1rem" }}>
-                {q.options.map(opt => {
-                  const selected = multiSelected.includes(opt);
-                  return (
-                    <button
-                      key={opt}
-                      onClick={() => toggleMultiSelect1(opt)}
-                      disabled={loading}
-                      style={{
-                        background: selected ? c.accent : c.bgInput,
-                        border: `1.5px solid ${selected ? c.accent : c.borderMid}`,
-                        borderRadius: "10px",
-                        padding: "12px 20px",
-                        fontSize: "16px",
-                        color: selected ? "#fff" : c.textPrimary,
-                        cursor: loading ? "default" : "pointer",
-                        fontFamily: SERIF,
-                        fontWeight: selected ? 600 : 400,
-                        transition: "all 0.15s",
-                      }}
-                    >
-                      {selected ? "✓ " : ""}{opt}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-            <div style={{ display: "flex", flexDirection: "column", gap: "8px", background: c.bgInput, border: `1px solid ${c.borderMid}`, borderRadius: "12px", padding: "12px 16px" }}>
-              <div style={{ fontSize: "12px", color: c.textMuted, fontFamily: SANS, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                {q.detailLabel || "Anything else to add? (optional)"}
-              </div>
-              <textarea
-                value={textDraft}
-                onChange={e => setTextDraft(e.target.value)}
-                onKeyDown={handleTextKeyDown(submitT1Multi)}
-                placeholder="Type here..."
-                rows={3}
-                autoFocus={q.options.length === 0}
-                style={{ background: "transparent", border: "none", outline: "none", color: c.textPrimary, fontSize: "17px", fontFamily: SERIF, lineHeight: 1.7, resize: "none", width: "100%" }}
-              />
-              <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: "0.75rem" }}>
-                {q.required && multiSelected.length === 0 && !textDraft.trim() && (
-                  <div style={{ fontSize: "12px", color: c.textMuted, fontFamily: SANS, fontStyle: "italic" }}>
-                    Please fill this in to continue
-                  </div>
-                )}
-                <button
-                  onClick={submitT1Multi}
-                  disabled={loading || (q.required && multiSelected.length === 0 && !textDraft.trim())}
-                  style={{ background: loading || (q.required && multiSelected.length === 0 && !textDraft.trim()) ? c.accentMid : c.accent, border: "none", borderRadius: "4px", padding: "8px 20px", cursor: loading ? "default" : "pointer", color: loading || (q.required && multiSelected.length === 0 && !textDraft.trim()) ? c.textMuted : "#fff", fontSize: "13px", fontFamily: SANS, fontWeight: 700, letterSpacing: "0.04em", transition: "all 0.15s" }}
-                >
-                  {loading ? "Reading…" : "Next \u2192"}
-                </button>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div>
-            {q.suggestions && (
-              <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", justifyContent: "center", marginBottom: "0.9rem" }}>
-                {q.suggestions.map(s => (
+        <div>
+          {q.options.length > 0 && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", justifyContent: "center", marginBottom: "1.1rem" }}>
+              {q.options.map(opt => {
+                const selected = multiSelected.includes(opt);
+                return (
                   <button
-                    key={s}
-                    onClick={() => setTextDraft(s)}
+                    key={opt}
+                    onClick={() => toggleMultiSelect1(opt)}
                     disabled={loading}
-                    style={{ background: "transparent", border: `1px dashed ${c.borderMid}`, borderRadius: "999px", padding: "7px 14px", fontSize: "13px", color: c.textSecondary, cursor: loading ? "default" : "pointer", fontFamily: SANS, transition: "all 0.15s" }}
+                    style={{
+                      background: selected ? c.accent : c.bgInput,
+                      border: `1.5px solid ${selected ? c.accent : c.borderMid}`,
+                      borderRadius: "10px",
+                      padding: "12px 20px",
+                      fontSize: "16px",
+                      color: selected ? "#fff" : c.textPrimary,
+                      cursor: loading ? "default" : "pointer",
+                      fontFamily: SERIF,
+                      fontWeight: selected ? 600 : 400,
+                      transition: "all 0.15s",
+                    }}
                   >
-                    {s}
+                    {selected ? "✓ " : ""}{opt}
                   </button>
-                ))}
-              </div>
-            )}
-            <div style={{ display: "flex", flexDirection: "column", gap: "8px", background: c.bgInput, border: `1px solid ${c.borderMid}`, borderRadius: "12px", padding: "12px 16px" }}>
-              <textarea
-                value={textDraft}
-                onChange={e => setTextDraft(e.target.value)}
-                onKeyDown={handleTextKeyDown(submitT2Text)}
-                placeholder="Tap a suggestion above, or type your own answer here..."
-                rows={4}
-                autoFocus
-                style={{ background: "transparent", border: "none", outline: "none", color: c.textPrimary, fontSize: "18px", fontFamily: SERIF, lineHeight: 1.7, resize: "none", width: "100%" }}
-              />
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                {q.optional ? (
-                  <button onClick={skipT2} disabled={loading} style={{ background: "transparent", border: "none", color: c.textMuted, fontSize: "13px", cursor: "pointer", fontFamily: SANS, textDecoration: "underline" }}>
-                    Skip this question
-                  </button>
-                ) : <div />}
-                <button
-                  onClick={submitT2Text}
-                  disabled={loading}
-                  style={{ background: loading ? c.accentMid : c.accent, border: "none", borderRadius: "4px", padding: "8px 20px", cursor: loading ? "default" : "pointer", color: loading ? c.textMuted : "#fff", fontSize: "13px", fontFamily: SANS, fontWeight: 700, letterSpacing: "0.04em", transition: "all 0.15s" }}
-                >
-                  {loading ? "Reading…" : "Next \u2192"}
-                </button>
-              </div>
+                );
+              })}
+            </div>
+          )}
+          <div style={{ display: "flex", flexDirection: "column", gap: "8px", background: c.bgInput, border: `1px solid ${c.borderMid}`, borderRadius: "12px", padding: "12px 16px" }}>
+            <div style={{ fontSize: "12px", color: c.textMuted, fontFamily: SANS, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              {q.detailLabel || "Anything else to add? (optional)"}
+            </div>
+            <textarea
+              value={textDraft}
+              onChange={e => setTextDraft(e.target.value)}
+              onKeyDown={handleTextKeyDown(submitT1Multi)}
+              placeholder="Type here..."
+              rows={3}
+              autoFocus={q.options.length === 0}
+              style={{ background: "transparent", border: "none", outline: "none", color: c.textPrimary, fontSize: "17px", fontFamily: SERIF, lineHeight: 1.7, resize: "none", width: "100%" }}
+            />
+            <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: "0.75rem" }}>
+              {q.required && multiSelected.length === 0 && !textDraft.trim() && (
+                <div style={{ fontSize: "12px", color: c.textMuted, fontFamily: SANS, fontStyle: "italic" }}>
+                  Please fill this in to continue
+                </div>
+              )}
+              <button
+                onClick={submitT1Multi}
+                disabled={loading || (q.required && multiSelected.length === 0 && !textDraft.trim())}
+                style={{ background: loading || (q.required && multiSelected.length === 0 && !textDraft.trim()) ? c.accentMid : c.accent, border: "none", borderRadius: "4px", padding: "8px 20px", cursor: loading ? "default" : "pointer", color: loading || (q.required && multiSelected.length === 0 && !textDraft.trim()) ? c.textMuted : "#fff", fontSize: "13px", fontFamily: SANS, fontWeight: 700, letterSpacing: "0.04em", transition: "all 0.15s" }}
+              >
+                {loading ? "Reading…" : "Next \u2192"}
+              </button>
             </div>
           </div>
-        )}
+        </div>
         <Disclaimer />
       </div>
     </div>
   );
 }
 
-// ---- INLINE TIER 2 QUESTION (sits at the bottom of the chat transcript,
-// so Tier 2 feels like one continuous conversation instead of a separate
-// screen per question) ----
+// ---- TIER 2 PROGRESS BAR (subtle indicator of how close the ongoing
+// conversation is to having enough for the full Root Cause Reading) ----
 
-function InlineTier2Question({ q, index, total, loading, textDraft, setTextDraft, handleTextKeyDown, submitT2Text, skipT2 }) {
+function Tier2ProgressBar({ progress }) {
   return (
-    <div style={{ background: c.bgInput, border: `1px solid ${c.borderMid}`, borderRadius: "12px", padding: "16px 18px", marginBottom: "1rem" }}>
-      <div style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.15em", textTransform: "uppercase", color: c.accent, marginBottom: "0.5rem", fontFamily: SANS }}>
-        Root Cause · Question {index + 1} of {total}
+    <div style={{ marginBottom: "0.6rem" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
+        <div style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: c.textMuted, fontFamily: SANS }}>
+          Root Cause Reading
+        </div>
+        <div style={{ fontSize: "10px", color: c.textMuted, fontFamily: SANS }}>{progress}%</div>
       </div>
-      <div style={{ fontSize: "17px", fontWeight: 700, color: c.textPrimary, marginBottom: "0.4rem", lineHeight: 1.35, fontFamily: SANS }}>
-        {q.q}
+      <div style={{ height: "3px", background: c.borderMid, borderRadius: "2px", overflow: "hidden" }}>
+        <div style={{ height: "100%", width: `${progress}%`, background: c.accent, transition: "width 0.5s ease" }} />
       </div>
-      {q.hint && (
-        <div style={{ fontSize: "13px", color: c.textMuted, lineHeight: 1.55, marginBottom: "0.6rem", fontFamily: SERIF, fontStyle: "italic" }}>
-          {q.hint}
-        </div>
-      )}
-      {q.optional && (
-        <div style={{ fontSize: "11px", color: c.accentPop, marginBottom: "0.6rem", fontFamily: SANS, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-          Optional — skip if unsure
-        </div>
-      )}
-      {q.suggestions && (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginBottom: "0.7rem" }}>
-          {q.suggestions.map(s => (
-            <button
-              key={s}
-              onClick={() => setTextDraft(s)}
-              disabled={loading}
-              style={{ background: "transparent", border: `1px dashed ${c.borderMid}`, borderRadius: "999px", padding: "5px 11px", fontSize: "12px", color: c.textSecondary, cursor: loading ? "default" : "pointer", fontFamily: SANS }}
-            >
-              {s}
-            </button>
-          ))}
-        </div>
-      )}
+    </div>
+  );
+}
+
+// ---- SIMPLE CHAT INPUT (shared lightweight style for the dynamic Tier 2
+// conversation and the post-reading follow-up chat) ----
+
+function SimpleChatInput({ value, onChange, onSubmit, placeholder, loading, handleTextKeyDown, sendLabel }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "8px", background: c.bgInput, border: `1px solid ${c.borderMid}`, borderRadius: "10px", padding: "10px 14px" }}>
       <textarea
-        value={textDraft}
-        onChange={e => setTextDraft(e.target.value)}
-        onKeyDown={handleTextKeyDown(submitT2Text)}
-        placeholder="Tap a suggestion above, or type your own answer here..."
-        rows={3}
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        onKeyDown={handleTextKeyDown(onSubmit)}
+        placeholder={placeholder}
+        rows={2}
         autoFocus
-        style={{ width: "100%", background: c.bg, border: `1px solid ${c.borderMid}`, borderRadius: "8px", padding: "10px 12px", outline: "none", color: c.textPrimary, fontSize: "16px", fontFamily: SERIF, lineHeight: 1.6, resize: "none", marginBottom: "0.6rem", boxSizing: "border-box" }}
+        style={{ background: "transparent", border: "none", outline: "none", color: c.textPrimary, fontSize: "18px", fontFamily: SERIF, lineHeight: 1.6, resize: "none", width: "100%" }}
       />
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        {q.optional ? (
-          <button onClick={skipT2} disabled={loading} style={{ background: "transparent", border: "none", color: c.textMuted, fontSize: "12px", cursor: "pointer", fontFamily: SANS, textDecoration: "underline" }}>
-            Skip this question
-          </button>
-        ) : <div />}
+      <div style={{ display: "flex", justifyContent: "flex-end" }}>
         <button
-          onClick={submitT2Text}
-          disabled={loading}
-          style={{ background: loading ? c.accentMid : c.accent, border: "none", borderRadius: "4px", padding: "8px 20px", cursor: loading ? "default" : "pointer", color: loading ? c.textMuted : "#fff", fontSize: "13px", fontFamily: SANS, fontWeight: 700, letterSpacing: "0.04em", transition: "all 0.15s" }}
+          onClick={onSubmit}
+          disabled={!value.trim() || loading}
+          style={{ background: value.trim() && !loading ? c.accent : c.accentMid, border: "none", borderRadius: "4px", padding: "7px 18px", cursor: value.trim() && !loading ? "pointer" : "default", color: value.trim() && !loading ? "#fff" : c.textMuted, fontSize: "13px", fontFamily: SANS, fontWeight: 700, letterSpacing: "0.04em" }}
         >
-          {loading ? "Reading…" : "Next \u2192"}
+          {sendLabel || "Send \u2192"}
         </button>
       </div>
     </div>
@@ -291,7 +229,7 @@ function Transcript({ messages, loading, messagesEndRef, ctaSlot }) {
     <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", maxWidth: "700px", width: "100%", margin: "0 auto" }}>
       <div style={{ flex: 1, overflowY: "auto", padding: "0 1.5rem" }}>
         <div style={{ paddingTop: "2rem" }}>
-          {messages.map((msg, i) => (
+          {messages.map((msg, i) => msg.hidden ? null : (
             <div key={i} style={{ marginBottom: "2rem" }}>
               {msg.role === "user" ? (
                 <div style={{ display: "flex", justifyContent: "flex-end" }}>
@@ -456,116 +394,6 @@ function buildEffectiveTier1Questions(diagnosisAnswer) {
   return QUESTIONS_TIER1;
 }
 
-const QUESTIONS_TIER2 = [
-  {
-    id: "power_drain",
-    type: "text",
-    q: "Is there a person, job, or commitment right now where you keep agreeing to something that actually drains you?",
-    hint: "Why we ask: Your body often shows the cost of energy going somewhere it shouldn't. This helps us find where that's happening for you.",
-    tags: ["work", "relationship", "caregiving", "burden"],
-    suggestions: [
-      "A work commitment I keep saying yes to",
-      "A family obligation I can't say no to",
-      "A relationship that always leaves me depleted",
-      "A responsibility I took on but never wanted",
-    ],
-  },
-  {
-    id: "long_carry",
-    type: "text",
-    q: "What's something you've been dealing with — a responsibility, a worry, a relationship — for way longer than feels fair or sustainable?",
-    hint: "Why we ask: Symptoms tend to show up exactly where something's been carried too long. This helps us find the connection.",
-    tags: ["chronic", "long-standing", "burden", "relationship", "financial"],
-    suggestions: [
-      "A stressful job I've stayed in too long",
-      "A strained relationship I haven't addressed",
-      "A financial burden I've been carrying alone",
-      "A caregiving role that never gets a break",
-    ],
-  },
-  {
-    id: "onset",
-    type: "text",
-    q: "When did this first start, or when did it get noticeably worse? What was happening in your life around that time?",
-    tags: ["new", "recent onset"],
-    suggestions: [
-      "A few months ago, around a major life change",
-      "It's been building slowly for years",
-      "Right after a stressful period at work",
-      "Not sure exactly when it started",
-    ],
-  },
-  {
-    id: "recurrence",
-    type: "text",
-    q: "Have you had other health issues in the past that seemed to show up around similar situations or stress — even in a completely different part of your body?",
-    tags: ["cyclical", "recurring", "chronic"],
-    suggestions: [
-      "Yes, something similar shows up during stressful times",
-      "No, this feels new for me",
-      "This has shown up in different ways over the years",
-    ],
-  },
-  {
-    id: "body_message",
-    type: "text",
-    q: "If you had to guess, what do you think your body is trying to get you to notice or change?",
-    tags: [],
-    suggestions: [
-      "To slow down",
-      "To stop ignoring how I actually feel",
-      "To set a boundary I've been avoiding",
-      "To let go of something I've outgrown",
-    ],
-  },
-  {
-    id: "shadow",
-    type: "text",
-    q: "Is there a reason, even a small or uncomfortable one, that some part of you isn't ready to change this yet?",
-    hint: "Why we ask: This isn't about blame — sometimes we hold onto a pattern because it's protecting us from something else. Naming that is often where real movement starts.",
-    tags: ["fear of change", "protection", "boundaries"],
-    suggestions: [
-      "It feels safer to stay how things are",
-      "I'm scared of what change might cost me",
-      "I'm not sure what I'd do without this pattern",
-    ],
-  },
-  {
-    id: "ancestral",
-    type: "text",
-    q: "Does anyone else in your family deal with this same health issue, or a similar emotional pattern?",
-    optional: true,
-    suggestions: [
-      "Yes, a parent dealt with something similar",
-      "Not that I know of",
-      "There's a pattern of this in my family",
-    ],
-  },
-  {
-    id: "energy_allocation",
-    type: "text",
-    q: "Think about a normal day. Where does most of your time and energy actually go — and is that where you'd want it to go if you could choose freely?",
-    tags: ["work", "caregiving", "burden"],
-    suggestions: [
-      "Work takes almost everything I have",
-      "Taking care of others, with little left for me",
-      "Managing stress and putting out fires",
-      "Honestly, I'm not sure where it goes",
-    ],
-  },
-  {
-    id: "forward",
-    type: "text",
-    q: "Setting medical treatment aside for a moment — what do you think would need to change in your life or mindset for this to actually get better?",
-    suggestions: [
-      "Setting a boundary I've been avoiding",
-      "Making a change I've been putting off",
-      "Letting go of something I've outgrown",
-      "Actually letting myself rest",
-    ],
-  },
-];
-
 function formatAnswerValue(ans) {
   if (ans && typeof ans === "object" && ("selected" in ans || "detail" in ans)) {
     const parts = [];
@@ -583,89 +411,25 @@ function compileAnswers(questions, answers) {
     .join("\n\n");
 }
 
-// ---- TIER 2 RELEVANCE ORDERING ----
-// Reorders the middle Tier 2 questions based on signals pulled from the
-// Tier 1 answers, so the most relevant follow-ups come first. "ancestral"
-// (optional) and "forward" (closing/synthesis question) always stay at
-// the end, in that order.
+// ---- DYNAMIC ROOT CAUSE CONVERSATION ----
+// Tier 2 no longer uses a fixed question list. The model asks its own
+// questions and reports progress via a status marker at the end of every
+// turn: [[TIER2_STATUS progress=NN next=ask|ready]]. This parses that
+// marker out and strips it from what actually gets displayed/stored.
 
-const REGION_SIGNAL_TAGS = {
-  "Head / Mind": ["control", "worry"],
-  "Neck / Throat": ["expression", "voice"],
-  "Shoulders": ["burden"],
-  "Chest / Heart": ["relationship", "grief"],
-  "Upper Back": ["burden"],
-  "Lower Back": ["financial", "burden"],
-  "Abdomen / Gut": ["protection", "boundaries"],
-  "Hips / Pelvis": ["relationship"],
-  "Legs / Knees": ["fear of change"],
-  "Ankles / Feet": ["fear of change"],
-  "Arms / Hands": ["burden"],
-};
+const TIER2_MAX_TURNS = 12; // safety cap in case the model never signals ready
 
-const PATTERN_SIGNAL_TAGS = {
-  "First time": ["new", "recent onset"],
-  "Comes and goes": ["cyclical", "recurring"],
-  "Constant / ongoing": ["chronic", "long-standing"],
-};
-
-const CONTEXT_KEYWORD_TAGS = {
-  work: ["work", "job", "boss", "career", "deadline", "office"],
-  relationship: ["relationship", "partner", "spouse", "marriage", "divorce", "boyfriend", "girlfriend", "husband", "wife", "family", "mother", "father", "friend"],
-  caregiving: ["kids", "children", "caregiv", "parent", "son", "daughter"],
-  financial: ["money", "debt", "bills", "financial", "afford"],
-};
-
-const CONTEXT_CHIP_TAGS = {
-  "Work stress": ["work"],
-  "Relationship or family stress": ["relationship"],
-  "Grief or loss": ["relationship"],
-  "Major life transition": ["fear of change"],
-  "Financial stress": ["financial"],
-  "Caregiving responsibilities": ["caregiving"],
-};
-
-function buildTier1Signals(answersT1) {
-  const signals = new Set();
-
-  const diagnosisSelected = (answersT1.diagnosis && answersT1.diagnosis.selected) || [];
-  if (diagnosisSelected.includes("Yes, and I want this reading focused on that diagnosis")) {
-    signals.add("chronic");
-    signals.add("long-standing");
-  }
-
-  const regionSelected = (answersT1.region && answersT1.region.selected) || [];
-  regionSelected.forEach(r => (REGION_SIGNAL_TAGS[r] || []).forEach(t => signals.add(t)));
-
-  const patternSelected = (answersT1.pattern && answersT1.pattern.selected) || [];
-  patternSelected.forEach(p => (PATTERN_SIGNAL_TAGS[p] || []).forEach(t => signals.add(t)));
-
-  const contextAnswer = answersT1.context || {};
-  const contextSelected = contextAnswer.selected || [];
-  contextSelected.forEach(chip => (CONTEXT_CHIP_TAGS[chip] || []).forEach(t => signals.add(t)));
-
-  const contextDetail = (contextAnswer.detail || "").toLowerCase();
-  Object.entries(CONTEXT_KEYWORD_TAGS).forEach(([tag, words]) => {
-    if (words.some(w => contextDetail.includes(w))) signals.add(tag);
-  });
-
-  return signals;
-}
-
-function orderTier2Questions(answersT1) {
-  const signals = buildTier1Signals(answersT1);
-  const fixedTailIds = ["ancestral", "forward"];
-  const reorderable = QUESTIONS_TIER2.filter(q => !fixedTailIds.includes(q.id));
-  const tail = QUESTIONS_TIER2.filter(q => fixedTailIds.includes(q.id));
-
-  const scored = reorderable.map((q, i) => {
-    const tags = q.tags || [];
-    const score = tags.reduce((sum, t) => sum + (signals.has(t) ? 1 : 0), 0);
-    return { q, i, score };
-  });
-  scored.sort((a, b) => b.score - a.score || a.i - b.i);
-
-  return [...scored.map(s => s.q), ...tail];
+function parseTier2Status(text) {
+  const bracketMatch = text.match(/\[\[TIER2_STATUS[^\]]*\]\]/i);
+  const bracketText = bracketMatch ? bracketMatch[0] : "";
+  const progressMatch = bracketText.match(/progress\s*=\s*(\d+)/i);
+  const nextMatch = bracketText.match(/next\s*=\s*(ask|ready)/i);
+  const cleaned = (bracketMatch ? text.replace(bracketMatch[0], "") : text).trim();
+  return {
+    cleaned,
+    progress: progressMatch ? Math.max(0, Math.min(100, parseInt(progressMatch[1], 10))) : null,
+    ready: nextMatch ? nextMatch[1].toLowerCase() === "ready" : null,
+  };
 }
 
 export default function BASTInterpreter() {
@@ -697,12 +461,12 @@ export default function BASTInterpreter() {
     catch { return "tier1"; }
   });
   const [t1Index, setT1Index] = useState(0);
-  const [t2Index, setT2Index] = useState(0);
   const [answersT1, setAnswersT1] = useState({});
   const [multiSelected, setMultiSelected] = useState([]);
   const [effectiveTier1Questions, setEffectiveTier1Questions] = useState(QUESTIONS_TIER1);
-  const [answersT2, setAnswersT2] = useState({});
-  const [tier2Questions, setTier2Questions] = useState(QUESTIONS_TIER2);
+  const [tier2Draft, setTier2Draft] = useState("");
+  const [tier2Progress, setTier2Progress] = useState(0);
+  const [tier2Turn, setTier2Turn] = useState(0);
   const [textDraft, setTextDraft] = useState("");
   const [followUp, setFollowUp] = useState("");
 
@@ -729,10 +493,10 @@ export default function BASTInterpreter() {
     setAnswersT1({});
     setMultiSelected([]);
     setEffectiveTier1Questions(QUESTIONS_TIER1);
-    setAnswersT2({});
     setT1Index(0);
-    setT2Index(0);
-    setTier2Questions(QUESTIONS_TIER2);
+    setTier2Draft("");
+    setTier2Progress(0);
+    setTier2Turn(0);
     setTextDraft("");
     setFollowUp("");
     setStep("tier1");
@@ -749,7 +513,7 @@ export default function BASTInterpreter() {
     const valid = await validateLicenseKey(licenseKey);
     if (valid) {
       setUnlocked(true);
-      setStep("tier2");
+      beginTier2();
     } else {
       setLicenseError("That password doesn't appear to be correct. Please check your purchase confirmation email and try again.");
     }
@@ -760,13 +524,13 @@ export default function BASTInterpreter() {
     if (e.key === "Enter") handleLicenseSubmit();
   };
 
-  async function callAPI(newMessages) {
+  async function callAPI(newMessages, maxTokens) {
     const response = await fetch("/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         model: "claude-sonnet-4-5",
-        max_tokens: 4000,
+        max_tokens: maxTokens || 4000,
         system: SYSTEM_PROMPT,
         // Strip the local-only "display" field — the API only accepts
         // role/content on message objects.
@@ -804,7 +568,6 @@ export default function BASTInterpreter() {
   const fetchInitialReading = async (latestAnswers, questionsList) => {
     const list = questionsList || effectiveTier1Questions;
     setLoading(true);
-    setTier2Questions(orderTier2Questions(latestAnswers));
     const compiled = compileAnswers(list, latestAnswers);
     const userMsg = {
       role: "user",
@@ -869,69 +632,71 @@ export default function BASTInterpreter() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ---- TIER 2 SELECT/TEXT ANSWER HANDLING ----
+  // ---- DYNAMIC ROOT CAUSE CONVERSATION ----
+  // No fixed question list. Each turn: send the conversation so far, get
+  // back an in-depth response ending in a status marker, parse out the
+  // marker, and either continue the conversation or trigger the final
+  // unlimited-depth Root Cause Reading.
 
-  const submitT2Text = () => {
-    const q = tier2Questions[t2Index];
-    const latest = { ...answersT2, [q.id]: textDraft };
-    setAnswersT2(latest);
-    setTextDraft("");
-    handleTier2Answer(q, textDraft, latest);
+  const requestFinalRootCauseReading = async (priorMessages) => {
+    const userMsg = {
+      role: "user",
+      content: "You now have everything you need from this conversation. Write the complete Root Cause Reading now — the full, unlimited-depth synthesis drawing on the Initial Reading and everything shared in this conversation. Do not include the status marker on this response; this is the final reading, not another conversation turn.",
+      display: "Let's see the complete Root Cause Reading.",
+    };
+    const newMessages = [...priorMessages, userMsg];
+    setMessages(newMessages);
+    const text = await callAPI(newMessages, 8000);
+    setMessages(prev => [...prev, { role: "assistant", content: text }]);
+    setTier2Progress(100);
+    setStep("chat");
   };
 
-  const skipT2 = () => {
-    const q = tier2Questions[t2Index];
-    const latest = { ...answersT2 };
-    const isLast = t2Index === tier2Questions.length - 1;
-    if (isLast) {
-      handleTier2Answer(q, "", latest);
-    } else {
-      // Nothing was answered, so there's nothing to reflect on — just move on.
-      setT2Index(t2Index + 1);
-    }
-  };
-
-  const handleTier2Answer = async (q, answerText, latestAnswers) => {
-    const isLast = t2Index === tier2Questions.length - 1;
+  const advanceTier2Conversation = async (messagesForApi) => {
     setLoading(true);
+    setMessages(messagesForApi);
+    try {
+      const raw = await callAPI(messagesForApi, 4000);
+      const { cleaned, progress, ready } = parseTier2Status(raw);
+      const withReply = [...messagesForApi, { role: "assistant", content: cleaned }];
+      setMessages(withReply);
 
-    if (isLast) {
-      // Final Tier 2 answer — request the full Root Cause Reading synthesis.
-      const compiled = compileAnswers(tier2Questions, latestAnswers);
-      const userMsg = {
-        role: "user",
-        content: `The person would like to go deeper. Here are additional intake answers for a full Root Cause Reading:\n\n${compiled}\n\nUsing everything shared so far — the original symptom details and this deeper context — provide a complete Root Cause Reading using the full Deep Reading sequence: location, power, shadow, and synthesized energetic root cause message.`,
-        display: compiled,
-      };
-      const newMessages = [...messages, userMsg];
-      setMessages(newMessages);
-      try {
-        const text = await callAPI(newMessages);
-        setMessages(prev => [...prev, { role: "assistant", content: text }]);
-        setStep("chat");
-      } catch {
-        setMessages(prev => [...prev, { role: "assistant", content: "There was a connection error. Please try again." }]);
+      const nextTurn = tier2Turn + 1;
+      setTier2Turn(nextTurn);
+      setTier2Progress(progress != null ? progress : Math.min(95, tier2Progress + 15));
+
+      const forceReady = nextTurn >= TIER2_MAX_TURNS;
+      if (ready || forceReady) {
+        await requestFinalRootCauseReading(withReply);
+      } else {
+        setStep("tier2");
       }
-    } else {
-      // Any other Tier 2 answer — request an in-depth reflection on just this one.
-      const trimmed = answerText.trim();
-      const answerLine = trimmed ? trimmed : "(skipped)";
-      const userMsg = {
-        role: "user",
-        content: `${q.q}\n${answerLine}\n\nThis is paid, in-depth work — offer a thorough reflection (several substantial paragraphs) connecting this specific answer to the pattern already established. Go deep on this answer specifically. Don't provide the full synthesis yet — more questions are coming.`,
-        display: `${q.q}\n${answerLine}`,
-      };
-      const newMessages = [...messages, userMsg];
-      setMessages(newMessages);
-      try {
-        const text = await callAPI(newMessages);
-        setMessages(prev => [...prev, { role: "assistant", content: text }]);
-        setT2Index(t2Index + 1);
-      } catch {
-        setMessages(prev => [...prev, { role: "assistant", content: "There was a connection error. Please try again." }]);
-      }
+    } catch {
+      setMessages(prev => [...prev, { role: "assistant", content: "There was a connection error. Please try again." }]);
+      setStep("tier2");
     }
     setLoading(false);
+  };
+
+  const beginTier2 = () => {
+    const kickoffMsg = {
+      role: "user",
+      content: "The person has unlocked the Root Cause Reading and is ready to go deeper. Ask them your first question now — the single most useful thing to understand next, following naturally from the Initial Reading and everything in the intake. Keep the transition conversational, not clinical. End with the required status marker.",
+      hidden: true,
+    };
+    advanceTier2Conversation([...messages, kickoffMsg]);
+  };
+
+  const submitTier2Answer = () => {
+    const trimmed = tier2Draft.trim();
+    if (!trimmed || loading) return;
+    const userMsg = {
+      role: "user",
+      content: `${trimmed}\n\n(Continue the Root Cause conversation: respond in real depth to this specific answer, connecting it to everything established so far. Then either ask the single most useful next question, or — only if you genuinely have enough rich material — signal you're ready for the full reading instead. End with the required status marker.)`,
+      display: trimmed,
+    };
+    setTier2Draft("");
+    advanceTier2Conversation([...messages, userMsg]);
   };
 
   // ---- FREEFORM FOLLOW-UP (post Root Cause Reading) ----
@@ -976,7 +741,7 @@ export default function BASTInterpreter() {
             </div>
           </div>
         )}
-        <QuestionScreen questions={effectiveTier1Questions} index={t1Index} tierLabel="Free Reading" loading={loading} textDraft={textDraft} setTextDraft={setTextDraft} handleTextKeyDown={handleTextKeyDown} multiSelected={multiSelected} toggleMultiSelect1={toggleMultiSelect1} submitT1Multi={submitT1Multi} submitT2Text={submitT2Text} skipT2={skipT2} />
+        <QuestionScreen questions={effectiveTier1Questions} index={t1Index} tierLabel="Free Reading" loading={loading} textDraft={textDraft} setTextDraft={setTextDraft} handleTextKeyDown={handleTextKeyDown} multiSelected={multiSelected} toggleMultiSelect1={toggleMultiSelect1} submitT1Multi={submitT1Multi} />
         <style>{`* { box-sizing: border-box; } body { margin: 0; } textarea::placeholder { color: rgba(30,26,22,0.3); }`}</style>
       </div>
     );
@@ -996,7 +761,7 @@ export default function BASTInterpreter() {
                   Go deeper: get your Root Cause Reading
                 </div>
                 <div style={{ fontSize: "16px", color: c.textSecondary, lineHeight: 1.7 }}>
-                  Answer 9 more questions and unlock the full root-cause interpretation — the energetic pattern actually driving this symptom.
+                  Unlock a real conversation that goes as deep as it needs to — and a complete, no-limit root-cause reading once we've gathered enough to do it justice.
                 </div>
               </div>
               <div style={{ background: c.bgInput, border: `1px solid ${c.borderMid}`, borderRadius: "10px", padding: "1.25rem" }}>
@@ -1046,7 +811,7 @@ export default function BASTInterpreter() {
             <>
               <div style={{ display: "flex", justifyContent: "center" }}>
                 <button
-                  onClick={() => setStep("tier2")}
+                  onClick={beginTier2}
                   style={{ background: c.accent, border: "none", borderRadius: "6px", padding: "14px 28px", fontSize: "15px", color: "#fff", cursor: "pointer", fontFamily: SANS, fontWeight: 700, letterSpacing: "0.04em" }}
                 >
                   Go Deeper: Get My Root Cause Reading &rarr;
@@ -1060,27 +825,24 @@ export default function BASTInterpreter() {
     );
   }
 
-  // ---- RENDER: TIER 2 (inline chat — question appears at the bottom of the
-  // same scrolling transcript, no separate screen per question) ----
+  // ---- RENDER: TIER 2 (dynamic, open-ended conversation — plain input,
+  // subtle progress indicator, no fixed question card) ----
 
   if (step === "tier2" && !loading) {
-    const q = tier2Questions[t2Index];
     return (
       <div style={{ height: "100vh", overflow: "hidden", background: c.bg, color: c.textPrimary, fontFamily: SERIF, display: "flex", flexDirection: "column" }}>
         <Header messages={messages} t1Index={t1Index} clearHistory={clearHistory} />
         <Transcript messages={messages} loading={loading} messagesEndRef={messagesEndRef}
           ctaSlot={
             <>
-              <InlineTier2Question
-                q={q}
-                index={t2Index}
-                total={tier2Questions.length}
+              <Tier2ProgressBar progress={tier2Progress} />
+              <SimpleChatInput
+                value={tier2Draft}
+                onChange={setTier2Draft}
+                onSubmit={submitTier2Answer}
+                placeholder="Type your answer..."
                 loading={loading}
-                textDraft={textDraft}
-                setTextDraft={setTextDraft}
                 handleTextKeyDown={handleTextKeyDown}
-                submitT2Text={submitT2Text}
-                skipT2={skipT2}
               />
               <Disclaimer />
             </>
