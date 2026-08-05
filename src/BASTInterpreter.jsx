@@ -4,53 +4,153 @@ import { SYSTEM_PROMPT } from "./systemPrompt.js";
 const SANS = "'Plus Jakarta Sans','system-ui',sans-serif";
 const SERIF = "'Crimson Text','Georgia',serif";
 const ACCESS_PASSWORD = "bodyspeak";
-const FREE_RESPONSE_LIMIT = 2;
-
-const trackEvent = (eventName, params = {}) => {
-  if (typeof window.gtag === 'function') {
-    window.gtag('event', eventName, params);
-  }
-};
-
-const LOADING_MESSAGES = [
-  "Reading what your soul is communicating…",
-  "Translating the body’s language…",
-  "Finding the pattern underneath the symptom…",
-  "Listening to what’s been trying to reach you…",
-  "Your body has been speaking. We’re listening…",
-  "Tracing the soul’s message through the body…",
-  "Uncovering what the pattern is pointing to…",
-];
 
 async function validateLicenseKey(key) {
   return key.trim().toLowerCase() === ACCESS_PASSWORD;
 }
 
+// ---- INTAKE QUESTIONS -------------------------------------------------
+
+const QUESTIONS_TIER1 = [
+  {
+    id: "region",
+    type: "select",
+    q: "Where in the body is this happening?",
+    options: [
+      "Head / Mind", "Neck / Throat", "Shoulders", "Chest / Heart",
+      "Upper Back", "Lower Back", "Abdomen / Gut", "Hips / Pelvis",
+      "Legs / Knees", "Ankles / Feet", "Arms / Hands", "Somewhere else",
+    ],
+  },
+  {
+    id: "side",
+    type: "select",
+    q: "Is it more on the left side, the right side, centered, or on both sides?",
+    options: ["Left side", "Right side", "Centered", "Both sides"],
+  },
+  {
+    id: "plane",
+    type: "select",
+    q: "Do you feel it more toward the front, more toward the back, or both at once?",
+    options: ["Front", "Back", "Both at once"],
+  },
+  {
+    id: "quality",
+    type: "select",
+    q: "How would you describe it?",
+    options: ["Sharp", "Dull ache", "Burning", "Tight", "Throbbing", "Numb", "Cramping", "Tingling"],
+  },
+  {
+    id: "pattern",
+    type: "select",
+    q: "Is this the first time you've had this, does it come and go, or is it constant / ongoing?",
+    options: ["First time", "Comes and goes", "Constant / ongoing"],
+  },
+  {
+    id: "context",
+    type: "text",
+    q: "What's actually going on in your life right now — what's been on your mind or on your plate?",
+  },
+];
+
+const QUESTIONS_TIER2 = [
+  {
+    id: "power_drain",
+    type: "text",
+    q: "Is there a person, job, or commitment right now where you keep agreeing to something that actually drains you?",
+    hint: "Why we ask: Your body often shows the cost of energy going somewhere it shouldn't. This helps us find where that's happening for you.",
+  },
+  {
+    id: "long_carry",
+    type: "text",
+    q: "What's something you've been dealing with — a responsibility, a worry, a relationship — for way longer than feels fair or sustainable?",
+    hint: "Why we ask: Symptoms tend to show up exactly where something's been carried too long. This helps us find the connection.",
+  },
+  {
+    id: "onset",
+    type: "text",
+    q: "When did this first start, or when did it get noticeably worse? What was happening in your life around that time?",
+  },
+  {
+    id: "recurrence",
+    type: "text",
+    q: "Have you had other health issues in the past that seemed to show up around similar situations or stress — even in a completely different part of your body?",
+  },
+  {
+    id: "body_message",
+    type: "text",
+    q: "If you had to guess, what do you think your body is trying to get you to notice or change?",
+  },
+  {
+    id: "shadow",
+    type: "text",
+    q: "Is there a reason, even a small or uncomfortable one, that some part of you isn't ready to change this yet?",
+    hint: "Why we ask: This isn't about blame — sometimes we hold onto a pattern because it's protecting us from something else. Naming that is often where real movement starts.",
+  },
+  {
+    id: "ancestral",
+    type: "text",
+    q: "Does anyone else in your family deal with this same health issue, or a similar emotional pattern?",
+    optional: true,
+  },
+  {
+    id: "energy_allocation",
+    type: "text",
+    q: "Think about a normal day. Where does most of your time and energy actually go — and is that where you'd want it to go if you could choose freely?",
+  },
+  {
+    id: "forward",
+    type: "text",
+    q: "Setting medical treatment aside for a moment — what do you think would need to change in your life or mindset for this to actually get better?",
+  },
+];
+
+function compileAnswers(questions, answers) {
+  return questions
+    .map(q => {
+      const val = (answers[q.id] || "").trim();
+      return `${q.q}\n${val ? val : "(skipped)"}`;
+    })
+    .join("\n\n");
+}
+
 export default function BASTInterpreter() {
   const [messages, setMessages] = useState(() => {
     try {
-      const saved = localStorage.getItem('bast_messages');
+      const saved = localStorage.getItem("bast_messages");
       return saved ? JSON.parse(saved) : [];
     } catch { return []; }
   });
-  const [input, setInput] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const saved = localStorage.getItem("bast_messages");
+      const hasSavedSession = saved && JSON.parse(saved).length > 0;
+      const ids = QUESTIONS_TIER1.map(q => q.id);
+      return !hasSavedSession && ids.every(id => params.get(id));
+    } catch { return false; }
+  });
   const [unlocked, setUnlocked] = useState(() => {
-    try { return localStorage.getItem('bast_unlocked') === 'true'; }
+    try { return localStorage.getItem("bast_unlocked") === "true"; }
     catch { return false; }
   });
-  const [freeResponsesUsed, setFreeResponsesUsed] = useState(() => {
-    try { return parseInt(localStorage.getItem('bast_free_used') || '0'); }
-    catch { return 0; }
-  });
-  const [showPaywall, setShowPaywall] = useState(false);
   const [licenseKey, setLicenseKey] = useState("");
   const [licenseError, setLicenseError] = useState("");
   const [licenseLoading, setLicenseLoading] = useState(false);
 
+  // step: 'tier1' -> 'paywall' -> 'tier2' -> 'chat'
+  const [step, setStep] = useState(() => {
+    try { return localStorage.getItem("bast_step") || "tier1"; }
+    catch { return "tier1"; }
+  });
+  const [t1Index, setT1Index] = useState(0);
+  const [t2Index, setT2Index] = useState(0);
+  const [answersT1, setAnswersT1] = useState({});
+  const [answersT2, setAnswersT2] = useState({});
+  const [textDraft, setTextDraft] = useState("");
+  const [followUp, setFollowUp] = useState("");
+
   const messagesEndRef = useRef(null);
-  const [loadingMessage, setLoadingMessage] = useState(LOADING_MESSAGES[0]);
-  const loadingIntervalRef = useRef(null);
 
   const c = {
     bg: "#faf8f4",
@@ -69,83 +169,35 @@ export default function BASTInterpreter() {
     userBubbleBorder: "rgba(100,80,60,0.18)",
   };
 
-  const isFree = !unlocked;
-  const hitLimit = isFree && freeResponsesUsed >= FREE_RESPONSE_LIMIT;
-
   useEffect(() => {
-    if (loading) {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-      let i = 0;
-      loadingIntervalRef.current = setInterval(() => {
-        i = (i + 1) % LOADING_MESSAGES.length;
-        setLoadingMessage(LOADING_MESSAGES[i]);
-      }, 2800);
-    } else {
-      clearInterval(loadingIntervalRef.current);
-      setLoadingMessage(LOADING_MESSAGES[0]);
-    }
-    return () => clearInterval(loadingIntervalRef.current);
+    if (loading) messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [loading]);
 
-  // Auto-submit if landing page passed a query parameter
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const q = params.get('q');
-    if (q && messages.length === 0) {
-      // Clean the URL without reloading
-      window.history.replaceState({}, '', window.location.pathname);
-      // Auto-submit the message
-      const userMessage = { role: "user", content: q };
-      setMessages([userMessage]);
-      setInput("");
-      setLoading(true);
-      fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-6",
-          max_tokens: 4000,
-          system: SYSTEM_PROMPT,
-          messages: [userMessage],
-        }),
-      })
-        .then(r => r.json())
-        .then(data => {
-          const text = data.content?.find(b => b.type === "text")?.text || "Something went wrong. Please try again.";
-          setMessages([userMessage, { role: "assistant", content: text }]);
-          if (isFree) {
-            const newCount = freeResponsesUsed + 1;
-            setFreeResponsesUsed(newCount);
-            if (newCount >= FREE_RESPONSE_LIMIT) setShowPaywall(true);
-          }
-        })
-        .catch(() => {
-          setMessages([userMessage, { role: "assistant", content: "There was a connection error. Please try again." }]);
-        })
-        .finally(() => setLoading(false));
-    }
-  }, []);
-
-  useEffect(() => {
-    try { localStorage.setItem('bast_messages', JSON.stringify(messages)); }
-    catch {}
+    try { localStorage.setItem("bast_messages", JSON.stringify(messages)); } catch {}
   }, [messages]);
 
   useEffect(() => {
-    try { localStorage.setItem('bast_unlocked', unlocked ? 'true' : 'false'); }
-    catch {}
+    try { localStorage.setItem("bast_unlocked", unlocked ? "true" : "false"); } catch {}
   }, [unlocked]);
 
   useEffect(() => {
-    try { localStorage.setItem('bast_free_used', String(freeResponsesUsed)); }
-    catch {}
-  }, [freeResponsesUsed]);
+    try { localStorage.setItem("bast_step", step); } catch {}
+  }, [step]);
 
   const clearHistory = () => {
     setMessages([]);
-    setShowPaywall(false);
-    try { localStorage.removeItem('bast_messages'); }
-    catch {}
+    setAnswersT1({});
+    setAnswersT2({});
+    setT1Index(0);
+    setT2Index(0);
+    setTextDraft("");
+    setFollowUp("");
+    setStep("tier1");
+    try {
+      localStorage.removeItem("bast_messages");
+      localStorage.removeItem("bast_step");
+    } catch {}
   };
 
   const handleLicenseSubmit = async () => {
@@ -155,10 +207,8 @@ export default function BASTInterpreter() {
     const valid = await validateLicenseKey(licenseKey);
     if (valid) {
       setUnlocked(true);
-      setShowPaywall(false);
-      trackEvent('unlock_success');
+      setStep("tier2");
     } else {
-      trackEvent('unlock_failed');
       setLicenseError("That password doesn't appear to be correct. Please check your purchase confirmation email and try again.");
     }
     setLicenseLoading(false);
@@ -168,87 +218,160 @@ export default function BASTInterpreter() {
     if (e.key === "Enter") handleLicenseSubmit();
   };
 
-  const handleSubmit = async () => {
-    if (!input.trim() || loading) return;
-    if (hitLimit) { setShowPaywall(true); return; }
+  async function callAPI(newMessages) {
+    const response = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-5",
+        max_tokens: 4000,
+        system: SYSTEM_PROMPT,
+        messages: newMessages,
+      }),
+    });
+    const data = await response.json();
+    return data.content?.find(b => b.type === "text")?.text
+      || "Something went wrong. Please try again.";
+  }
 
-    const userMessage = { role: "user", content: input.trim() };
-    const newMessages = [...messages, userMessage];
-    setMessages(newMessages);
-    setInput("");
+  // ---- TIER 1 SELECT/TEXT ANSWER HANDLING ----
+
+  const selectT1 = (option) => {
+    const q = QUESTIONS_TIER1[t1Index];
+    const latest = { ...answersT1, [q.id]: option };
+    setAnswersT1(latest);
+    advanceT1(latest);
+  };
+
+  const submitT1Text = () => {
+    const q = QUESTIONS_TIER1[t1Index];
+    const latest = { ...answersT1, [q.id]: textDraft };
+    setAnswersT1(latest);
+    setTextDraft("");
+    advanceT1(latest);
+  };
+
+  const fetchInitialReading = async (latestAnswers) => {
     setLoading(true);
-
-    // Track message sent
-    if (messages.length === 0) {
-      trackEvent('first_message_sent', { free_user: isFree });
-    } else {
-      trackEvent('follow_up_message_sent', { message_number: messages.filter(m => m.role === 'user').length + 1 });
-    }
-
+    const compiled = compileAnswers(QUESTIONS_TIER1, latestAnswers);
+    const userMsg = {
+      role: "user",
+      content: `Here is the intake for an Initial Reading:\n\n${compiled}\n\nProvide an Initial Reading based on this intake.`,
+    };
+    const newMessages = [...messages, userMsg];
+    setMessages(newMessages);
     try {
-      const response = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-6",
-          max_tokens: 4000,
-          system: SYSTEM_PROMPT,
-          messages: newMessages,
-        }),
-      });
-      const data = await response.json();
-      const text = data.content?.find(b => b.type === "text")?.text || "Something went wrong. Please try again.";
+      const text = await callAPI(newMessages);
       setMessages(prev => [...prev, { role: "assistant", content: text }]);
-      if (isFree) {
-        const newCount = freeResponsesUsed + 1;
-        setFreeResponsesUsed(newCount);
-        if (newCount >= FREE_RESPONSE_LIMIT) {
-          setShowPaywall(true);
-          trackEvent('paywall_shown');
-        }
-      }
+      setStep(unlocked ? "tier2" : "paywall");
     } catch {
       setMessages(prev => [...prev, { role: "assistant", content: "There was a connection error. Please try again." }]);
     }
     setLoading(false);
   };
 
-  const handleKeyDown = (e) => {
-    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSubmit(); }
+  const advanceT1 = (latestAnswers) => {
+    if (t1Index < QUESTIONS_TIER1.length - 1) {
+      setT1Index(t1Index + 1);
+      return;
+    }
+    // Tier 1 complete — request Initial Reading
+    fetchInitialReading(latestAnswers);
+  };
+
+  // Pick up Tier 1 answers passed in via URL params (e.g. from a landing-page
+  // quiz) so a returning visitor doesn't have to answer the same six
+  // questions twice. Only fires once, on a completely fresh session.
+  useEffect(() => {
+    if (messages.length > 0 || t1Index > 0) return;
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const ids = QUESTIONS_TIER1.map(q => q.id);
+      if (ids.every(id => params.get(id))) {
+        const fromUrl = {};
+        ids.forEach(id => { fromUrl[id] = params.get(id); });
+        setAnswersT1(fromUrl);
+        fetchInitialReading(fromUrl);
+      }
+    } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ---- TIER 2 SELECT/TEXT ANSWER HANDLING ----
+
+  const submitT2Text = () => {
+    const q = QUESTIONS_TIER2[t2Index];
+    setAnswersT2(prev => ({ ...prev, [q.id]: textDraft }));
+    setTextDraft("");
+    advanceT2({ ...answersT2, [q.id]: textDraft });
+  };
+
+  const skipT2 = () => {
+    advanceT2({ ...answersT2 });
+  };
+
+  const advanceT2 = async (latestAnswers) => {
+    if (t2Index < QUESTIONS_TIER2.length - 1) {
+      setT2Index(t2Index + 1);
+      return;
+    }
+    // Tier 2 complete — request Root Cause Reading
+    setLoading(true);
+    const compiled = compileAnswers(QUESTIONS_TIER2, latestAnswers);
+    const userMsg = {
+      role: "user",
+      content: `The person would like to go deeper. Here are additional intake answers for a full Root Cause Reading:\n\n${compiled}\n\nUsing everything shared so far — the original symptom details and this deeper context — provide a complete Root Cause Reading using the full Deep Reading sequence: location, power, shadow, and synthesized soul message.`,
+    };
+    const newMessages = [...messages, userMsg];
+    setMessages(newMessages);
+    try {
+      const text = await callAPI(newMessages);
+      setMessages(prev => [...prev, { role: "assistant", content: text }]);
+      setStep("chat");
+    } catch {
+      setMessages(prev => [...prev, { role: "assistant", content: "There was a connection error. Please try again." }]);
+    }
+    setLoading(false);
+  };
+
+  // ---- FREEFORM FOLLOW-UP (post Root Cause Reading) ----
+
+  const handleFollowUpSubmit = async () => {
+    if (!followUp.trim() || loading) return;
+    const userMessage = { role: "user", content: followUp.trim() };
+    const newMessages = [...messages, userMessage];
+    setMessages(newMessages);
+    setFollowUp("");
+    setLoading(true);
+    try {
+      const text = await callAPI(newMessages);
+      setMessages(prev => [...prev, { role: "assistant", content: text }]);
+    } catch {
+      setMessages(prev => [...prev, { role: "assistant", content: "There was a connection error. Please try again." }]);
+    }
+    setLoading(false);
+  };
+
+  const handleFollowUpKeyDown = (e) => {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleFollowUpSubmit(); }
+  };
+
+  const handleTextKeyDown = (submitFn) => (e) => {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submitFn(); }
   };
 
   const formatMessage = (content) => {
-    const patterns = [
-      /Soul Guidance Question[:\s]*/i,
-      /Soul Guidance[:\s]*/i,
-      /Guidance Question[:\s]*/i,
-    ];
-    let splitIndex = -1;
-    let matchLength = 0;
-    for (const pattern of patterns) {
-      const match = content.match(pattern);
-      if (match) {
-        splitIndex = content.indexOf(match[0]);
-        matchLength = match[0].length;
-        break;
-      }
-    }
-    if (splitIndex !== -1) {
-      const before = content.substring(0, splitIndex).trim();
-      let rawQuestion = content.substring(splitIndex + matchLength).trim();
-      const questionEnd = rawQuestion.search(/\n\n|\n[A-Z]/);
-      const question = questionEnd !== -1 ? rawQuestion.substring(0, questionEnd).trim() : rawQuestion.trim();
-      const remainder = questionEnd !== -1 ? rawQuestion.substring(questionEnd).trim() : "";
+    const parts = content.split(/(Soul Guidance Question[:\s]*)/i);
+    if (parts.length > 1) {
       return (
         <>
-          <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.82 }}>{before}</div>
-          {remainder ? <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.82, marginTop: "1rem" }}>{remainder}</div> : null}
+          <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.82 }}>{parts[0]}</div>
           <div style={{ marginTop: "1.5rem", padding: "1rem 1.25rem", background: "rgba(193,127,58,0.08)", borderLeft: "3px solid #c17f3a", borderRadius: "0 8px 8px 0" }}>
             <div style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.15em", textTransform: "uppercase", color: "#c17f3a", marginBottom: "0.4rem", fontFamily: SANS }}>
               Soul Guidance Question
             </div>
             <div style={{ fontSize: "18px", fontStyle: "italic", lineHeight: 1.75, color: "#1e1a16", fontFamily: SERIF }}>
-              {question}
+              {parts.slice(2).join("").trim()}
             </div>
           </div>
         </>
@@ -257,185 +380,262 @@ export default function BASTInterpreter() {
     return <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.82 }}>{content}</div>;
   };
 
+  // ---- SHARED HEADER ----
+
+  const Header = () => (
+    <div style={{ borderBottom: `1px solid ${c.border}`, padding: "1.25rem 2rem", display: "flex", alignItems: "center", justifyContent: "space-between", background: c.bgHeader, position: "sticky", top: 0, zIndex: 10 }}>
+      <div>
+        <div style={{ fontSize: "10px", letterSpacing: "0.2em", textTransform: "uppercase", color: c.accent, marginBottom: "2px", fontFamily: SANS, fontWeight: 600 }}>Voltage Wellness</div>
+        <div style={{ fontSize: "17px", fontWeight: 700, color: c.textPrimary, fontFamily: SANS }}>The Voltage Reading</div>
+      </div>
+      {(messages.length > 0 || t1Index > 0) && (
+        <button onClick={clearHistory} style={{ background: "transparent", border: `1px solid ${c.borderMid}`, color: c.textMuted, padding: "6px 14px", borderRadius: "4px", fontSize: "12px", cursor: "pointer", fontFamily: SANS, fontWeight: 500 }}>
+          Start over
+        </button>
+      )}
+    </div>
+  );
+
+  const Disclaimer = () => (
+    <div style={{ textAlign: "center", fontSize: "11px", color: c.textMuted, marginTop: "0.75rem", letterSpacing: "0.03em", fontFamily: SANS }}>
+      Spiritual and energetic interpretation — not a substitute for medical care.
+    </div>
+  );
+
+  // ---- QUESTION WIZARD SCREEN ----
+
+  const QuestionScreen = ({ questions, index, tierLabel }) => {
+    const q = questions[index];
+    const isSelect = q.type === "select";
+
+    return (
+      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "2rem 1.5rem" }}>
+        <div style={{ width: "100%", maxWidth: "620px" }}>
+          <div style={{ textAlign: "center", marginBottom: "2rem" }}>
+            <div style={{ fontSize: "11px", fontWeight: 600, letterSpacing: "0.2em", textTransform: "uppercase", color: c.accent, marginBottom: "1rem", fontFamily: SANS }}>
+              {tierLabel} · Question {index + 1} of {questions.length}
+            </div>
+            <div style={{ fontSize: "24px", fontWeight: 700, color: c.textPrimary, marginBottom: "0.5rem", lineHeight: 1.3, fontFamily: SANS, letterSpacing: "-0.01em" }}>
+              {q.q}
+            </div>
+            {q.hint && (
+              <div style={{ fontSize: "14px", color: c.textMuted, lineHeight: 1.6, marginTop: "0.75rem", fontFamily: SERIF, fontStyle: "italic" }}>
+                {q.hint}
+              </div>
+            )}
+            {q.optional && (
+              <div style={{ fontSize: "12px", color: c.accentPop, marginTop: "0.5rem", fontFamily: SANS, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                Optional — skip if unsure
+              </div>
+            )}
+          </div>
+
+          {isSelect ? (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", justifyContent: "center" }}>
+              {q.options.map(opt => (
+                <button
+                  key={opt}
+                  onClick={() => selectT1(opt)}
+                  disabled={loading}
+                  style={{ background: c.bgInput, border: `1px solid ${c.borderMid}`, borderRadius: "10px", padding: "12px 20px", fontSize: "16px", color: c.textPrimary, cursor: loading ? "default" : "pointer", fontFamily: SERIF, transition: "all 0.15s" }}
+                >
+                  {opt}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px", background: c.bgInput, border: `1px solid ${c.borderMid}`, borderRadius: "12px", padding: "12px 16px" }}>
+              <textarea
+                value={textDraft}
+                onChange={e => setTextDraft(e.target.value)}
+                onKeyDown={handleTextKeyDown(tierLabel === "Free Reading" ? submitT1Text : submitT2Text)}
+                placeholder="Type your answer here..."
+                rows={4}
+                autoFocus
+                style={{ background: "transparent", border: "none", outline: "none", color: c.textPrimary, fontSize: "18px", fontFamily: SERIF, lineHeight: 1.7, resize: "none", width: "100%" }}
+              />
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                {q.optional ? (
+                  <button onClick={skipT2} disabled={loading} style={{ background: "transparent", border: "none", color: c.textMuted, fontSize: "13px", cursor: "pointer", fontFamily: SANS, textDecoration: "underline" }}>
+                    Skip this question
+                  </button>
+                ) : <div />}
+                <button
+                  onClick={tierLabel === "Free Reading" ? submitT1Text : submitT2Text}
+                  disabled={loading}
+                  style={{ background: loading ? c.accentMid : c.accent, border: "none", borderRadius: "4px", padding: "8px 20px", cursor: loading ? "default" : "pointer", color: loading ? c.textMuted : "#fff", fontSize: "13px", fontFamily: SANS, fontWeight: 700, letterSpacing: "0.04em", transition: "all 0.15s" }}
+                >
+                  {loading ? "Reading…" : "Next \u2192"}
+                </button>
+              </div>
+            </div>
+          )}
+          <Disclaimer />
+        </div>
+      </div>
+    );
+  };
+
+  // ---- READING TRANSCRIPT (shown once tier1/tier2 replies have started) ----
+
+  const Transcript = ({ ctaSlot }) => (
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", maxWidth: "700px", width: "100%", margin: "0 auto", padding: "0 1.5rem" }}>
+      <div style={{ paddingTop: "2rem" }}>
+        {messages.map((msg, i) => (
+          <div key={i} style={{ marginBottom: "2rem" }}>
+            {msg.role === "user" ? (
+              <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                <div style={{ background: c.userBubble, border: `1px solid ${c.userBubbleBorder}`, borderRadius: "14px 14px 2px 14px", padding: "12px 18px", maxWidth: "85%", fontSize: "15px", lineHeight: 1.65, color: c.textSecondary, whiteSpace: "pre-wrap", fontFamily: SERIF }}>
+                  {msg.content}
+                </div>
+              </div>
+            ) : (
+              <div style={{ display: "flex", gap: "12px", alignItems: "flex-start" }}>
+                <div style={{ width: "28px", height: "28px", borderRadius: "50%", background: c.accentLight, border: `1px solid ${c.borderMid}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", color: c.accent, flexShrink: 0, marginTop: "2px", fontFamily: SANS }}>&#10022;</div>
+                <div style={{ flex: 1, fontSize: "18px", color: c.textPrimary, fontFamily: SERIF }}>{formatMessage(msg.content)}</div>
+              </div>
+            )}
+          </div>
+        ))}
+
+        {loading && (
+          <div style={{ display: "flex", gap: "12px", alignItems: "flex-start", marginBottom: "2rem" }}>
+            <div style={{ width: "28px", height: "28px", borderRadius: "50%", background: c.accentLight, border: `1px solid ${c.borderMid}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", color: c.accent, flexShrink: 0 }}>&#10022;</div>
+            <div style={{ paddingTop: "8px", display: "flex", gap: "5px" }}>
+              {[0, 1, 2].map(i => (
+                <div key={i} style={{ width: "6px", height: "6px", borderRadius: "50%", background: c.accent, animation: `bast-pulse 1.2s ease-in-out ${i * 0.2}s infinite`, opacity: 0.45 }} />
+              ))}
+            </div>
+          </div>
+        )}
+        <div ref={messagesEndRef} />
+      </div>
+
+      <div style={{ position: "sticky", bottom: 0, background: `linear-gradient(to bottom, transparent, ${c.bg} 28%)`, paddingTop: "2rem", paddingBottom: "1.25rem" }}>
+        {ctaSlot}
+      </div>
+    </div>
+  );
+
+  // ---- RENDER: TIER 1 WIZARD ----
+
+  if (step === "tier1" && !loading) {
+    return (
+      <div style={{ minHeight: "100vh", background: c.bg, color: c.textPrimary, fontFamily: SERIF, display: "flex", flexDirection: "column" }}>
+        <Header />
+        {t1Index === 0 && (
+          <div style={{ textAlign: "center", maxWidth: "620px", margin: "1.5rem auto 0", padding: "0 1.5rem" }}>
+            <div style={{ fontSize: "27px", fontWeight: 700, color: c.textPrimary, lineHeight: 1.2, fontFamily: SANS, letterSpacing: "-0.01em" }}>
+              What is your body trying to tell you?
+            </div>
+            <div style={{ fontSize: "17px", color: c.textSecondary, lineHeight: 1.8, fontFamily: SERIF, marginTop: "0.75rem" }}>
+              Answer a few quick questions and we'll give you a free Initial Reading.
+            </div>
+          </div>
+        )}
+        <QuestionScreen questions={QUESTIONS_TIER1} index={t1Index} tierLabel="Free Reading" />
+        <style>{`* { box-sizing: border-box; } body { margin: 0; } textarea::placeholder { color: rgba(30,26,22,0.3); }`}</style>
+      </div>
+    );
+  }
+
+  // ---- RENDER: PAYWALL (after Initial Reading, before Tier 2) ----
+
+  if (step === "paywall" && !unlocked) {
+    return (
+      <div style={{ minHeight: "100vh", background: c.bg, color: c.textPrimary, fontFamily: SERIF, display: "flex", flexDirection: "column" }}>
+        <Header />
+        <Transcript ctaSlot={null} />
+        <div style={{ maxWidth: "460px", margin: "0 auto 2.5rem", width: "100%", padding: "0 1.5rem" }}>
+          <div style={{ textAlign: "center", marginBottom: "1.5rem" }}>
+            <div style={{ fontSize: "20px", fontWeight: 700, color: c.textPrimary, marginBottom: "0.5rem", fontFamily: SANS }}>
+              Go deeper: get your Root Cause Reading
+            </div>
+            <div style={{ fontSize: "16px", color: c.textSecondary, lineHeight: 1.7 }}>
+              Answer 9 more questions and unlock the full root-cause interpretation — the energetic pattern actually driving this symptom.
+            </div>
+          </div>
+          <div style={{ background: c.bgInput, border: `1px solid ${c.borderMid}`, borderRadius: "10px", padding: "1.25rem" }}>
+            <div style={{ fontSize: "12px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: c.textMuted, marginBottom: "0.6rem", fontFamily: SANS }}>
+              Access Password
+            </div>
+            <input
+              type="password"
+              value={licenseKey}
+              onChange={e => { setLicenseKey(e.target.value); setLicenseError(""); }}
+              onKeyDown={handleLicenseKeyDown}
+              placeholder="Enter your access password"
+              style={{ width: "100%", background: "transparent", border: "none", outline: "none", color: c.textPrimary, fontSize: "16px", fontFamily: SANS, padding: "0.25rem 0" }}
+            />
+          </div>
+          {licenseError && (
+            <div style={{ marginTop: "0.75rem", fontSize: "14px", color: "#b94040", lineHeight: 1.6 }}>{licenseError}</div>
+          )}
+          <button
+            onClick={handleLicenseSubmit}
+            disabled={!licenseKey.trim() || licenseLoading}
+            style={{ width: "100%", marginTop: "1rem", background: licenseKey.trim() && !licenseLoading ? c.accent : c.accentMid, border: "none", borderRadius: "6px", padding: "14px", fontSize: "15px", color: licenseKey.trim() && !licenseLoading ? "#fff" : c.textMuted, cursor: licenseKey.trim() && !licenseLoading ? "pointer" : "default", fontFamily: SANS, fontWeight: 700, letterSpacing: "0.04em" }}
+          >
+            {licenseLoading ? "Verifying..." : "Unlock Root Cause Reading \u2192"}
+          </button>
+          <div style={{ textAlign: "center", marginTop: "1.5rem", fontSize: "14px", color: c.textMuted, fontFamily: SERIF }}>
+            Don't have an access password?{" "}
+            <a href="https://zborchster.gumroad.com/l/dxrekr" style={{ color: c.accent, textDecoration: "underline" }}>
+              Purchase access here
+            </a>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ---- RENDER: TIER 2 WIZARD ----
+
+  if (step === "tier2" && !loading) {
+    return (
+      <div style={{ minHeight: "100vh", background: c.bg, color: c.textPrimary, fontFamily: SERIF, display: "flex", flexDirection: "column" }}>
+        <Header />
+        <QuestionScreen questions={QUESTIONS_TIER2} index={t2Index} tierLabel="Root Cause" />
+        <style>{`* { box-sizing: border-box; } body { margin: 0; } textarea::placeholder { color: rgba(30,26,22,0.3); }`}</style>
+      </div>
+    );
+  }
+
+  // ---- RENDER: CHAT (post Root Cause Reading, or mid-request loading state) ----
 
   return (
     <div style={{ minHeight: "100vh", background: c.bg, color: c.textPrimary, fontFamily: SERIF, display: "flex", flexDirection: "column" }}>
-
-      {showPaywall && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(30,26,22,0.85)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", padding: "1.5rem" }}>
-          <div style={{ background: "#faf8f4", borderRadius: "12px", padding: "2.5rem", maxWidth: "480px", width: "100%", textAlign: "center" }}>
-            <div style={{ fontSize: "11px", fontWeight: 600, letterSpacing: "0.2em", textTransform: "uppercase", color: c.accent, marginBottom: "0.75rem", fontFamily: SANS }}>
-              Body as Soul Tech
-            </div>
-            <div style={{ fontSize: "24px", fontWeight: 700, color: c.textPrimary, marginBottom: "1rem", fontFamily: SANS, lineHeight: 1.2 }}>
-              You've experienced your free response
-            </div>
-            <div style={{ fontSize: "18px", color: c.textSecondary, lineHeight: 1.75, fontFamily: SERIF, marginBottom: "1.75rem" }}>
-              Unlock unlimited conversations — your body, your life, your relationships, and your deepest questions, interpreted through a soul lens.
-            </div>
-            <a href="https://zborchster.gumroad.com/l/dxrekr" target="_blank" style={{ display: "block", background: c.accent, color: "#fff", padding: "14px", borderRadius: "6px", fontSize: "15px", fontWeight: 700, fontFamily: SANS, letterSpacing: "0.04em", textDecoration: "none", marginBottom: "1.25rem" }}>
-              Get Unlimited Access — $22
-            </a>
-            <div style={{ fontSize: "13px", color: c.textMuted, fontFamily: SERIF, marginBottom: "1.5rem" }}>
-              Already purchased?
-            </div>
-            <div style={{ background: c.bgInput, border: `1px solid ${c.borderMid}`, borderRadius: "8px", padding: "10px 14px", marginBottom: "0.75rem" }}>
-              <input
-                type="password"
-                value={licenseKey}
-                onChange={e => { setLicenseKey(e.target.value); setLicenseError(""); }}
-                onKeyDown={handleLicenseKeyDown}
-                placeholder="Enter your access password"
-                autoFocus
-                style={{ width: "100%", background: "transparent", border: "none", outline: "none", color: c.textPrimary, fontSize: "15px", fontFamily: SANS }}
-              />
-            </div>
-            {licenseError && (
-              <div style={{ fontSize: "13px", color: "#b94040", fontFamily: SERIF, marginBottom: "0.75rem" }}>
-                {licenseError}
-              </div>
-            )}
-            <button
-              onClick={handleLicenseSubmit}
-              disabled={!licenseKey.trim() || licenseLoading}
-              style={{ width: "100%", background: licenseKey.trim() && !licenseLoading ? c.accent : c.accentMid, border: "none", borderRadius: "6px", padding: "12px", fontSize: "14px", color: licenseKey.trim() && !licenseLoading ? "#fff" : c.textMuted, cursor: licenseKey.trim() && !licenseLoading ? "pointer" : "default", fontFamily: SANS, fontWeight: 700, letterSpacing: "0.04em" }}>
-              {licenseLoading ? "Verifying..." : "Unlock →"}
-            </button>
-            <div style={{ marginTop: "1rem", fontSize: "11px", color: c.textMuted, fontFamily: SANS, letterSpacing: "0.03em" }}>
-              🔒 All conversations are private and confidential
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div style={{ borderBottom: `1px solid ${c.border}`, padding: "1.25rem 2rem", display: "flex", alignItems: "center", justifyContent: "space-between", background: c.bgHeader, position: "sticky", top: 0, zIndex: 10 }}>
-        <div>
-          <div style={{ fontSize: "10px", letterSpacing: "0.2em", textTransform: "uppercase", color: c.accent, marginBottom: "2px", fontFamily: SANS, fontWeight: 600 }}>Body as Soul Tech</div>
-          <div style={{ fontSize: "17px", fontWeight: 700, color: c.textPrimary, fontFamily: SANS }}>Know Yourself</div>
-        </div>
-        <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
-          {isFree && !showPaywall && (
-            <div style={{ fontSize: "11px", color: c.textMuted, fontFamily: SANS }}>
-              {freeResponsesUsed === 0 ? "1 free response remaining" : "Free response used"}
-            </div>
-          )}
-          {messages.length > 0 && (
-            <button onClick={clearHistory} style={{ background: "transparent", border: `1px solid ${c.borderMid}`, color: c.textMuted, padding: "6px 14px", borderRadius: "4px", fontSize: "12px", cursor: "pointer", fontFamily: SANS, fontWeight: 500 }}>
-              Clear history
-            </button>
-          )}
-        </div>
-      </div>
-
-      {messages.length === 0 && (
-        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "2rem 1.5rem" }}>
-          <div style={{ width: "100%", maxWidth: "620px" }}>
-            <div style={{ textAlign: "center", marginBottom: "2rem" }}>
-              <div style={{ fontSize: "11px", fontWeight: 600, letterSpacing: "0.2em", textTransform: "uppercase", color: c.accent, marginBottom: "1rem", fontFamily: SANS }}>
-                Know Yourself
-              </div>
-              <div style={{ fontSize: "27px", fontWeight: 700, color: c.textPrimary, marginBottom: "1.25rem", lineHeight: 1.2, fontFamily: SANS, letterSpacing: "-0.01em" }}>
-                What is your soul trying to tell you?
-              </div>
-              <div style={{ fontSize: "18px", color: c.textSecondary, lineHeight: 1.85, fontFamily: SERIF }}>
-                Your soul speaks through your body, your patterns, your relationships, and the questions that won't leave you alone. Describe what's been showing up — and we'll tell you what it means.
-              </div>
-            </div>
-
-            <div style={{ display: "flex", flexDirection: "column", gap: "8px", background: c.bgInput, border: `1px solid ${c.borderMid}`, borderRadius: "12px", padding: "12px 16px" }}>
-              <textarea
-                value={input}
-                onChange={e => setInput(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="What keeps showing up in your body, your life, or your mind that you can't explain?"
-                rows={5}
-                style={{ background: "transparent", border: "none", outline: "none", color: c.textPrimary, fontSize: "18px", fontFamily: SERIF, lineHeight: 1.7, resize: "none", width: "100%" }}
-              />
-              <div style={{ display: "flex", justifyContent: "flex-end" }}>
-                <button
-                  onClick={handleSubmit}
-                  disabled={!input.trim() || loading}
-                  style={{ background: input.trim() && !loading ? c.accent : c.accentMid, border: "none", borderRadius: "4px", padding: "8px 20px", cursor: input.trim() && !loading ? "pointer" : "default", color: input.trim() && !loading ? "#fff" : c.textMuted, fontSize: "13px", fontFamily: SANS, fontWeight: 700, letterSpacing: "0.04em", transition: "all 0.15s" }}
-                >
-                  Interpret &rarr;
-                </button>
-              </div>
-            </div>
-            <div style={{ textAlign: "center", fontSize: "11px", color: c.textMuted, marginTop: "0.75rem", letterSpacing: "0.03em", fontFamily: SANS }}>
-              Spiritual and energetic interpretation — not a substitute for medical care.
-            </div>
-          </div>
-        </div>
-      )}
-
-      {messages.length > 0 && (
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", maxWidth: "700px", width: "100%", margin: "0 auto", padding: "0 1.5rem" }}>
-          <div style={{ paddingTop: "2rem" }}>
-            {messages.map((msg, i) => (
-              <div key={i} style={{ marginBottom: "2rem" }}>
-                {msg.role === "user" ? (
-                  <div style={{ display: "flex", justifyContent: "flex-end" }}>
-                    <div style={{ background: c.userBubble, border: `1px solid ${c.userBubbleBorder}`, borderRadius: "14px 14px 2px 14px", padding: "12px 18px", maxWidth: "85%", fontSize: "18px", lineHeight: 1.65, color: c.textPrimary, whiteSpace: "pre-wrap", fontFamily: SERIF }}>
-                      {msg.content}
-                    </div>
-                  </div>
-                ) : (
-                  <div style={{ display: "flex", gap: "12px", alignItems: "flex-start" }}>
-                    <div style={{ width: "28px", height: "28px", borderRadius: "50%", background: c.accentLight, border: `1px solid ${c.borderMid}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", color: c.accent, flexShrink: 0, marginTop: "2px", fontFamily: SANS }}>&#10022;</div>
-                    <div style={{ flex: 1, fontSize: "18px", color: c.textPrimary, fontFamily: SERIF }}>{formatMessage(msg.content)}</div>
-                  </div>
-                )}
-              </div>
-            ))}
-
-            {loading && (
-              <div style={{ display: "flex", gap: "12px", alignItems: "flex-start", marginBottom: "2rem" }}>
-                <div style={{ width: "28px", height: "28px", borderRadius: "50%", background: c.accentLight, border: `1px solid ${c.borderMid}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", color: c.accent, flexShrink: 0 }}>&#10022;</div>
-                <div style={{ paddingTop: "4px" }}>
-                  <div style={{ fontSize: "16px", fontFamily: SERIF, color: c.textSecondary, fontStyle: "italic", marginBottom: "6px", transition: "opacity 0.5s" }}>{loadingMessage}</div>
-                  <div style={{ display: "flex", gap: "5px" }}>
-                    {[0, 1, 2].map(i => (
-                      <div key={i} style={{ width: "5px", height: "5px", borderRadius: "50%", background: c.accent, animation: `bast-pulse 1.2s ease-in-out ${i * 0.2}s infinite`, opacity: 0.45 }} />
-                    ))}
-                  </div>
+      <Header />
+      <Transcript
+        ctaSlot={
+          step === "chat" ? (
+            <>
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px", background: c.bgInput, border: `1px solid ${c.borderMid}`, borderRadius: "10px", padding: "10px 14px" }}>
+                <textarea
+                  value={followUp}
+                  onChange={e => setFollowUp(e.target.value)}
+                  onKeyDown={handleFollowUpKeyDown}
+                  placeholder="Ask a follow-up or describe another symptom..."
+                  rows={2}
+                  style={{ background: "transparent", border: "none", outline: "none", color: c.textPrimary, fontSize: "18px", fontFamily: SERIF, lineHeight: 1.6, resize: "none", width: "100%" }}
+                />
+                <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                  <button
+                    onClick={handleFollowUpSubmit}
+                    disabled={!followUp.trim() || loading}
+                    style={{ background: followUp.trim() && !loading ? c.accent : c.accentMid, border: "none", borderRadius: "4px", padding: "7px 18px", cursor: followUp.trim() && !loading ? "pointer" : "default", color: followUp.trim() && !loading ? "#fff" : c.textMuted, fontSize: "13px", fontFamily: SANS, fontWeight: 700, letterSpacing: "0.04em" }}
+                  >
+                    Send &rarr;
+                  </button>
                 </div>
               </div>
-            )}
-            <div ref={messagesEndRef} />
-          </div>
-
-          <div style={{ position: "sticky", bottom: 0, background: `linear-gradient(to bottom, transparent, ${c.bg} 28%)`, paddingTop: "2rem", paddingBottom: "1.25rem" }}>
-            <div style={{ display: "flex", flexDirection: "column", gap: "8px", background: c.bgInput, border: `1px solid ${c.borderMid}`, borderRadius: "10px", padding: "10px 14px" }}>
-              <textarea
-                value={input}
-                onChange={e => setInput(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="Ask a follow-up, describe another symptom, or ask anything..."
-                rows={2}
-                style={{ background: "transparent", border: "none", outline: "none", color: c.textPrimary, fontSize: "18px", fontFamily: SERIF, lineHeight: 1.6, resize: "none", width: "100%" }}
-              />
-              <div style={{ display: "flex", justifyContent: "flex-end" }}>
-                <button
-                  onClick={handleSubmit}
-                  disabled={!input.trim() || loading}
-                  style={{ background: input.trim() && !loading ? c.accent : c.accentMid, border: "none", borderRadius: "4px", padding: "7px 18px", cursor: input.trim() && !loading ? "pointer" : "default", color: input.trim() && !loading ? "#fff" : c.textMuted, fontSize: "13px", fontFamily: SANS, fontWeight: 700, letterSpacing: "0.04em", transition: "all 0.15s" }}
-                >
-                  Send &rarr;
-                </button>
-              </div>
-            </div>
-            <div style={{ textAlign: "center", fontSize: "11px", color: c.textMuted, marginTop: "0.6rem", letterSpacing: "0.03em", fontFamily: SANS }}>
-              Spiritual and energetic interpretation — not a substitute for medical care.
-            </div>
-          </div>
-        </div>
-      )}
-
-      <style>{`
-        @keyframes bast-pulse {
-          0%, 100% { opacity: 0.2; transform: scale(0.8); }
-          50% { opacity: 0.8; transform: scale(1); }
+              <Disclaimer />
+            </>
+          ) : null
         }
+      />
+      <style>{`
+        @keyframes bast-pulse { 0%, 100% { opacity: 0.2; transform: scale(0.8); } 50% { opacity: 0.8; transform: scale(1); } }
         textarea::placeholder { color: rgba(30,26,22,0.3); }
         * { box-sizing: border-box; }
         body { margin: 0; }
