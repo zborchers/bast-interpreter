@@ -95,9 +95,14 @@ function QuestionScreen({ questions, index, tierLabel, loading, textDraft, setTe
               {q.hint}
             </div>
           )}
-          {isMultiSelect && (
+          {isMultiSelect && q.options.length > 0 && (
             <div style={{ fontSize: "12px", color: c.textMuted, marginTop: "0.5rem", fontFamily: SANS, fontStyle: "italic" }}>
               Select all that apply
+            </div>
+          )}
+          {q.required && (
+            <div style={{ fontSize: "12px", color: c.accentPop, marginTop: "0.5rem", fontFamily: SANS, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+              Required
             </div>
           )}
           {q.optional && (
@@ -109,32 +114,34 @@ function QuestionScreen({ questions, index, tierLabel, loading, textDraft, setTe
 
         {isMultiSelect ? (
           <div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", justifyContent: "center", marginBottom: "1.1rem" }}>
-              {q.options.map(opt => {
-                const selected = multiSelected.includes(opt);
-                return (
-                  <button
-                    key={opt}
-                    onClick={() => toggleMultiSelect1(opt)}
-                    disabled={loading}
-                    style={{
-                      background: selected ? c.accent : c.bgInput,
-                      border: `1.5px solid ${selected ? c.accent : c.borderMid}`,
-                      borderRadius: "10px",
-                      padding: "12px 20px",
-                      fontSize: "16px",
-                      color: selected ? "#fff" : c.textPrimary,
-                      cursor: loading ? "default" : "pointer",
-                      fontFamily: SERIF,
-                      fontWeight: selected ? 600 : 400,
-                      transition: "all 0.15s",
-                    }}
-                  >
-                    {selected ? "✓ " : ""}{opt}
-                  </button>
-                );
-              })}
-            </div>
+            {q.options.length > 0 && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", justifyContent: "center", marginBottom: "1.1rem" }}>
+                {q.options.map(opt => {
+                  const selected = multiSelected.includes(opt);
+                  return (
+                    <button
+                      key={opt}
+                      onClick={() => toggleMultiSelect1(opt)}
+                      disabled={loading}
+                      style={{
+                        background: selected ? c.accent : c.bgInput,
+                        border: `1.5px solid ${selected ? c.accent : c.borderMid}`,
+                        borderRadius: "10px",
+                        padding: "12px 20px",
+                        fontSize: "16px",
+                        color: selected ? "#fff" : c.textPrimary,
+                        cursor: loading ? "default" : "pointer",
+                        fontFamily: SERIF,
+                        fontWeight: selected ? 600 : 400,
+                        transition: "all 0.15s",
+                      }}
+                    >
+                      {selected ? "✓ " : ""}{opt}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
             <div style={{ display: "flex", flexDirection: "column", gap: "8px", background: c.bgInput, border: `1px solid ${c.borderMid}`, borderRadius: "12px", padding: "12px 16px" }}>
               <div style={{ fontSize: "12px", color: c.textMuted, fontFamily: SANS, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>
                 {q.detailLabel || "Anything else to add? (optional)"}
@@ -145,13 +152,19 @@ function QuestionScreen({ questions, index, tierLabel, loading, textDraft, setTe
                 onKeyDown={handleTextKeyDown(submitT1Multi)}
                 placeholder="Type here..."
                 rows={3}
+                autoFocus={q.options.length === 0}
                 style={{ background: "transparent", border: "none", outline: "none", color: c.textPrimary, fontSize: "17px", fontFamily: SERIF, lineHeight: 1.7, resize: "none", width: "100%" }}
               />
-              <div style={{ display: "flex", justifyContent: "flex-end" }}>
+              <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: "0.75rem" }}>
+                {q.required && multiSelected.length === 0 && !textDraft.trim() && (
+                  <div style={{ fontSize: "12px", color: c.textMuted, fontFamily: SANS, fontStyle: "italic" }}>
+                    Please fill this in to continue
+                  </div>
+                )}
                 <button
                   onClick={submitT1Multi}
-                  disabled={loading}
-                  style={{ background: loading ? c.accentMid : c.accent, border: "none", borderRadius: "4px", padding: "8px 20px", cursor: loading ? "default" : "pointer", color: loading ? c.textMuted : "#fff", fontSize: "13px", fontFamily: SANS, fontWeight: 700, letterSpacing: "0.04em", transition: "all 0.15s" }}
+                  disabled={loading || (q.required && multiSelected.length === 0 && !textDraft.trim())}
+                  style={{ background: loading || (q.required && multiSelected.length === 0 && !textDraft.trim()) ? c.accentMid : c.accent, border: "none", borderRadius: "4px", padding: "8px 20px", cursor: loading ? "default" : "pointer", color: loading || (q.required && multiSelected.length === 0 && !textDraft.trim()) ? c.textMuted : "#fff", fontSize: "13px", fontFamily: SANS, fontWeight: 700, letterSpacing: "0.04em", transition: "all 0.15s" }}
                 >
                   {loading ? "Reading…" : "Next \u2192"}
                 </button>
@@ -207,6 +220,70 @@ function QuestionScreen({ questions, index, tierLabel, loading, textDraft, setTe
   );
 }
 
+// ---- INLINE TIER 2 QUESTION (sits at the bottom of the chat transcript,
+// so Tier 2 feels like one continuous conversation instead of a separate
+// screen per question) ----
+
+function InlineTier2Question({ q, index, total, loading, textDraft, setTextDraft, handleTextKeyDown, submitT2Text, skipT2 }) {
+  return (
+    <div style={{ background: c.bgInput, border: `1px solid ${c.borderMid}`, borderRadius: "12px", padding: "16px 18px", marginBottom: "1rem" }}>
+      <div style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.15em", textTransform: "uppercase", color: c.accent, marginBottom: "0.5rem", fontFamily: SANS }}>
+        Root Cause · Question {index + 1} of {total}
+      </div>
+      <div style={{ fontSize: "17px", fontWeight: 700, color: c.textPrimary, marginBottom: "0.4rem", lineHeight: 1.35, fontFamily: SANS }}>
+        {q.q}
+      </div>
+      {q.hint && (
+        <div style={{ fontSize: "13px", color: c.textMuted, lineHeight: 1.55, marginBottom: "0.6rem", fontFamily: SERIF, fontStyle: "italic" }}>
+          {q.hint}
+        </div>
+      )}
+      {q.optional && (
+        <div style={{ fontSize: "11px", color: c.accentPop, marginBottom: "0.6rem", fontFamily: SANS, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+          Optional — skip if unsure
+        </div>
+      )}
+      {q.suggestions && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginBottom: "0.7rem" }}>
+          {q.suggestions.map(s => (
+            <button
+              key={s}
+              onClick={() => setTextDraft(s)}
+              disabled={loading}
+              style={{ background: "transparent", border: `1px dashed ${c.borderMid}`, borderRadius: "999px", padding: "5px 11px", fontSize: "12px", color: c.textSecondary, cursor: loading ? "default" : "pointer", fontFamily: SANS }}
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+      )}
+      <textarea
+        value={textDraft}
+        onChange={e => setTextDraft(e.target.value)}
+        onKeyDown={handleTextKeyDown(submitT2Text)}
+        placeholder="Tap a suggestion above, or type your own answer here..."
+        rows={3}
+        autoFocus
+        style={{ width: "100%", background: c.bg, border: `1px solid ${c.borderMid}`, borderRadius: "8px", padding: "10px 12px", outline: "none", color: c.textPrimary, fontSize: "16px", fontFamily: SERIF, lineHeight: 1.6, resize: "none", marginBottom: "0.6rem", boxSizing: "border-box" }}
+      />
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        {q.optional ? (
+          <button onClick={skipT2} disabled={loading} style={{ background: "transparent", border: "none", color: c.textMuted, fontSize: "12px", cursor: "pointer", fontFamily: SANS, textDecoration: "underline" }}>
+            Skip this question
+          </button>
+        ) : <div />}
+        <button
+          onClick={submitT2Text}
+          disabled={loading}
+          style={{ background: loading ? c.accentMid : c.accent, border: "none", borderRadius: "4px", padding: "8px 20px", cursor: loading ? "default" : "pointer", color: loading ? c.textMuted : "#fff", fontSize: "13px", fontFamily: SANS, fontWeight: 700, letterSpacing: "0.04em", transition: "all 0.15s" }}
+        >
+          {loading ? "Reading…" : "Next \u2192"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ---- READING TRANSCRIPT (also hoisted, same reason) ----
 
 function Transcript({ messages, loading, messagesEndRef, ctaSlot }) {
@@ -254,6 +331,17 @@ function Transcript({ messages, loading, messagesEndRef, ctaSlot }) {
 
 const QUESTIONS_TIER1 = [
   {
+    id: "diagnosis",
+    type: "multiselect",
+    q: "Do you have a medical diagnosis (or diagnoses) connected to what's going on?",
+    detailLabel: "If yes, what's the diagnosis? (optional, but helpful)",
+    options: [
+      "Yes, and I want this reading focused on that diagnosis",
+      "Yes, but I want to explore something separate from that diagnosis",
+      "No diagnosis — just exploring a symptom or pattern",
+    ],
+  },
+  {
     id: "region",
     type: "multiselect",
     q: "Where in the body is this happening?",
@@ -300,6 +388,69 @@ const QUESTIONS_TIER1 = [
     options: ["Work stress", "Relationship or family stress", "Grief or loss", "Major life transition", "Financial stress", "Caregiving responsibilities"],
   },
 ];
+
+// ---- DIAGNOSIS ROUTING ----
+// The diagnosis question (always first) changes what the rest of Tier 1
+// looks like:
+//   - "focused on diagnosis" ONLY -> skip the remaining 6 questions
+//     entirely; the reading is built from the diagnosis alone.
+//   - "focused on diagnosis" AND "separate thing" both selected -> keep
+//     the remaining 6 questions, but reword them to make unmistakably
+//     clear they're asking about the OTHER thing, not the diagnosis.
+//   - anything else (separate only, no diagnosis, or skipped) -> normal,
+//     unmodified flow.
+
+const DIAGNOSIS_FOCUSED = "Yes, and I want this reading focused on that diagnosis";
+const DIAGNOSIS_SEPARATE = "Yes, but I want to explore something separate from that diagnosis";
+
+const SEPARATE_REFRAME = {
+  region: "Setting the diagnosis aside for a moment — where in the body is this separate thing happening?",
+  side: "For this separate thing — is it more on the left side, the right side, centered, or on both sides?",
+  plane: "For this separate thing — do you feel it more toward the front, more toward the back, or both at once?",
+  quality: "How would you describe this separate thing?",
+  pattern: "Is this separate thing the first time you've had it, does it come and go, or is it constant / ongoing?",
+  context: "Setting the diagnosis aside — what's actually going on in your life right now connected to this other thing?",
+};
+
+// Required follow-up when someone wants the reading focused on their
+// diagnosis but hasn't actually named it yet — there's nothing to
+// interpret without this.
+const DIAGNOSIS_NAME_QUESTION = {
+  id: "diagnosisName",
+  type: "multiselect",
+  q: "What is your diagnosis (or diagnoses)?",
+  detailLabel: "List everything that applies — this is what the reading will be built from.",
+  options: [],
+  required: true,
+};
+
+function buildEffectiveTier1Questions(diagnosisAnswer) {
+  const selected = (diagnosisAnswer && diagnosisAnswer.selected) || [];
+  const focused = selected.includes(DIAGNOSIS_FOCUSED);
+  const alsoSeparate = selected.includes(DIAGNOSIS_SEPARATE);
+  const alreadyNamed = !!(diagnosisAnswer && diagnosisAnswer.detail && diagnosisAnswer.detail.trim());
+  const nameStep = alreadyNamed ? [] : [DIAGNOSIS_NAME_QUESTION];
+
+  if (focused && !alsoSeparate) {
+    // Reading will be built entirely from the diagnosis — nothing else
+    // needed, but we do need to actually know what it is first.
+    return [QUESTIONS_TIER1[0], ...nameStep];
+  }
+
+  if (focused && alsoSeparate) {
+    // They want both — get the diagnosis name if we don't have it yet,
+    // then reword the rest so it's unambiguous those questions are about
+    // the separate issue, not the diagnosis.
+    const reframed = QUESTIONS_TIER1.slice(1).map(q => ({
+      ...q,
+      q: SEPARATE_REFRAME[q.id] || q.q,
+    }));
+    return [QUESTIONS_TIER1[0], ...nameStep, ...reframed];
+  }
+
+  // Separate-only, no diagnosis, or skipped — normal flow.
+  return QUESTIONS_TIER1;
+}
 
 const QUESTIONS_TIER2 = [
   {
@@ -473,6 +624,12 @@ const CONTEXT_CHIP_TAGS = {
 function buildTier1Signals(answersT1) {
   const signals = new Set();
 
+  const diagnosisSelected = (answersT1.diagnosis && answersT1.diagnosis.selected) || [];
+  if (diagnosisSelected.includes("Yes, and I want this reading focused on that diagnosis")) {
+    signals.add("chronic");
+    signals.add("long-standing");
+  }
+
   const regionSelected = (answersT1.region && answersT1.region.selected) || [];
   regionSelected.forEach(r => (REGION_SIGNAL_TAGS[r] || []).forEach(t => signals.add(t)));
 
@@ -519,8 +676,7 @@ export default function BASTInterpreter() {
       const params = new URLSearchParams(window.location.search);
       const saved = localStorage.getItem("bast_messages");
       const hasSavedSession = saved && JSON.parse(saved).length > 0;
-      const ids = QUESTIONS_TIER1.map(q => q.id);
-      return !hasSavedSession && ids.every(id => params.has(id));
+      return !hasSavedSession && params.has("diagnosis");
     } catch { return false; }
   });
   const [unlocked, setUnlocked] = useState(() => {
@@ -540,6 +696,7 @@ export default function BASTInterpreter() {
   const [t2Index, setT2Index] = useState(0);
   const [answersT1, setAnswersT1] = useState({});
   const [multiSelected, setMultiSelected] = useState([]);
+  const [effectiveTier1Questions, setEffectiveTier1Questions] = useState(QUESTIONS_TIER1);
   const [answersT2, setAnswersT2] = useState({});
   const [tier2Questions, setTier2Questions] = useState(QUESTIONS_TIER2);
   const [textDraft, setTextDraft] = useState("");
@@ -567,6 +724,7 @@ export default function BASTInterpreter() {
     setMessages([]);
     setAnswersT1({});
     setMultiSelected([]);
+    setEffectiveTier1Questions(QUESTIONS_TIER1);
     setAnswersT2({});
     setT1Index(0);
     setT2Index(0);
@@ -625,18 +783,25 @@ export default function BASTInterpreter() {
   };
 
   const submitT1Multi = () => {
-    const q = QUESTIONS_TIER1[t1Index];
+    const q = effectiveTier1Questions[t1Index];
     const latest = { ...answersT1, [q.id]: { selected: multiSelected, detail: textDraft } };
     setAnswersT1(latest);
     setMultiSelected([]);
     setTextDraft("");
-    advanceT1(latest);
+    if (q.id === "diagnosis") {
+      const effective = buildEffectiveTier1Questions(latest.diagnosis);
+      setEffectiveTier1Questions(effective);
+      advanceT1(latest, effective);
+    } else {
+      advanceT1(latest);
+    }
   };
 
-  const fetchInitialReading = async (latestAnswers) => {
+  const fetchInitialReading = async (latestAnswers, questionsList) => {
+    const list = questionsList || effectiveTier1Questions;
     setLoading(true);
     setTier2Questions(orderTier2Questions(latestAnswers));
-    const compiled = compileAnswers(QUESTIONS_TIER1, latestAnswers);
+    const compiled = compileAnswers(list, latestAnswers);
     const userMsg = {
       role: "user",
       content: `Here is the intake for an Initial Reading:\n\n${compiled}\n\nProvide an Initial Reading based on this intake.`,
@@ -654,36 +819,48 @@ export default function BASTInterpreter() {
     setLoading(false);
   };
 
-  const advanceT1 = (latestAnswers) => {
-    if (t1Index < QUESTIONS_TIER1.length - 1) {
+  const advanceT1 = (latestAnswers, questionsList) => {
+    const list = questionsList || effectiveTier1Questions;
+    if (t1Index < list.length - 1) {
       setT1Index(t1Index + 1);
       return;
     }
-    // Tier 1 complete — request Initial Reading
-    fetchInitialReading(latestAnswers);
+    // Tier 1 complete (or short-circuited because the diagnosis alone was
+    // enough) — request Initial Reading.
+    fetchInitialReading(latestAnswers, list);
   };
 
   // Pick up Tier 1 answers passed in via URL params (e.g. from a landing-page
-  // quiz) so a returning visitor doesn't have to answer the same six
-  // questions twice. Only fires once, on a completely fresh session.
-  // Each question's selections arrive as "id=Option A||Option B" (pipe-
-  // separated, URL-encoded) with an optional "id_detail=..." param.
+  // quiz) so a returning visitor doesn't have to answer the same questions
+  // twice. Only fires once, on a completely fresh session. The set of
+  // required params depends on the diagnosis answer, same as the in-app
+  // flow — a diagnosis-focused-only answer means only "diagnosis" (and its
+  // detail) will be present at all.
   useEffect(() => {
     if (messages.length > 0 || t1Index > 0) return;
     try {
       const params = new URLSearchParams(window.location.search);
-      const ids = QUESTIONS_TIER1.map(q => q.id);
-      if (ids.every(id => params.has(id))) {
-        const fromUrl = {};
-        ids.forEach(id => {
-          const raw = params.get(id) || "";
-          const selected = raw.split("||").map(s => s.trim()).filter(Boolean);
-          const detail = params.get(`${id}_detail`) || "";
-          fromUrl[id] = { selected, detail };
-        });
-        setAnswersT1(fromUrl);
-        fetchInitialReading(fromUrl);
-      }
+      if (!params.has("diagnosis")) return;
+
+      const diagnosisRaw = params.get("diagnosis") || "";
+      const diagnosisSelected = diagnosisRaw.split("||").map(s => s.trim()).filter(Boolean);
+      const diagnosisDetail = params.get("diagnosis_detail") || "";
+      const diagnosisAnswer = { selected: diagnosisSelected, detail: diagnosisDetail };
+      const effective = buildEffectiveTier1Questions(diagnosisAnswer);
+      const ids = effective.map(q => q.id);
+
+      if (!ids.every(id => params.has(id))) return;
+
+      const fromUrl = {};
+      ids.forEach(id => {
+        const raw = params.get(id) || "";
+        const selected = raw.split("||").map(s => s.trim()).filter(Boolean);
+        const detail = params.get(`${id}_detail`) || "";
+        fromUrl[id] = { selected, detail };
+      });
+      setAnswersT1(fromUrl);
+      setEffectiveTier1Questions(effective);
+      fetchInitialReading(fromUrl, effective);
     } catch {}
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -745,17 +922,12 @@ export default function BASTInterpreter() {
       try {
         const text = await callAPI(newMessages);
         setMessages(prev => [...prev, { role: "assistant", content: text }]);
-        setStep("tier2-response");
+        setT2Index(t2Index + 1);
       } catch {
         setMessages(prev => [...prev, { role: "assistant", content: "There was a connection error. Please try again." }]);
       }
     }
     setLoading(false);
-  };
-
-  const continueTier2 = () => {
-    setT2Index(t2Index + 1);
-    setStep("tier2");
   };
 
   // ---- FREEFORM FOLLOW-UP (post Root Cause Reading) ----
@@ -800,7 +972,7 @@ export default function BASTInterpreter() {
             </div>
           </div>
         )}
-        <QuestionScreen questions={QUESTIONS_TIER1} index={t1Index} tierLabel="Free Reading" loading={loading} textDraft={textDraft} setTextDraft={setTextDraft} handleTextKeyDown={handleTextKeyDown} multiSelected={multiSelected} toggleMultiSelect1={toggleMultiSelect1} submitT1Multi={submitT1Multi} submitT2Text={submitT2Text} skipT2={skipT2} />
+        <QuestionScreen questions={effectiveTier1Questions} index={t1Index} tierLabel="Free Reading" loading={loading} textDraft={textDraft} setTextDraft={setTextDraft} handleTextKeyDown={handleTextKeyDown} multiSelected={multiSelected} toggleMultiSelect1={toggleMultiSelect1} submitT1Multi={submitT1Multi} submitT2Text={submitT2Text} skipT2={skipT2} />
         <style>{`* { box-sizing: border-box; } body { margin: 0; } textarea::placeholder { color: rgba(30,26,22,0.3); }`}</style>
       </div>
     );
@@ -881,38 +1053,32 @@ export default function BASTInterpreter() {
     );
   }
 
-  // ---- RENDER: TIER 2 RESPONSE (short reflection shown between questions) ----
+  // ---- RENDER: TIER 2 (inline chat — question appears at the bottom of the
+  // same scrolling transcript, no separate screen per question) ----
 
-  if (step === "tier2-response" && !loading) {
+  if (step === "tier2" && !loading) {
+    const q = tier2Questions[t2Index];
     return (
       <div style={{ minHeight: "100vh", background: c.bg, color: c.textPrimary, fontFamily: SERIF, display: "flex", flexDirection: "column" }}>
         <Header messages={messages} t1Index={t1Index} clearHistory={clearHistory} />
         <Transcript messages={messages} loading={loading} messagesEndRef={messagesEndRef}
           ctaSlot={
             <>
-              <div style={{ display: "flex", justifyContent: "center" }}>
-                <button
-                  onClick={continueTier2}
-                  style={{ background: c.accent, border: "none", borderRadius: "6px", padding: "14px 28px", fontSize: "15px", color: "#fff", cursor: "pointer", fontFamily: SANS, fontWeight: 700, letterSpacing: "0.04em" }}
-                >
-                  Next Question &rarr;
-                </button>
-              </div>
+              <InlineTier2Question
+                q={q}
+                index={t2Index}
+                total={tier2Questions.length}
+                loading={loading}
+                textDraft={textDraft}
+                setTextDraft={setTextDraft}
+                handleTextKeyDown={handleTextKeyDown}
+                submitT2Text={submitT2Text}
+                skipT2={skipT2}
+              />
               <Disclaimer />
             </>
           }
         />
-      </div>
-    );
-  }
-
-  // ---- RENDER: TIER 2 WIZARD ----
-
-  if (step === "tier2" && !loading) {
-    return (
-      <div style={{ minHeight: "100vh", background: c.bg, color: c.textPrimary, fontFamily: SERIF, display: "flex", flexDirection: "column" }}>
-        <Header messages={messages} t1Index={t1Index} clearHistory={clearHistory} />
-        <QuestionScreen questions={tier2Questions} index={t2Index} tierLabel="Root Cause" loading={loading} textDraft={textDraft} setTextDraft={setTextDraft} handleTextKeyDown={handleTextKeyDown} multiSelected={multiSelected} toggleMultiSelect1={toggleMultiSelect1} submitT1Multi={submitT1Multi} submitT2Text={submitT2Text} skipT2={skipT2} />
         <style>{`* { box-sizing: border-box; } body { margin: 0; } textarea::placeholder { color: rgba(30,26,22,0.3); }`}</style>
       </div>
     );
