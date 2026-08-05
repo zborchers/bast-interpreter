@@ -520,7 +520,7 @@ export default function BASTInterpreter() {
       const saved = localStorage.getItem("bast_messages");
       const hasSavedSession = saved && JSON.parse(saved).length > 0;
       const ids = QUESTIONS_TIER1.map(q => q.id);
-      return !hasSavedSession && ids.every(id => params.get(id));
+      return !hasSavedSession && ids.every(id => params.has(id));
     } catch { return false; }
   });
   const [unlocked, setUnlocked] = useState(() => {
@@ -606,7 +606,9 @@ export default function BASTInterpreter() {
         model: "claude-sonnet-4-5",
         max_tokens: 4000,
         system: SYSTEM_PROMPT,
-        messages: newMessages,
+        // Strip the local-only "display" field — the API only accepts
+        // role/content on message objects.
+        messages: newMessages.map(({ role, content }) => ({ role, content })),
       }),
     });
     const data = await response.json();
@@ -671,7 +673,7 @@ export default function BASTInterpreter() {
     try {
       const params = new URLSearchParams(window.location.search);
       const ids = QUESTIONS_TIER1.map(q => q.id);
-      if (ids.every(id => params.get(id))) {
+      if (ids.every(id => params.has(id))) {
         const fromUrl = {};
         ids.forEach(id => {
           const raw = params.get(id) || "";
