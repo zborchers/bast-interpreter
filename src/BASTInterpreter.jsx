@@ -191,6 +191,91 @@ function QuestionScreen({ questions, index, tierLabel, loading, textDraft, setTe
   );
 }
 
+// ---- BODY PART FORM (one screen per selected body part, with all of its
+// sub-questions — side, front/back, sensation, pattern — grouped together
+// so the person can answer everything about that part at once) ----
+
+function BodyPartFormScreen({ q, index, total, loading, bodyPartSelections, toggleBodyPartOption, textDraft, setTextDraft, handleTextKeyDown, submitBodyPartForm }) {
+  return (
+    <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "2rem 1.5rem" }}>
+      <div style={{ width: "100%", maxWidth: "620px" }}>
+        <div style={{ textAlign: "center", marginBottom: "1.5rem" }}>
+          <div style={{ fontSize: "11px", fontWeight: 600, letterSpacing: "0.2em", textTransform: "uppercase", color: c.accent, marginBottom: "1rem", fontFamily: SANS }}>
+            Free Reading · Question {index + 1} of {total}
+          </div>
+          <div style={{ fontSize: "24px", fontWeight: 700, color: c.textPrimary, marginBottom: "0.5rem", lineHeight: 1.3, fontFamily: SANS, letterSpacing: "-0.01em", textTransform: "capitalize" }}>
+            Tell us about your {q.bodyPart}
+          </div>
+          <div style={{ fontSize: "13px", color: c.textMuted, fontFamily: SANS, fontStyle: "italic" }}>
+            Select whatever applies below — skip anything that doesn't make sense for this body part.
+          </div>
+        </div>
+
+        <div style={{ maxHeight: "50vh", overflowY: "auto", paddingRight: "4px" }}>
+          {q.groups.map(group => (
+            <div key={group.key} style={{ marginBottom: "1.4rem" }}>
+              <div style={{ fontSize: "13px", fontWeight: 700, color: c.textPrimary, marginBottom: "0.6rem", fontFamily: SANS }}>
+                {group.label}
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+                {group.options.map(opt => {
+                  const selected = (bodyPartSelections[group.key] || []).includes(opt);
+                  return (
+                    <button
+                      key={opt}
+                      onClick={() => toggleBodyPartOption(group.key, opt)}
+                      disabled={loading}
+                      style={{
+                        background: selected ? c.accent : c.bgInput,
+                        border: `1.5px solid ${selected ? c.accent : c.borderMid}`,
+                        borderRadius: "8px",
+                        padding: "9px 16px",
+                        fontSize: "14px",
+                        color: selected ? "#fff" : c.textPrimary,
+                        cursor: loading ? "default" : "pointer",
+                        fontFamily: SERIF,
+                        fontWeight: selected ? 600 : 400,
+                        transition: "all 0.15s",
+                      }}
+                    >
+                      {selected ? "✓ " : ""}{opt}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+
+          <div style={{ display: "flex", flexDirection: "column", gap: "8px", background: c.bgInput, border: `1px solid ${c.borderMid}`, borderRadius: "12px", padding: "12px 16px" }}>
+            <div style={{ fontSize: "12px", color: c.textMuted, fontFamily: SANS, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              {q.detailLabel}
+            </div>
+            <textarea
+              value={textDraft}
+              onChange={e => setTextDraft(e.target.value)}
+              onKeyDown={handleTextKeyDown(submitBodyPartForm)}
+              placeholder="Type here..."
+              rows={2}
+              style={{ background: "transparent", border: "none", outline: "none", color: c.textPrimary, fontSize: "16px", fontFamily: SERIF, lineHeight: 1.6, resize: "none", width: "100%" }}
+            />
+          </div>
+        </div>
+
+        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "1rem" }}>
+          <button
+            onClick={submitBodyPartForm}
+            disabled={loading}
+            style={{ background: loading ? c.accentMid : c.accent, border: "none", borderRadius: "4px", padding: "10px 24px", cursor: loading ? "default" : "pointer", color: loading ? c.textMuted : "#fff", fontSize: "13px", fontFamily: SANS, fontWeight: 700, letterSpacing: "0.04em", transition: "all 0.15s" }}
+          >
+            {loading ? "Reading…" : "Next \u2192"}
+          </button>
+        </div>
+        <Disclaimer />
+      </div>
+    </div>
+  );
+}
+
 // ---- TIER 2 PROGRESS BAR (subtle indicator of how close the ongoing
 // conversation is to having enough for the full Root Cause Reading) ----
 
@@ -422,82 +507,49 @@ function buildEffectiveTier1Questions(diagnosisAnswer) {
 }
 
 // A single "left / right / both" answer can't capture "left arm but right
-// knee." When paired limbs are selected, generate one dedicated question
-// per limb — side, front/back, and sensation all in one place — and use
-// those in place of the generic side/plane questions for that limb.
-const LIMB_SINGULAR = {
-  "Arms": "arm", "Hands": "hand", "Legs": "leg", "Knees": "knee",
-  "Ankles": "ankle", "Feet": "foot", "Shoulders": "shoulder",
-};
-const LIMB_REGIONS = Object.keys(LIMB_SINGULAR);
-
-// Everything else that isn't a limb, for turning a raw region selection
-// into a natural lowercase name to weave into later question text.
+// knee," and a generic reworded question doesn't make clear which body
+// part it's still asking about once several are in play. So instead: once
+// someone selects their region(s), each one gets its own single form —
+// side, front/back, sensation, and pattern all together — replacing the
+// generic side/plane/quality/pattern questions entirely.
 const REGION_DISPLAY = {
-  "Head": "head", "Neck": "neck", "Throat": "throat", "Chest": "chest",
-  "Heart": "heart", "Upper Back": "upper back", "Lower Back": "lower back",
-  "Abdomen": "abdomen", "Gut": "gut", "Hips": "hips", "Pelvis": "pelvis",
-  "Somewhere else": "the area you mentioned",
+  "Head": "head", "Neck": "neck", "Throat": "throat", "Shoulders": "shoulder",
+  "Chest": "chest", "Heart": "heart", "Upper Back": "upper back", "Lower Back": "lower back",
+  "Abdomen": "abdomen", "Gut": "gut", "Hips": "hip", "Pelvis": "pelvis",
+  "Legs": "leg", "Knees": "knee", "Ankles": "ankle", "Feet": "foot",
+  "Arms": "arm", "Hands": "hand", "Somewhere else": "the area you mentioned",
 };
 
 function regionDisplayName(region) {
-  return LIMB_SINGULAR[region] || REGION_DISPLAY[region] || region.toLowerCase();
+  return REGION_DISPLAY[region] || region.toLowerCase();
 }
 
-// Joins ["ankle","gut","chest"] into "your ankle, gut, and chest" —
-// used to keep every later question anchored to what was actually selected.
-function joinRegionNames(regions) {
-  const names = regions.map(regionDisplayName);
-  if (names.length === 1) return names[0];
-  if (names.length === 2) return `${names[0]} and ${names[1]}`;
-  return `${names.slice(0, -1).join(", ")}, and ${names[names.length - 1]}`;
-}
-
-function buildLimbQuestion(limbPlural) {
-  const s = LIMB_SINGULAR[limbPlural];
+function buildBodyPartForm(region) {
+  const display = regionDisplayName(region);
+  const slug = display.replace(/\s+/g, "_");
   return {
-    id: `limb_${s}`,
-    type: "multiselect",
-    q: `For your ${s}: which side, and front or back? (Select whichever apply — skip whatever doesn't make sense, like "front or back" for a whole joint.)`,
-    detailLabel: `What does it feel like in your ${s}? (e.g. sharp, dull ache, burning, tight, throbbing, numb, cramping, tingling)`,
-    options: [
-      `Left ${s}`, `Right ${s}`, `Both sides`,
-      "Front", "Back", "Both front and back",
+    id: `bodypart_${slug}`,
+    type: "bodyPartForm",
+    bodyPart: display,
+    groups: [
+      { key: "side", label: "Which side?", options: ["Left", "Right", "Both sides", "Centered"] },
+      { key: "plane", label: "Front or back?", options: ["Front", "Back", "Both front and back"] },
+      { key: "quality", label: "What does it feel like?", options: ["Sharp", "Dull ache", "Burning", "Tight", "Throbbing", "Numb", "Cramping", "Tingling"] },
+      { key: "pattern", label: "Is this the first time, does it come and go, or is it constant / ongoing?", options: ["First time", "Comes and goes", "Constant / ongoing"] },
     ],
+    detailLabel: `Anything else to add about your ${display}? (optional)`,
   };
 }
 
-function patchQuestionsForLimbs(questions, regionAnswer) {
+function patchQuestionsForBodyParts(questions, regionAnswer) {
   const selected = (regionAnswer && regionAnswer.selected) || [];
   if (selected.length === 0) return questions;
 
-  const limbsSelected = LIMB_REGIONS.filter(r => selected.includes(r));
-  const nonLimbRegions = selected.filter(r => !LIMB_REGIONS.includes(r));
-
-  const limbQuestions = limbsSelected.map(buildLimbQuestion);
-  const hasNonLimbRegions = nonLimbRegions.length > 0;
-  const nonLimbLabel = hasNonLimbRegions ? joinRegionNames(nonLimbRegions) : "";
-  const allLabel = joinRegionNames(selected);
+  const bodyPartForms = selected.map(buildBodyPartForm);
 
   return questions.flatMap(q => {
-    if (q.id === "side") {
-      if (!hasNonLimbRegions) return limbQuestions;
-      return [
-        ...limbQuestions,
-        { ...q, q: `For your ${nonLimbLabel}: is it more on the left side, the right side, centered, or on both sides?` },
-      ];
-    }
-    if (q.id === "plane") {
-      if (!hasNonLimbRegions) return [];
-      return [{ ...q, q: `For your ${nonLimbLabel}: do you feel it more toward the front, more toward the back, or both at once?` }];
-    }
-    if (q.id === "quality") {
-      if (!hasNonLimbRegions) return []; // sensation already captured per-limb above
-      return [{ ...q, q: `How would you describe what you're feeling in your ${nonLimbLabel}?` }];
-    }
-    if (q.id === "pattern") {
-      return [{ ...q, q: `Thinking about your ${allLabel} — is this the first time you've had this, does it come and go, or is it constant / ongoing?` }];
-    }
+    if (q.id === "side") return bodyPartForms;
+    if (q.id === "plane" || q.id === "quality" || q.id === "pattern") return [];
     return [q];
   });
 }
@@ -513,9 +565,25 @@ function formatAnswerValue(ans) {
   return trimmed ? trimmed : "(skipped)";
 }
 
+function formatBodyPartAnswer(ans) {
+  if (!ans) return "(skipped)";
+  const parts = [];
+  if (ans.side && ans.side.length) parts.push(`Side: ${ans.side.join(", ")}`);
+  if (ans.plane && ans.plane.length) parts.push(`Front/back: ${ans.plane.join(", ")}`);
+  if (ans.quality && ans.quality.length) parts.push(`Sensation: ${ans.quality.join(", ")}`);
+  if (ans.pattern && ans.pattern.length) parts.push(`Pattern: ${ans.pattern.join(", ")}`);
+  if (ans.detail && ans.detail.trim()) parts.push(`Additional detail: ${ans.detail.trim()}`);
+  return parts.length ? parts.join(" | ") : "(skipped)";
+}
+
 function compileAnswers(questions, answers) {
   return questions
-    .map(q => `${q.q}\n${formatAnswerValue(answers[q.id])}`)
+    .map(q => {
+      if (q.type === "bodyPartForm") {
+        return `Regarding your ${q.bodyPart}:\n${formatBodyPartAnswer(answers[q.id])}`;
+      }
+      return `${q.q}\n${formatAnswerValue(answers[q.id])}`;
+    })
     .join("\n\n");
 }
 
@@ -563,6 +631,7 @@ export default function BASTInterpreter() {
   const [t1Index, setT1Index] = useState(0);
   const [answersT1, setAnswersT1] = useState({});
   const [multiSelected, setMultiSelected] = useState([]);
+  const [bodyPartSelections, setBodyPartSelections] = useState({});
   const [effectiveTier1Questions, setEffectiveTier1Questions] = useState(QUESTIONS_TIER1);
   const [tier2Draft, setTier2Draft] = useState("");
   const [tier2Progress, setTier2Progress] = useState(0);
@@ -588,6 +657,7 @@ export default function BASTInterpreter() {
     setMessages([]);
     setAnswersT1({});
     setMultiSelected([]);
+    setBodyPartSelections({});
     setEffectiveTier1Questions(QUESTIONS_TIER1);
     setT1Index(0);
     setTier2Draft("");
@@ -639,12 +709,29 @@ export default function BASTInterpreter() {
       setEffectiveTier1Questions(effective);
       advanceT1(latest, effective);
     } else if (q.id === "region") {
-      const effective = patchQuestionsForLimbs(effectiveTier1Questions, latest.region);
+      const effective = patchQuestionsForBodyParts(effectiveTier1Questions, latest.region);
       setEffectiveTier1Questions(effective);
       advanceT1(latest, effective);
     } else {
       advanceT1(latest);
     }
+  };
+
+  const toggleBodyPartOption = (groupKey, option) => {
+    setBodyPartSelections(prev => {
+      const current = prev[groupKey] || [];
+      const next = current.includes(option) ? current.filter(o => o !== option) : [...current, option];
+      return { ...prev, [groupKey]: next };
+    });
+  };
+
+  const submitBodyPartForm = () => {
+    const q = effectiveTier1Questions[t1Index];
+    const latest = { ...answersT1, [q.id]: { ...bodyPartSelections, detail: textDraft } };
+    setAnswersT1(latest);
+    setBodyPartSelections({});
+    setTextDraft("");
+    advanceT1(latest);
   };
 
   const fetchInitialReading = async (latestAnswers, questionsList) => {
@@ -824,7 +911,22 @@ export default function BASTInterpreter() {
             </div>
           </div>
         )}
-        <QuestionScreen questions={effectiveTier1Questions} index={t1Index} tierLabel="Free Reading" loading={loading} textDraft={textDraft} setTextDraft={setTextDraft} handleTextKeyDown={handleTextKeyDown} multiSelected={multiSelected} toggleMultiSelect1={toggleMultiSelect1} submitT1Multi={submitT1Multi} />
+        {effectiveTier1Questions[t1Index]?.type === "bodyPartForm" ? (
+          <BodyPartFormScreen
+            q={effectiveTier1Questions[t1Index]}
+            index={t1Index}
+            total={effectiveTier1Questions.length}
+            loading={loading}
+            bodyPartSelections={bodyPartSelections}
+            toggleBodyPartOption={toggleBodyPartOption}
+            textDraft={textDraft}
+            setTextDraft={setTextDraft}
+            handleTextKeyDown={handleTextKeyDown}
+            submitBodyPartForm={submitBodyPartForm}
+          />
+        ) : (
+          <QuestionScreen questions={effectiveTier1Questions} index={t1Index} tierLabel="Free Reading" loading={loading} textDraft={textDraft} setTextDraft={setTextDraft} handleTextKeyDown={handleTextKeyDown} multiSelected={multiSelected} toggleMultiSelect1={toggleMultiSelect1} submitT1Multi={submitT1Multi} />
+        )}
         <style>{`* { box-sizing: border-box; } body { margin: 0; } textarea::placeholder { color: rgba(30,26,22,0.3); }`}</style>
       </div>
     );
