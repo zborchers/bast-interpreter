@@ -431,36 +431,73 @@ const LIMB_SINGULAR = {
 };
 const LIMB_REGIONS = Object.keys(LIMB_SINGULAR);
 
+// Everything else that isn't a limb, for turning a raw region selection
+// into a natural lowercase name to weave into later question text.
+const REGION_DISPLAY = {
+  "Head": "head", "Neck": "neck", "Throat": "throat", "Chest": "chest",
+  "Heart": "heart", "Upper Back": "upper back", "Lower Back": "lower back",
+  "Abdomen": "abdomen", "Gut": "gut", "Hips": "hips", "Pelvis": "pelvis",
+  "Somewhere else": "the area you mentioned",
+};
+
+function regionDisplayName(region) {
+  return LIMB_SINGULAR[region] || REGION_DISPLAY[region] || region.toLowerCase();
+}
+
+// Joins ["ankle","gut","chest"] into "your ankle, gut, and chest" —
+// used to keep every later question anchored to what was actually selected.
+function joinRegionNames(regions) {
+  const names = regions.map(regionDisplayName);
+  if (names.length === 1) return names[0];
+  if (names.length === 2) return `${names[0]} and ${names[1]}`;
+  return `${names.slice(0, -1).join(", ")}, and ${names[names.length - 1]}`;
+}
+
 function buildLimbQuestion(limbPlural) {
   const s = LIMB_SINGULAR[limbPlural];
   return {
     id: `limb_${s}`,
     type: "multiselect",
-    q: `For your ${s}: which side is it on, and is it more toward the front or the back?`,
+    q: `For your ${s}: which side, and front or back? (Select whichever apply — skip whatever doesn't make sense, like "front or back" for a whole joint.)`,
     detailLabel: `What does it feel like in your ${s}? (e.g. sharp, dull ache, burning, tight, throbbing, numb, cramping, tingling)`,
     options: [
-      `Left ${s}, front`, `Left ${s}, back`,
-      `Right ${s}, front`, `Right ${s}, back`,
-      `Both sides, front`, `Both sides, back`,
+      `Left ${s}`, `Right ${s}`, `Both sides`,
+      "Front", "Back", "Both front and back",
     ],
   };
 }
 
 function patchQuestionsForLimbs(questions, regionAnswer) {
   const selected = (regionAnswer && regionAnswer.selected) || [];
+  if (selected.length === 0) return questions;
+
   const limbsSelected = LIMB_REGIONS.filter(r => selected.includes(r));
-  if (limbsSelected.length === 0) return questions;
+  const nonLimbRegions = selected.filter(r => !LIMB_REGIONS.includes(r));
 
   const limbQuestions = limbsSelected.map(buildLimbQuestion);
-  // Keep the generic side/plane questions only if something was selected
-  // that isn't one of the limbs handled above (e.g. "Chest" or "Somewhere
-  // else") — otherwise the limb questions already cover it, and asking
-  // "front or back?" again afterward would just be redundant.
-  const hasNonLimbRegions = selected.some(r => !LIMB_REGIONS.includes(r));
+  const hasNonLimbRegions = nonLimbRegions.length > 0;
+  const nonLimbLabel = hasNonLimbRegions ? joinRegionNames(nonLimbRegions) : "";
+  const allLabel = joinRegionNames(selected);
 
   return questions.flatMap(q => {
-    if (q.id === "side") return hasNonLimbRegions ? [...limbQuestions, q] : limbQuestions;
-    if (q.id === "plane") return hasNonLimbRegions ? [q] : [];
+    if (q.id === "side") {
+      if (!hasNonLimbRegions) return limbQuestions;
+      return [
+        ...limbQuestions,
+        { ...q, q: `For your ${nonLimbLabel}: is it more on the left side, the right side, centered, or on both sides?` },
+      ];
+    }
+    if (q.id === "plane") {
+      if (!hasNonLimbRegions) return [];
+      return [{ ...q, q: `For your ${nonLimbLabel}: do you feel it more toward the front, more toward the back, or both at once?` }];
+    }
+    if (q.id === "quality") {
+      if (!hasNonLimbRegions) return []; // sensation already captured per-limb above
+      return [{ ...q, q: `How would you describe what you're feeling in your ${nonLimbLabel}?` }];
+    }
+    if (q.id === "pattern") {
+      return [{ ...q, q: `Thinking about your ${allLabel} — is this the first time you've had this, does it come and go, or is it constant / ongoing?` }];
+    }
     return [q];
   });
 }
