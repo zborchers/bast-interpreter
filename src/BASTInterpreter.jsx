@@ -463,7 +463,7 @@ const QUESTIONS_TIER1 = [
   {
     id: "context",
     type: "multiselect",
-    q: "What's actually going on in your life right now — what's been on your mind or on your plate?",
+    q: "Is there anything stressful going on in your life right now?",
     detailLabel: "Explain more — what's going on, specifically?",
     options: ["Work stress", "Relationship or family stress", "Grief or loss", "Major life transition", "Financial stress", "Caregiving responsibilities"],
   },
