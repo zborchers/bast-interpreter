@@ -274,13 +274,13 @@ function BodyPartFormScreen({ q, index, total, loading, bodyPartSelections, togg
                 Left {q.bodyPart}
               </div>
               {otherGroups.map(g => renderOptionGroup(g, `left_${g.key}`, null))}
-              {renderDetailBox("left_detail", `Anything else about your left ${q.bodyPart}? (optional)`)}
+              {renderDetailBox("left_detail", `Do you know when this first started in your left ${q.bodyPart}, or what the situation was when it appeared? (optional)`)}
 
               <div style={{ fontSize: "12px", fontWeight: 700, color: c.accent, textTransform: "uppercase", letterSpacing: "0.08em", margin: "0.4rem 0 0.8rem", borderTop: `1px solid ${c.borderMid}`, paddingTop: "1rem" }}>
                 Right {q.bodyPart}
               </div>
               {otherGroups.map(g => renderOptionGroup(g, `right_${g.key}`, null))}
-              {renderDetailBox("right_detail", `Anything else about your right ${q.bodyPart}? (optional)`)}
+              {renderDetailBox("right_detail", `Do you know when this first started in your right ${q.bodyPart}, or what the situation was when it appeared? (optional)`)}
             </>
           ) : (
             <>
@@ -596,7 +596,7 @@ function buildBodyPartForm(region) {
     bodyPart: display,
     hasSide: config.side,
     groups,
-    detailLabel: `Anything else to add about your ${display}? (optional)`,
+    detailLabel: `Do you know when this first started, or what the situation was when it first appeared? (optional)`,
   };
 }
 
