@@ -689,14 +689,7 @@ export default function BASTInterpreter() {
       return saved ? JSON.parse(saved) : [];
     } catch { return []; }
   });
-  const [loading, setLoading] = useState(() => {
-    try {
-      const params = new URLSearchParams(window.location.search);
-      const saved = localStorage.getItem("bast_messages");
-      const hasSavedSession = saved && JSON.parse(saved).length > 0;
-      return !hasSavedSession && params.has("diagnosis");
-    } catch { return false; }
-  });
+  const [loading, setLoading] = useState(false);
   // step: 'tier1' -> 'tier2' -> 'chat'
   const [step, setStep] = useState(() => {
     try { return localStorage.getItem("bast_step") || "tier1"; }
@@ -853,16 +846,28 @@ export default function BASTInterpreter() {
     fetchInitialReading(latestAnswers, list);
   };
 
-  // Pick up Tier 1 answers passed in via URL params (e.g. from the landing
-  // page's quiz) so a returning visitor doesn't have to re-answer diagnosis
-  // and region. The landing page only collects those two — everything
-  // body-part-specific happens here in the app, where the full grouped
-  // form actually fits. Only fires once, on a completely fresh session.
+  // Pick up Tier 1 answers passed in via URL params from the landing
+  // page's quiz (diagnosis + region), so a person doesn't have to
+  // re-answer those two here. Everything body-part-specific still
+  // happens in the app, where the full grouped form actually fits.
+  //
+  // Important: arriving here with a "diagnosis" param means the person
+  // just came from the landing page and wants a fresh start — this must
+  // win over whatever session happens to be sitting in localStorage from
+  // a previous visit. (An earlier version gated this on "is there already
+  // a conversation in memory," which silently broke the whole handoff any
+  // time there was leftover session data — the app would just render the
+  // Tier 1 wizard from scratch and ignore the URL entirely.)
   useEffect(() => {
-    if (messages.length > 0 || t1Index > 0) return;
     try {
       const params = new URLSearchParams(window.location.search);
       if (!params.has("diagnosis")) return;
+
+      setMessages([]);
+      try {
+        localStorage.removeItem("bast_messages");
+        localStorage.removeItem("bast_step");
+      } catch {}
 
       const diagnosisRaw = params.get("diagnosis") || "";
       const diagnosisSelected = diagnosisRaw.split("||").map(s => s.trim()).filter(Boolean);
@@ -871,11 +876,10 @@ export default function BASTInterpreter() {
       const effective = buildEffectiveTier1Questions(diagnosisAnswer);
       const ids = effective.map(q => q.id);
 
-      // Diagnosis-focused-only: region was never asked, so this is the
-      // same all-or-nothing case as before — everything needed is already
-      // in the URL, so go straight to the Initial Reading.
+      // Diagnosis-focused-only: region was never asked, so everything
+      // needed is already in the URL — go straight to the Initial Reading.
       if (!ids.includes("region")) {
-        if (!ids.every(id => params.has(id))) return;
+        if (!ids.every(id => params.has(id))) { setStep("tier1"); setT1Index(0); return; }
         const fromUrl = {};
         ids.forEach(id => {
           const raw = params.get(id) || "";
@@ -885,15 +889,16 @@ export default function BASTInterpreter() {
         });
         setAnswersT1(fromUrl);
         setEffectiveTier1Questions(effective);
+        setStep("tier1");
         fetchInitialReading(fromUrl, effective);
         return;
       }
 
-      // Otherwise the landing page only sent diagnosis (+ name, if needed)
-      // and region — pick those up, expand into the per-body-part forms,
-      // and drop the person right at the first one instead of starting over.
+      // Otherwise the landing page sent diagnosis (+ name, if needed) and
+      // region — pick those up, expand into the per-body-part forms, and
+      // drop the person right at the first one instead of starting over.
       const preIds = ids.slice(0, ids.indexOf("region") + 1);
-      if (!preIds.every(id => params.has(id))) return;
+      if (!preIds.every(id => params.has(id))) { setStep("tier1"); setT1Index(0); return; }
 
       const fromUrl = {};
       preIds.forEach(id => {
@@ -906,6 +911,7 @@ export default function BASTInterpreter() {
       const patchedEffective = patchQuestionsForBodyParts(effective, fromUrl.region);
       setAnswersT1(fromUrl);
       setEffectiveTier1Questions(patchedEffective);
+      setStep("tier1");
       setT1Index(patchedEffective.findIndex(q => q.id === "region") + 1);
     } catch {}
     // eslint-disable-next-line react-hooks/exhaustive-deps
