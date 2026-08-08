@@ -853,12 +853,11 @@ export default function BASTInterpreter() {
     fetchInitialReading(latestAnswers, list);
   };
 
-  // Pick up Tier 1 answers passed in via URL params (e.g. from a landing-page
-  // quiz) so a returning visitor doesn't have to answer the same questions
-  // twice. Only fires once, on a completely fresh session. The set of
-  // required params depends on the diagnosis answer, same as the in-app
-  // flow — a diagnosis-focused-only answer means only "diagnosis" (and its
-  // detail) will be present at all.
+  // Pick up Tier 1 answers passed in via URL params (e.g. from the landing
+  // page's quiz) so a returning visitor doesn't have to re-answer diagnosis
+  // and region. The landing page only collects those two — everything
+  // body-part-specific happens here in the app, where the full grouped
+  // form actually fits. Only fires once, on a completely fresh session.
   useEffect(() => {
     if (messages.length > 0 || t1Index > 0) return;
     try {
@@ -872,18 +871,42 @@ export default function BASTInterpreter() {
       const effective = buildEffectiveTier1Questions(diagnosisAnswer);
       const ids = effective.map(q => q.id);
 
-      if (!ids.every(id => params.has(id))) return;
+      // Diagnosis-focused-only: region was never asked, so this is the
+      // same all-or-nothing case as before — everything needed is already
+      // in the URL, so go straight to the Initial Reading.
+      if (!ids.includes("region")) {
+        if (!ids.every(id => params.has(id))) return;
+        const fromUrl = {};
+        ids.forEach(id => {
+          const raw = params.get(id) || "";
+          const selected = raw.split("||").map(s => s.trim()).filter(Boolean);
+          const detail = params.get(`${id}_detail`) || "";
+          fromUrl[id] = { selected, detail };
+        });
+        setAnswersT1(fromUrl);
+        setEffectiveTier1Questions(effective);
+        fetchInitialReading(fromUrl, effective);
+        return;
+      }
+
+      // Otherwise the landing page only sent diagnosis (+ name, if needed)
+      // and region — pick those up, expand into the per-body-part forms,
+      // and drop the person right at the first one instead of starting over.
+      const preIds = ids.slice(0, ids.indexOf("region") + 1);
+      if (!preIds.every(id => params.has(id))) return;
 
       const fromUrl = {};
-      ids.forEach(id => {
+      preIds.forEach(id => {
         const raw = params.get(id) || "";
         const selected = raw.split("||").map(s => s.trim()).filter(Boolean);
         const detail = params.get(`${id}_detail`) || "";
         fromUrl[id] = { selected, detail };
       });
+
+      const patchedEffective = patchQuestionsForBodyParts(effective, fromUrl.region);
       setAnswersT1(fromUrl);
-      setEffectiveTier1Questions(effective);
-      fetchInitialReading(fromUrl, effective);
+      setEffectiveTier1Questions(patchedEffective);
+      setT1Index(patchedEffective.findIndex(q => q.id === "region") + 1);
     } catch {}
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
