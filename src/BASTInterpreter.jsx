@@ -313,7 +313,7 @@ const QUESTIONS_TIER1 = [
     q: "Where in the body is this happening?",
     detailLabel: "Anything else to add about where or how it shows up? (optional)",
     options: [
-      "Head", "Mind", "Neck", "Throat", "Shoulders", "Chest", "Heart",
+      "Head", "Neck", "Throat", "Shoulders", "Chest", "Heart",
       "Upper Back", "Lower Back", "Abdomen", "Gut", "Hips", "Pelvis",
       "Legs", "Knees", "Ankles", "Feet", "Arms", "Hands", "Somewhere else",
     ],
@@ -421,6 +421,26 @@ function buildEffectiveTier1Questions(diagnosisAnswer) {
   return QUESTIONS_TIER1;
 }
 
+// A single "left / right / both" answer can't capture "left arm but right
+// knee." When someone selects more than one paired limb, reword the side
+// question so they know to spell out which side goes with which part.
+const LIMB_REGIONS = ["Arms", "Hands", "Legs", "Knees", "Ankles", "Feet", "Shoulders"];
+
+function patchSideQuestionForLimbs(questions, regionAnswer) {
+  const selected = (regionAnswer && regionAnswer.selected) || [];
+  const limbsSelected = selected.filter(r => LIMB_REGIONS.includes(r));
+  if (limbsSelected.length < 2) return questions;
+
+  return questions.map(q => {
+    if (q.id !== "side") return q;
+    return {
+      ...q,
+      q: `You mentioned more than one limb (${limbsSelected.join(", ")}) — since each one could be on a different side, please specify which side goes with which body part in the box below (for example: "left arm, right knee").`,
+      detailLabel: "Which side for each body part (please be specific)",
+    };
+  });
+}
+
 function formatAnswerValue(ans) {
   if (ans && typeof ans === "object" && ("selected" in ans || "detail" in ans)) {
     const parts = [];
@@ -492,8 +512,8 @@ export default function BASTInterpreter() {
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
-    if (loading) messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [loading]);
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [loading, messages]);
 
   useEffect(() => {
     try { localStorage.setItem("bast_messages", JSON.stringify(messages)); } catch {}
@@ -555,6 +575,10 @@ export default function BASTInterpreter() {
     setTextDraft("");
     if (q.id === "diagnosis") {
       const effective = buildEffectiveTier1Questions(latest.diagnosis);
+      setEffectiveTier1Questions(effective);
+      advanceT1(latest, effective);
+    } else if (q.id === "region") {
+      const effective = patchSideQuestionForLimbs(effectiveTier1Questions, latest.region);
       setEffectiveTier1Questions(effective);
       advanceT1(latest, effective);
     } else {
@@ -752,10 +776,12 @@ export default function BASTInterpreter() {
     return (
       <div style={{ height: "100vh", overflow: "hidden", background: c.bg, color: c.textPrimary, fontFamily: SERIF, display: "flex", flexDirection: "column" }}>
         <Header messages={messages} t1Index={t1Index} clearHistory={clearHistory} />
+        <div style={{ flexShrink: 0, maxWidth: "700px", width: "100%", margin: "0 auto", padding: "0.85rem 1.5rem 0" }}>
+          <Tier2ProgressBar progress={tier2Progress} />
+        </div>
         <Transcript messages={messages} loading={loading} messagesEndRef={messagesEndRef}
           ctaSlot={
             <>
-              <Tier2ProgressBar progress={tier2Progress} />
               <SimpleChatInput
                 value={tier2Draft}
                 onChange={setTier2Draft}
@@ -778,6 +804,11 @@ export default function BASTInterpreter() {
   return (
     <div style={{ height: "100vh", overflow: "hidden", background: c.bg, color: c.textPrimary, fontFamily: SERIF, display: "flex", flexDirection: "column" }}>
       <Header messages={messages} t1Index={t1Index} clearHistory={clearHistory} />
+      {step === "tier2" && (
+        <div style={{ flexShrink: 0, maxWidth: "700px", width: "100%", margin: "0 auto", padding: "0.85rem 1.5rem 0" }}>
+          <Tier2ProgressBar progress={tier2Progress} />
+        </div>
+      )}
       <Transcript messages={messages} loading={loading} messagesEndRef={messagesEndRef}
         loadingLabel={step === "tier1" && loading ? "Building your Energetic Root Cause reading..." : undefined}
         ctaSlot={
