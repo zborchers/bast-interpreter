@@ -199,6 +199,9 @@ function BodyPartFormScreen({ q, index, total, loading, bodyPartSelections, togg
   const sideGroup = q.groups.find(g => g.key === "side");
   const otherGroups = q.groups.filter(g => g.key !== "side");
   const bothSides = q.hasSide && (bodyPartSelections.side || []).includes("Both sides");
+  const detailMissing = q.detailRequired && !(bothSides
+    ? ((bodyPartSelections.left_detail || "").trim() || (bodyPartSelections.right_detail || "").trim())
+    : (bodyPartSelections.detail || "").trim());
 
   const renderOptionGroup = (group, stateKey, labelPrefix) => (
     <div key={stateKey} style={{ marginBottom: "1.4rem" }}>
@@ -290,11 +293,16 @@ function BodyPartFormScreen({ q, index, total, loading, bodyPartSelections, togg
           )}
         </div>
 
-        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "1rem" }}>
+        <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: "0.75rem", marginTop: "1rem" }}>
+          {detailMissing && (
+            <div style={{ fontSize: "12px", color: c.textMuted, fontFamily: SANS, fontStyle: "italic" }}>
+              Please fill this in to continue
+            </div>
+          )}
           <button
             onClick={submitBodyPartForm}
-            disabled={loading}
-            style={{ background: loading ? c.accentMid : c.accent, border: "none", borderRadius: "4px", padding: "10px 24px", cursor: loading ? "default" : "pointer", color: loading ? c.textMuted : "#fff", fontSize: "13px", fontFamily: SANS, fontWeight: 700, letterSpacing: "0.04em", transition: "all 0.15s" }}
+            disabled={loading || detailMissing}
+            style={{ background: loading || detailMissing ? c.accentMid : c.accent, border: "none", borderRadius: "4px", padding: "10px 24px", cursor: (loading || detailMissing) ? "default" : "pointer", color: (loading || detailMissing) ? c.textMuted : "#fff", fontSize: "13px", fontFamily: SANS, fontWeight: 700, letterSpacing: "0.04em", transition: "all 0.15s" }}
           >
             {loading ? "Reading…" : "Next \u2192"}
           </button>
@@ -451,7 +459,7 @@ const QUESTIONS_TIER1 = [
     type: "multiselect",
     q: "How would you describe it?",
     detailLabel: "Anything else to add about how it feels? (optional)",
-    options: ["Sharp", "Dull ache", "Burning", "Tight", "Throbbing", "Numb", "Cramping", "Tingling"],
+    options: ["Sharp", "Dull ache", "Sore", "Burning", "Tight", "Stiff", "Throbbing", "Numb", "Cramping", "Tingling", "Swollen", "Pressure", "Heavy", "Weak"],
   },
   {
     id: "pattern",
@@ -568,11 +576,11 @@ const REGION_GROUP_CONFIG = {
   "Pelvis": { side: true, plane: false },
   "Legs": { side: true, plane: true },
   "Knees": { side: true, plane: true },
-  "Ankles": { side: true, plane: true },
-  "Feet": { side: true, plane: true },
+  "Ankles": { side: true, plane: false },
+  "Feet": { side: true, plane: false },
   "Arms": { side: true, plane: true },
   "Hands": { side: true, plane: true },
-  "Somewhere else": { side: true, plane: true },
+  "Somewhere else": { side: false, plane: false },
 };
 
 function regionDisplayName(region) {
@@ -583,11 +591,12 @@ function buildBodyPartForm(region) {
   const display = regionDisplayName(region);
   const slug = display.replace(/\s+/g, "_");
   const config = REGION_GROUP_CONFIG[region] || { side: true, plane: true };
+  const isSomewhereElse = region === "Somewhere else";
 
   const groups = [];
   if (config.side) groups.push({ key: "side", label: "Which side?", options: ["Left", "Right", "Both sides", "Centered"] });
   if (config.plane) groups.push({ key: "plane", label: "Front or back?", options: ["Front", "Back", "Both front and back"] });
-  groups.push({ key: "quality", label: "What does it feel like?", options: ["Sharp", "Dull ache", "Burning", "Tight", "Throbbing", "Numb", "Cramping", "Tingling"] });
+  groups.push({ key: "quality", label: "What does it feel like?", options: ["Sharp", "Dull ache", "Sore", "Burning", "Tight", "Stiff", "Throbbing", "Numb", "Cramping", "Tingling", "Swollen", "Pressure", "Heavy", "Weak"] });
   groups.push({ key: "pattern", label: "Is this the first time, does it come and go, or is it constant / ongoing?", options: ["First time", "Comes and goes", "Constant / ongoing"] });
 
   return {
@@ -596,7 +605,10 @@ function buildBodyPartForm(region) {
     bodyPart: display,
     hasSide: config.side,
     groups,
-    detailLabel: `Do you know when this first started, or what the situation was when it first appeared? (optional)`,
+    detailLabel: isSomewhereElse
+      ? "Where is this happening, specifically? (required)"
+      : `Do you know when this first started, or what the situation was when it first appeared? (optional)`,
+    detailRequired: isSomewhereElse,
   };
 }
 
@@ -798,6 +810,13 @@ export default function BASTInterpreter() {
 
   const submitBodyPartForm = () => {
     const q = effectiveTier1Questions[t1Index];
+    if (q.detailRequired) {
+      const bothSides = q.hasSide && (bodyPartSelections.side || []).includes("Both sides");
+      const filled = bothSides
+        ? ((bodyPartSelections.left_detail || "").trim() || (bodyPartSelections.right_detail || "").trim())
+        : (bodyPartSelections.detail || "").trim();
+      if (!filled) return;
+    }
     const latest = { ...answersT1, [q.id]: { ...bodyPartSelections } };
     setAnswersT1(latest);
     setBodyPartSelections({});
