@@ -474,7 +474,7 @@ export default function BASTInterpreter() {
       return !hasSavedSession && params.has("diagnosis");
     } catch { return false; }
   });
-  // step: 'tier1' -> 'post-initial' -> 'tier2' -> 'chat'
+  // step: 'tier1' -> 'tier2' -> 'chat'
   const [step, setStep] = useState(() => {
     try { return localStorage.getItem("bast_step") || "tier1"; }
     catch { return "tier1"; }
@@ -576,12 +576,21 @@ export default function BASTInterpreter() {
     setMessages(newMessages);
     try {
       const text = await callAPI(newMessages);
-      setMessages(prev => [...prev, { role: "assistant", content: text }]);
-      setStep("post-initial");
+      const withInitialReading = [...newMessages, { role: "assistant", content: text }];
+      setMessages(withInitialReading);
+
+      // Continue straight into the deeper conversation — no pause, no button.
+      // The tool is entirely free, so there's nothing left to gate.
+      const kickoffMsg = {
+        role: "user",
+        content: "The person just received their free Initial Reading, and the conversation now continues naturally into a deeper Root Cause conversation. Ask them your first question now — the single most useful thing to understand next, following naturally from the Initial Reading and everything in the intake. Keep the transition conversational, as though the conversation is simply continuing rather than entering some new unlocked tier. End with the required status marker.",
+        hidden: true,
+      };
+      await advanceTier2Conversation([...withInitialReading, kickoffMsg]);
     } catch {
       setMessages(prev => [...prev, { role: "assistant", content: "There was a connection error. Please try again." }]);
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const advanceT1 = (latestAnswers, questionsList) => {
@@ -676,15 +685,6 @@ export default function BASTInterpreter() {
     setLoading(false);
   };
 
-  const beginTier2 = () => {
-    const kickoffMsg = {
-      role: "user",
-      content: "The person is ready to go deeper into the Root Cause Reading. Ask them your first question now — the single most useful thing to understand next, following naturally from the Initial Reading and everything in the intake. Keep the transition conversational, not clinical. End with the required status marker.",
-      hidden: true,
-    };
-    advanceTier2Conversation([...messages, kickoffMsg]);
-  };
-
   const submitTier2Answer = () => {
     const trimmed = tier2Draft.trim();
     if (!trimmed || loading) return;
@@ -741,31 +741,6 @@ export default function BASTInterpreter() {
         )}
         <QuestionScreen questions={effectiveTier1Questions} index={t1Index} tierLabel="Free Reading" loading={loading} textDraft={textDraft} setTextDraft={setTextDraft} handleTextKeyDown={handleTextKeyDown} multiSelected={multiSelected} toggleMultiSelect1={toggleMultiSelect1} submitT1Multi={submitT1Multi} />
         <style>{`* { box-sizing: border-box; } body { margin: 0; } textarea::placeholder { color: rgba(30,26,22,0.3); }`}</style>
-      </div>
-    );
-  }
-
-  // ---- RENDER: POST-INITIAL (shows the reading before continuing into Tier 2) ----
-
-  if (step === "post-initial" && !loading) {
-    return (
-      <div style={{ height: "100vh", overflow: "hidden", background: c.bg, color: c.textPrimary, fontFamily: SERIF, display: "flex", flexDirection: "column" }}>
-        <Header messages={messages} t1Index={t1Index} clearHistory={clearHistory} />
-        <Transcript messages={messages} loading={loading} messagesEndRef={messagesEndRef}
-          ctaSlot={
-            <>
-              <div style={{ display: "flex", justifyContent: "center" }}>
-                <button
-                  onClick={beginTier2}
-                  style={{ background: c.accent, border: "none", borderRadius: "6px", padding: "14px 28px", fontSize: "15px", color: "#fff", cursor: "pointer", fontFamily: SANS, fontWeight: 700, letterSpacing: "0.04em" }}
-                >
-                  Go Deeper: Get My Root Cause Reading &rarr;
-                </button>
-              </div>
-              <Disclaimer />
-            </>
-          }
-        />
       </div>
     );
   }
