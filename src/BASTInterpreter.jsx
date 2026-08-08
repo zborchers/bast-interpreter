@@ -94,6 +94,12 @@ function Disclaimer() {
 
 function QuestionScreen({ questions, index, tierLabel, loading, textDraft, setTextDraft, handleTextKeyDown, multiSelected, toggleMultiSelect1, submitT1Multi }) {
   const q = questions[index];
+  const needsSomewhereElseDetail = q.id === "region" && multiSelected.includes("Somewhere else");
+  const detailLabel = needsSomewhereElseDetail
+    ? "Where is this happening, specifically? (required)"
+    : (q.detailLabel || "Anything else to add? (optional)");
+  const blocked = (q.required && multiSelected.length === 0 && !textDraft.trim())
+    || (needsSomewhereElseDetail && !textDraft.trim());
 
   return (
     <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "2rem 1.5rem" }}>
@@ -156,9 +162,9 @@ function QuestionScreen({ questions, index, tierLabel, loading, textDraft, setTe
               })}
             </div>
           )}
-          <div style={{ display: "flex", flexDirection: "column", gap: "8px", background: c.bgInput, border: `1px solid ${c.borderMid}`, borderRadius: "12px", padding: "12px 16px" }}>
-            <div style={{ fontSize: "12px", color: c.textMuted, fontFamily: SANS, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-              {q.detailLabel || "Anything else to add? (optional)"}
+          <div style={{ display: "flex", flexDirection: "column", gap: "8px", background: c.bgInput, border: `1px solid ${needsSomewhereElseDetail ? c.accent : c.borderMid}`, borderRadius: "12px", padding: "12px 16px" }}>
+            <div style={{ fontSize: "12px", color: needsSomewhereElseDetail ? c.accent : c.textMuted, fontFamily: SANS, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              {detailLabel}
             </div>
             <textarea
               value={textDraft}
@@ -170,15 +176,15 @@ function QuestionScreen({ questions, index, tierLabel, loading, textDraft, setTe
               style={{ background: "transparent", border: "none", outline: "none", color: c.textPrimary, fontSize: "17px", fontFamily: SERIF, lineHeight: 1.7, resize: "none", width: "100%" }}
             />
             <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: "0.75rem" }}>
-              {q.required && multiSelected.length === 0 && !textDraft.trim() && (
+              {blocked && (
                 <div style={{ fontSize: "12px", color: c.textMuted, fontFamily: SANS, fontStyle: "italic" }}>
                   Please fill this in to continue
                 </div>
               )}
               <button
                 onClick={submitT1Multi}
-                disabled={loading || (q.required && multiSelected.length === 0 && !textDraft.trim())}
-                style={{ background: loading || (q.required && multiSelected.length === 0 && !textDraft.trim()) ? c.accentMid : c.accent, border: "none", borderRadius: "4px", padding: "8px 20px", cursor: loading ? "default" : "pointer", color: loading || (q.required && multiSelected.length === 0 && !textDraft.trim()) ? c.textMuted : "#fff", fontSize: "13px", fontFamily: SANS, fontWeight: 700, letterSpacing: "0.04em", transition: "all 0.15s" }}
+                disabled={loading || blocked}
+                style={{ background: loading || blocked ? c.accentMid : c.accent, border: "none", borderRadius: "4px", padding: "8px 20px", cursor: loading ? "default" : "pointer", color: loading || blocked ? c.textMuted : "#fff", fontSize: "13px", fontFamily: SANS, fontWeight: 700, letterSpacing: "0.04em", transition: "all 0.15s" }}
               >
                 {loading ? "Reading…" : "Next \u2192"}
               </button>
@@ -562,25 +568,25 @@ const REGION_DISPLAY = {
 // Quality and pattern always apply; side and plane only show up where
 // they'd actually mean something.
 const REGION_GROUP_CONFIG = {
-  "Head": { side: true, plane: true },
-  "Neck": { side: true, plane: true },
-  "Throat": { side: false, plane: false },
-  "Shoulders": { side: true, plane: true },
-  "Chest": { side: true, plane: false },
-  "Heart": { side: false, plane: false },
-  "Upper Back": { side: true, plane: false },
-  "Lower Back": { side: true, plane: false },
-  "Abdomen": { side: true, plane: false },
-  "Gut": { side: false, plane: false },
-  "Hips": { side: true, plane: true },
-  "Pelvis": { side: true, plane: false },
-  "Legs": { side: true, plane: true },
-  "Knees": { side: true, plane: true },
-  "Ankles": { side: true, plane: false },
-  "Feet": { side: true, plane: false },
-  "Arms": { side: true, plane: true },
-  "Hands": { side: true, plane: true },
-  "Somewhere else": { side: false, plane: false },
+  "Head": { side: true, plane: true, centered: true },
+  "Neck": { side: true, plane: true, centered: true },
+  "Throat": { side: false, plane: false, centered: false },
+  "Shoulders": { side: true, plane: true, centered: false },
+  "Chest": { side: true, plane: false, centered: true },
+  "Heart": { side: false, plane: false, centered: false },
+  "Upper Back": { side: true, plane: false, centered: true },
+  "Lower Back": { side: true, plane: false, centered: true },
+  "Abdomen": { side: true, plane: false, centered: true },
+  "Gut": { side: false, plane: false, centered: false },
+  "Hips": { side: true, plane: true, centered: false },
+  "Pelvis": { side: true, plane: false, centered: true },
+  "Legs": { side: true, plane: true, centered: false },
+  "Knees": { side: true, plane: true, centered: false },
+  "Ankles": { side: true, plane: false, centered: false },
+  "Feet": { side: true, plane: false, centered: false },
+  "Arms": { side: true, plane: true, centered: false },
+  "Hands": { side: true, plane: true, centered: false },
+  "Somewhere else": { side: false, plane: false, centered: false },
 };
 
 function regionDisplayName(region) {
@@ -591,10 +597,13 @@ function buildBodyPartForm(region) {
   const display = regionDisplayName(region);
   const slug = display.replace(/\s+/g, "_");
   const config = REGION_GROUP_CONFIG[region] || { side: true, plane: true };
-  const isSomewhereElse = region === "Somewhere else";
 
   const groups = [];
-  if (config.side) groups.push({ key: "side", label: "Which side?", options: ["Left", "Right", "Both sides", "Centered"] });
+  if (config.side) {
+    const sideOptions = ["Left", "Right", "Both sides"];
+    if (config.centered) sideOptions.push("Centered");
+    groups.push({ key: "side", label: "Which side?", options: sideOptions });
+  }
   if (config.plane) groups.push({ key: "plane", label: "Front or back?", options: ["Front", "Back", "Both front and back"] });
   groups.push({ key: "quality", label: "What does it feel like?", options: ["Sharp", "Dull ache", "Sore", "Burning", "Tight", "Stiff", "Throbbing", "Numb", "Cramping", "Tingling", "Swollen", "Pressure", "Heavy", "Weak"] });
   groups.push({ key: "pattern", label: "Is this the first time, does it come and go, or is it constant / ongoing?", options: ["First time", "Comes and goes", "Constant / ongoing"] });
@@ -605,10 +614,7 @@ function buildBodyPartForm(region) {
     bodyPart: display,
     hasSide: config.side,
     groups,
-    detailLabel: isSomewhereElse
-      ? "Where is this happening, specifically? (required)"
-      : `Do you know when this first started, or what the situation was when it first appeared? (optional)`,
-    detailRequired: isSomewhereElse,
+    detailLabel: `Do you know when this first started, or what the situation was when it first appeared? (optional)`,
   };
 }
 
@@ -779,6 +785,10 @@ export default function BASTInterpreter() {
 
   const submitT1Multi = () => {
     const q = effectiveTier1Questions[t1Index];
+    const needsSomewhereElseDetail = q.id === "region" && multiSelected.includes("Somewhere else");
+    const blocked = (q.required && multiSelected.length === 0 && !textDraft.trim())
+      || (needsSomewhereElseDetail && !textDraft.trim());
+    if (blocked) return;
     const latest = { ...answersT1, [q.id]: { selected: multiSelected, detail: textDraft } };
     setAnswersT1(latest);
     setMultiSelected([]);
