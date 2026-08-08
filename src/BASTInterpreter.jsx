@@ -422,22 +422,46 @@ function buildEffectiveTier1Questions(diagnosisAnswer) {
 }
 
 // A single "left / right / both" answer can't capture "left arm but right
-// knee." When someone selects more than one paired limb, reword the side
-// question so they know to spell out which side goes with which part.
-const LIMB_REGIONS = ["Arms", "Hands", "Legs", "Knees", "Ankles", "Feet", "Shoulders"];
+// knee." When paired limbs are selected, generate one dedicated question
+// per limb — side, front/back, and sensation all in one place — and use
+// those in place of the generic side/plane questions for that limb.
+const LIMB_SINGULAR = {
+  "Arms": "arm", "Hands": "hand", "Legs": "leg", "Knees": "knee",
+  "Ankles": "ankle", "Feet": "foot", "Shoulders": "shoulder",
+};
+const LIMB_REGIONS = Object.keys(LIMB_SINGULAR);
 
-function patchSideQuestionForLimbs(questions, regionAnswer) {
+function buildLimbQuestion(limbPlural) {
+  const s = LIMB_SINGULAR[limbPlural];
+  return {
+    id: `limb_${s}`,
+    type: "multiselect",
+    q: `For your ${s}: which side is it on, and is it more toward the front or the back?`,
+    detailLabel: `What does it feel like in your ${s}? (e.g. sharp, dull ache, burning, tight, throbbing, numb, cramping, tingling)`,
+    options: [
+      `Left ${s}, front`, `Left ${s}, back`,
+      `Right ${s}, front`, `Right ${s}, back`,
+      `Both sides, front`, `Both sides, back`,
+    ],
+  };
+}
+
+function patchQuestionsForLimbs(questions, regionAnswer) {
   const selected = (regionAnswer && regionAnswer.selected) || [];
-  const limbsSelected = selected.filter(r => LIMB_REGIONS.includes(r));
-  if (limbsSelected.length < 2) return questions;
+  const limbsSelected = LIMB_REGIONS.filter(r => selected.includes(r));
+  if (limbsSelected.length === 0) return questions;
 
-  return questions.map(q => {
-    if (q.id !== "side") return q;
-    return {
-      ...q,
-      q: `You mentioned more than one limb (${limbsSelected.join(", ")}) — since each one could be on a different side, please specify which side goes with which body part in the box below (for example: "left arm, right knee").`,
-      detailLabel: "Which side for each body part (please be specific)",
-    };
+  const limbQuestions = limbsSelected.map(buildLimbQuestion);
+  // Keep the generic side/plane questions only if something was selected
+  // that isn't one of the limbs handled above (e.g. "Chest" or "Somewhere
+  // else") — otherwise the limb questions already cover it, and asking
+  // "front or back?" again afterward would just be redundant.
+  const hasNonLimbRegions = selected.some(r => !LIMB_REGIONS.includes(r));
+
+  return questions.flatMap(q => {
+    if (q.id === "side") return hasNonLimbRegions ? [...limbQuestions, q] : limbQuestions;
+    if (q.id === "plane") return hasNonLimbRegions ? [q] : [];
+    return [q];
   });
 }
 
@@ -578,7 +602,7 @@ export default function BASTInterpreter() {
       setEffectiveTier1Questions(effective);
       advanceT1(latest, effective);
     } else if (q.id === "region") {
-      const effective = patchSideQuestionForLimbs(effectiveTier1Questions, latest.region);
+      const effective = patchQuestionsForLimbs(effectiveTier1Questions, latest.region);
       setEffectiveTier1Questions(effective);
       advanceT1(latest, effective);
     } else {
