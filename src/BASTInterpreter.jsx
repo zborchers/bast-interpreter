@@ -93,6 +93,10 @@ function Disclaimer() {
 // causing the reversed-typing bug in the free-text answers) ----
 
 function QuestionScreen({ questions, index, tierLabel, loading, textDraft, setTextDraft, handleTextKeyDown, multiSelected, toggleMultiSelect1, submitT1Multi }) {
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
   const q = questions[index];
   const needsSomewhereElseDetail = q.id === "region" && multiSelected.includes("Somewhere else");
   const detailLabel = needsSomewhereElseDetail
@@ -202,6 +206,10 @@ function QuestionScreen({ questions, index, tierLabel, loading, textDraft, setTe
 // so the person can answer everything about that part at once) ----
 
 function BodyPartFormScreen({ q, index, total, loading, bodyPartSelections, toggleBodyPartOption, setBodyPartDetail, handleTextKeyDown, submitBodyPartForm }) {
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
   const sideGroup = q.groups.find(g => g.key === "side");
   const otherGroups = q.groups.filter(g => g.key !== "side");
   const bothSides = q.hasSide && (bodyPartSelections.side || []).includes("Both sides");
@@ -371,13 +379,13 @@ function SimpleChatInput({ value, onChange, onSubmit, placeholder, loading, hand
 
 // ---- READING TRANSCRIPT (also hoisted, same reason) ----
 
-function Transcript({ messages, loading, messagesEndRef, ctaSlot, loadingLabel }) {
+function Transcript({ messages, loading, messagesEndRef, lastMessageRef, ctaSlot, loadingLabel }) {
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", maxWidth: "700px", width: "100%", margin: "0 auto" }}>
       <div style={{ flex: 1, overflowY: "auto", padding: "0 1.5rem" }}>
         <div style={{ paddingTop: "2rem" }}>
           {messages.map((msg, i) => msg.hidden ? null : (
-            <div key={i} style={{ marginBottom: "2rem" }}>
+            <div key={i} ref={i === messages.length - 1 ? lastMessageRef : null} style={{ marginBottom: "2rem" }}>
               {msg.role === "user" ? (
                 <div style={{ display: "flex", justifyContent: "flex-end" }}>
                   <div style={{ background: c.userBubble, border: `1px solid ${c.userBubbleBorder}`, borderRadius: "14px 14px 2px 14px", padding: "12px 18px", maxWidth: "85%", fontSize: "15px", lineHeight: 1.65, color: c.textSecondary, whiteSpace: "pre-wrap", fontFamily: SERIF }}>
@@ -725,9 +733,16 @@ export default function BASTInterpreter() {
   const [followUp, setFollowUp] = useState("");
 
   const messagesEndRef = useRef(null);
+  const lastMessageRef = useRef(null);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (loading) {
+      // Still generating — keep the loading indicator in view.
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    } else if (messages.length > 0 && messages[messages.length - 1].role === "assistant") {
+      // A reading just landed — show its beginning, not its end.
+      lastMessageRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
   }, [loading, messages]);
 
   useEffect(() => {
@@ -1048,6 +1063,7 @@ export default function BASTInterpreter() {
         )}
         {effectiveTier1Questions[t1Index]?.type === "bodyPartForm" ? (
           <BodyPartFormScreen
+            key={t1Index}
             q={effectiveTier1Questions[t1Index]}
             index={t1Index}
             total={effectiveTier1Questions.length}
@@ -1059,7 +1075,7 @@ export default function BASTInterpreter() {
             submitBodyPartForm={submitBodyPartForm}
           />
         ) : (
-          <QuestionScreen questions={effectiveTier1Questions} index={t1Index} tierLabel="Free Reading" loading={loading} textDraft={textDraft} setTextDraft={setTextDraft} handleTextKeyDown={handleTextKeyDown} multiSelected={multiSelected} toggleMultiSelect1={toggleMultiSelect1} submitT1Multi={submitT1Multi} />
+          <QuestionScreen key={t1Index} questions={effectiveTier1Questions} index={t1Index} tierLabel="Free Reading" loading={loading} textDraft={textDraft} setTextDraft={setTextDraft} handleTextKeyDown={handleTextKeyDown} multiSelected={multiSelected} toggleMultiSelect1={toggleMultiSelect1} submitT1Multi={submitT1Multi} />
         )}
         <style>{`* { box-sizing: border-box; } body { margin: 0; } textarea::placeholder { color: rgba(30,26,22,0.3); }`}</style>
       </div>
@@ -1076,7 +1092,7 @@ export default function BASTInterpreter() {
         <div style={{ flexShrink: 0, maxWidth: "700px", width: "100%", margin: "0 auto", padding: "0.85rem 1.5rem 0" }}>
           <Tier2ProgressBar progress={tier2Progress} />
         </div>
-        <Transcript messages={messages} loading={loading} messagesEndRef={messagesEndRef}
+        <Transcript messages={messages} loading={loading} messagesEndRef={messagesEndRef} lastMessageRef={lastMessageRef}
           ctaSlot={
             <>
               <SimpleChatInput
@@ -1106,7 +1122,7 @@ export default function BASTInterpreter() {
           <Tier2ProgressBar progress={tier2Progress} />
         </div>
       )}
-      <Transcript messages={messages} loading={loading} messagesEndRef={messagesEndRef}
+      <Transcript messages={messages} loading={loading} messagesEndRef={messagesEndRef} lastMessageRef={lastMessageRef}
         loadingLabel={step === "tier1" && loading ? "Building your Energetic Root Cause reading..." : undefined}
         ctaSlot={
           step === "chat" ? (
