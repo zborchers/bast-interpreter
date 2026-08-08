@@ -195,7 +195,61 @@ function QuestionScreen({ questions, index, tierLabel, loading, textDraft, setTe
 // sub-questions — side, front/back, sensation, pattern — grouped together
 // so the person can answer everything about that part at once) ----
 
-function BodyPartFormScreen({ q, index, total, loading, bodyPartSelections, toggleBodyPartOption, textDraft, setTextDraft, handleTextKeyDown, submitBodyPartForm }) {
+function BodyPartFormScreen({ q, index, total, loading, bodyPartSelections, toggleBodyPartOption, setBodyPartDetail, handleTextKeyDown, submitBodyPartForm }) {
+  const sideGroup = q.groups.find(g => g.key === "side");
+  const otherGroups = q.groups.filter(g => g.key !== "side");
+  const bothSides = q.hasSide && (bodyPartSelections.side || []).includes("Both sides");
+
+  const renderOptionGroup = (group, stateKey, labelPrefix) => (
+    <div key={stateKey} style={{ marginBottom: "1.4rem" }}>
+      <div style={{ fontSize: "13px", fontWeight: 700, color: c.textPrimary, marginBottom: "0.6rem", fontFamily: SANS }}>
+        {labelPrefix ? `${labelPrefix}: ${group.label}` : group.label}
+      </div>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+        {group.options.map(opt => {
+          const selected = (bodyPartSelections[stateKey] || []).includes(opt);
+          return (
+            <button
+              key={opt}
+              onClick={() => toggleBodyPartOption(stateKey, opt)}
+              disabled={loading}
+              style={{
+                background: selected ? c.accent : c.bgInput,
+                border: `1.5px solid ${selected ? c.accent : c.borderMid}`,
+                borderRadius: "8px",
+                padding: "9px 16px",
+                fontSize: "14px",
+                color: selected ? "#fff" : c.textPrimary,
+                cursor: loading ? "default" : "pointer",
+                fontFamily: SERIF,
+                fontWeight: selected ? 600 : 400,
+                transition: "all 0.15s",
+              }}
+            >
+              {selected ? "✓ " : ""}{opt}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+
+  const renderDetailBox = (detailKey, label) => (
+    <div key={detailKey} style={{ display: "flex", flexDirection: "column", gap: "8px", background: c.bgInput, border: `1px solid ${c.borderMid}`, borderRadius: "12px", padding: "12px 16px", marginBottom: "1rem" }}>
+      <div style={{ fontSize: "12px", color: c.textMuted, fontFamily: SANS, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+        {label}
+      </div>
+      <textarea
+        value={bodyPartSelections[detailKey] || ""}
+        onChange={e => setBodyPartDetail(detailKey, e.target.value)}
+        onKeyDown={handleTextKeyDown(submitBodyPartForm)}
+        placeholder="Type here..."
+        rows={2}
+        style={{ background: "transparent", border: "none", outline: "none", color: c.textPrimary, fontSize: "16px", fontFamily: SERIF, lineHeight: 1.6, resize: "none", width: "100%" }}
+      />
+    </div>
+  );
+
   return (
     <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "2rem 1.5rem" }}>
       <div style={{ width: "100%", maxWidth: "620px" }}>
@@ -211,54 +265,29 @@ function BodyPartFormScreen({ q, index, total, loading, bodyPartSelections, togg
           </div>
         </div>
 
-        <div style={{ maxHeight: "50vh", overflowY: "auto", paddingRight: "4px" }}>
-          {q.groups.map(group => (
-            <div key={group.key} style={{ marginBottom: "1.4rem" }}>
-              <div style={{ fontSize: "13px", fontWeight: 700, color: c.textPrimary, marginBottom: "0.6rem", fontFamily: SANS }}>
-                {group.label}
-              </div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
-                {group.options.map(opt => {
-                  const selected = (bodyPartSelections[group.key] || []).includes(opt);
-                  return (
-                    <button
-                      key={opt}
-                      onClick={() => toggleBodyPartOption(group.key, opt)}
-                      disabled={loading}
-                      style={{
-                        background: selected ? c.accent : c.bgInput,
-                        border: `1.5px solid ${selected ? c.accent : c.borderMid}`,
-                        borderRadius: "8px",
-                        padding: "9px 16px",
-                        fontSize: "14px",
-                        color: selected ? "#fff" : c.textPrimary,
-                        cursor: loading ? "default" : "pointer",
-                        fontFamily: SERIF,
-                        fontWeight: selected ? 600 : 400,
-                        transition: "all 0.15s",
-                      }}
-                    >
-                      {selected ? "✓ " : ""}{opt}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
+        <div style={{ maxHeight: "54vh", overflowY: "auto", paddingRight: "4px" }}>
+          {sideGroup && renderOptionGroup(sideGroup, "side", null)}
 
-          <div style={{ display: "flex", flexDirection: "column", gap: "8px", background: c.bgInput, border: `1px solid ${c.borderMid}`, borderRadius: "12px", padding: "12px 16px" }}>
-            <div style={{ fontSize: "12px", color: c.textMuted, fontFamily: SANS, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-              {q.detailLabel}
-            </div>
-            <textarea
-              value={textDraft}
-              onChange={e => setTextDraft(e.target.value)}
-              onKeyDown={handleTextKeyDown(submitBodyPartForm)}
-              placeholder="Type here..."
-              rows={2}
-              style={{ background: "transparent", border: "none", outline: "none", color: c.textPrimary, fontSize: "16px", fontFamily: SERIF, lineHeight: 1.6, resize: "none", width: "100%" }}
-            />
-          </div>
+          {bothSides ? (
+            <>
+              <div style={{ fontSize: "12px", fontWeight: 700, color: c.accent, textTransform: "uppercase", letterSpacing: "0.08em", margin: "1.2rem 0 0.8rem", borderTop: `1px solid ${c.borderMid}`, paddingTop: "1rem" }}>
+                Left {q.bodyPart}
+              </div>
+              {otherGroups.map(g => renderOptionGroup(g, `left_${g.key}`, null))}
+              {renderDetailBox("left_detail", `Anything else about your left ${q.bodyPart}? (optional)`)}
+
+              <div style={{ fontSize: "12px", fontWeight: 700, color: c.accent, textTransform: "uppercase", letterSpacing: "0.08em", margin: "0.4rem 0 0.8rem", borderTop: `1px solid ${c.borderMid}`, paddingTop: "1rem" }}>
+                Right {q.bodyPart}
+              </div>
+              {otherGroups.map(g => renderOptionGroup(g, `right_${g.key}`, null))}
+              {renderDetailBox("right_detail", `Anything else about your right ${q.bodyPart}? (optional)`)}
+            </>
+          ) : (
+            <>
+              {otherGroups.map(g => renderOptionGroup(g, g.key, null))}
+              {renderDetailBox("detail", q.detailLabel)}
+            </>
+          )}
         </div>
 
         <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "1rem" }}>
@@ -520,6 +549,32 @@ const REGION_DISPLAY = {
   "Arms": "arm", "Hands": "hand", "Somewhere else": "the area you mentioned",
 };
 
+// Not every body part has a meaningful left/right or front/back — a gut
+// or a throat doesn't split that way the way a knee or a shoulder does.
+// Quality and pattern always apply; side and plane only show up where
+// they'd actually mean something.
+const REGION_GROUP_CONFIG = {
+  "Head": { side: true, plane: true },
+  "Neck": { side: true, plane: true },
+  "Throat": { side: false, plane: false },
+  "Shoulders": { side: true, plane: true },
+  "Chest": { side: true, plane: false },
+  "Heart": { side: false, plane: false },
+  "Upper Back": { side: true, plane: false },
+  "Lower Back": { side: true, plane: false },
+  "Abdomen": { side: true, plane: false },
+  "Gut": { side: false, plane: false },
+  "Hips": { side: true, plane: true },
+  "Pelvis": { side: true, plane: false },
+  "Legs": { side: true, plane: true },
+  "Knees": { side: true, plane: true },
+  "Ankles": { side: true, plane: true },
+  "Feet": { side: true, plane: true },
+  "Arms": { side: true, plane: true },
+  "Hands": { side: true, plane: true },
+  "Somewhere else": { side: true, plane: true },
+};
+
 function regionDisplayName(region) {
   return REGION_DISPLAY[region] || region.toLowerCase();
 }
@@ -527,16 +582,20 @@ function regionDisplayName(region) {
 function buildBodyPartForm(region) {
   const display = regionDisplayName(region);
   const slug = display.replace(/\s+/g, "_");
+  const config = REGION_GROUP_CONFIG[region] || { side: true, plane: true };
+
+  const groups = [];
+  if (config.side) groups.push({ key: "side", label: "Which side?", options: ["Left", "Right", "Both sides", "Centered"] });
+  if (config.plane) groups.push({ key: "plane", label: "Front or back?", options: ["Front", "Back", "Both front and back"] });
+  groups.push({ key: "quality", label: "What does it feel like?", options: ["Sharp", "Dull ache", "Burning", "Tight", "Throbbing", "Numb", "Cramping", "Tingling"] });
+  groups.push({ key: "pattern", label: "Is this the first time, does it come and go, or is it constant / ongoing?", options: ["First time", "Comes and goes", "Constant / ongoing"] });
+
   return {
     id: `bodypart_${slug}`,
     type: "bodyPartForm",
     bodyPart: display,
-    groups: [
-      { key: "side", label: "Which side?", options: ["Left", "Right", "Both sides", "Centered"] },
-      { key: "plane", label: "Front or back?", options: ["Front", "Back", "Both front and back"] },
-      { key: "quality", label: "What does it feel like?", options: ["Sharp", "Dull ache", "Burning", "Tight", "Throbbing", "Numb", "Cramping", "Tingling"] },
-      { key: "pattern", label: "Is this the first time, does it come and go, or is it constant / ongoing?", options: ["First time", "Comes and goes", "Constant / ongoing"] },
-    ],
+    hasSide: config.side,
+    groups,
     detailLabel: `Anything else to add about your ${display}? (optional)`,
   };
 }
@@ -569,10 +628,25 @@ function formatBodyPartAnswer(ans) {
   if (!ans) return "(skipped)";
   const parts = [];
   if (ans.side && ans.side.length) parts.push(`Side: ${ans.side.join(", ")}`);
-  if (ans.plane && ans.plane.length) parts.push(`Front/back: ${ans.plane.join(", ")}`);
-  if (ans.quality && ans.quality.length) parts.push(`Sensation: ${ans.quality.join(", ")}`);
-  if (ans.pattern && ans.pattern.length) parts.push(`Pattern: ${ans.pattern.join(", ")}`);
-  if (ans.detail && ans.detail.trim()) parts.push(`Additional detail: ${ans.detail.trim()}`);
+
+  const bothSides = ans.side && ans.side.includes("Both sides");
+  if (bothSides) {
+    const sideParts = (prefix, label) => {
+      const p = [];
+      if (ans[`${prefix}_plane`]?.length) p.push(`Front/back: ${ans[`${prefix}_plane`].join(", ")}`);
+      if (ans[`${prefix}_quality`]?.length) p.push(`Sensation: ${ans[`${prefix}_quality`].join(", ")}`);
+      if (ans[`${prefix}_pattern`]?.length) p.push(`Pattern: ${ans[`${prefix}_pattern`].join(", ")}`);
+      if (ans[`${prefix}_detail`]?.trim()) p.push(`Detail: ${ans[`${prefix}_detail`].trim()}`);
+      if (p.length) parts.push(`${label} — ${p.join(" | ")}`);
+    };
+    sideParts("left", "Left side");
+    sideParts("right", "Right side");
+  } else {
+    if (ans.plane && ans.plane.length) parts.push(`Front/back: ${ans.plane.join(", ")}`);
+    if (ans.quality && ans.quality.length) parts.push(`Sensation: ${ans.quality.join(", ")}`);
+    if (ans.pattern && ans.pattern.length) parts.push(`Pattern: ${ans.pattern.join(", ")}`);
+    if (ans.detail && ans.detail.trim()) parts.push(`Additional detail: ${ans.detail.trim()}`);
+  }
   return parts.length ? parts.join(" | ") : "(skipped)";
 }
 
@@ -725,12 +799,15 @@ export default function BASTInterpreter() {
     });
   };
 
+  const setBodyPartDetail = (detailKey, value) => {
+    setBodyPartSelections(prev => ({ ...prev, [detailKey]: value }));
+  };
+
   const submitBodyPartForm = () => {
     const q = effectiveTier1Questions[t1Index];
-    const latest = { ...answersT1, [q.id]: { ...bodyPartSelections, detail: textDraft } };
+    const latest = { ...answersT1, [q.id]: { ...bodyPartSelections } };
     setAnswersT1(latest);
     setBodyPartSelections({});
-    setTextDraft("");
     advanceT1(latest);
   };
 
@@ -919,8 +996,7 @@ export default function BASTInterpreter() {
             loading={loading}
             bodyPartSelections={bodyPartSelections}
             toggleBodyPartOption={toggleBodyPartOption}
-            textDraft={textDraft}
-            setTextDraft={setTextDraft}
+            setBodyPartDetail={setBodyPartDetail}
             handleTextKeyDown={handleTextKeyDown}
             submitBodyPartForm={submitBodyPartForm}
           />
