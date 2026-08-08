@@ -3,11 +3,6 @@ import { SYSTEM_PROMPT } from "./systemPrompt.js";
 
 const SANS = "'Plus Jakarta Sans','system-ui',sans-serif";
 const SERIF = "'Crimson Text','Georgia',serif";
-const ACCESS_PASSWORD = "bodyspeak";
-
-async function validateLicenseKey(key) {
-  return key.trim().toLowerCase() === ACCESS_PASSWORD;
-}
 
 const c = {
   bg: "#faf8f4",
@@ -75,7 +70,7 @@ function Header({ messages, t1Index, clearHistory }) {
     <div style={{ borderBottom: `1px solid ${c.border}`, padding: "1.25rem 2rem", display: "flex", alignItems: "center", justifyContent: "space-between", background: c.bgHeader, position: "sticky", top: 0, zIndex: 10 }}>
       <div>
         <div style={{ fontSize: "10px", letterSpacing: "0.2em", textTransform: "uppercase", color: c.accent, marginBottom: "2px", fontFamily: SANS, fontWeight: 600 }}>Voltage Wellness</div>
-        <div style={{ fontSize: "17px", fontWeight: 700, color: c.textPrimary, fontFamily: SANS }}>The Voltage Reading</div>
+        <div style={{ fontSize: "17px", fontWeight: 700, color: c.textPrimary, fontFamily: SANS }}>Energetic Root Cause</div>
       </div>
       {(messages.length > 0 || t1Index > 0) && (
         <button onClick={clearHistory} style={{ background: "transparent", border: `1px solid ${c.borderMid}`, color: c.textMuted, padding: "6px 14px", borderRadius: "4px", fontSize: "12px", cursor: "pointer", fontFamily: SANS, fontWeight: 500 }}>
@@ -248,7 +243,7 @@ function SimpleChatInput({ value, onChange, onSubmit, placeholder, loading, hand
 
 // ---- READING TRANSCRIPT (also hoisted, same reason) ----
 
-function Transcript({ messages, loading, messagesEndRef, ctaSlot }) {
+function Transcript({ messages, loading, messagesEndRef, ctaSlot, loadingLabel }) {
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", maxWidth: "700px", width: "100%", margin: "0 auto" }}>
       <div style={{ flex: 1, overflowY: "auto", padding: "0 1.5rem" }}>
@@ -273,10 +268,15 @@ function Transcript({ messages, loading, messagesEndRef, ctaSlot }) {
           {loading && (
             <div style={{ display: "flex", gap: "12px", alignItems: "flex-start", marginBottom: "2rem" }}>
               <div style={{ width: "28px", height: "28px", borderRadius: "50%", background: c.accentLight, border: `1px solid ${c.borderMid}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", color: c.accent, flexShrink: 0 }}>&#10022;</div>
-              <div style={{ paddingTop: "8px", display: "flex", gap: "5px" }}>
-                {[0, 1, 2].map(i => (
-                  <div key={i} style={{ width: "6px", height: "6px", borderRadius: "50%", background: c.accent, animation: `bast-pulse 1.2s ease-in-out ${i * 0.2}s infinite`, opacity: 0.45 }} />
-                ))}
+              <div style={{ paddingTop: "6px" }}>
+                {loadingLabel && (
+                  <div style={{ fontSize: "13px", color: c.textMuted, fontFamily: SANS, marginBottom: "6px" }}>{loadingLabel}</div>
+                )}
+                <div style={{ display: "flex", gap: "5px" }}>
+                  {[0, 1, 2].map(i => (
+                    <div key={i} style={{ width: "6px", height: "6px", borderRadius: "50%", background: c.accent, animation: `bast-pulse 1.2s ease-in-out ${i * 0.2}s infinite`, opacity: 0.45 }} />
+                  ))}
+                </div>
               </div>
             </div>
           )}
@@ -313,9 +313,9 @@ const QUESTIONS_TIER1 = [
     q: "Where in the body is this happening?",
     detailLabel: "Anything else to add about where or how it shows up? (optional)",
     options: [
-      "Head / Mind", "Neck / Throat", "Shoulders", "Chest / Heart",
-      "Upper Back", "Lower Back", "Abdomen / Gut", "Hips / Pelvis",
-      "Legs / Knees", "Ankles / Feet", "Arms / Hands", "Somewhere else",
+      "Head", "Mind", "Neck", "Throat", "Shoulders", "Chest", "Heart",
+      "Upper Back", "Lower Back", "Abdomen", "Gut", "Hips", "Pelvis",
+      "Legs", "Knees", "Ankles", "Feet", "Arms", "Hands", "Somewhere else",
     ],
   },
   {
@@ -474,15 +474,7 @@ export default function BASTInterpreter() {
       return !hasSavedSession && params.has("diagnosis");
     } catch { return false; }
   });
-  const [unlocked, setUnlocked] = useState(() => {
-    try { return localStorage.getItem("bast_unlocked") === "true"; }
-    catch { return false; }
-  });
-  const [licenseKey, setLicenseKey] = useState("");
-  const [licenseError, setLicenseError] = useState("");
-  const [licenseLoading, setLicenseLoading] = useState(false);
-
-  // step: 'tier1' -> 'paywall' -> 'tier2' -> 'chat'
+  // step: 'tier1' -> 'post-initial' -> 'tier2' -> 'chat'
   const [step, setStep] = useState(() => {
     try { return localStorage.getItem("bast_step") || "tier1"; }
     catch { return "tier1"; }
@@ -508,10 +500,6 @@ export default function BASTInterpreter() {
   }, [messages]);
 
   useEffect(() => {
-    try { localStorage.setItem("bast_unlocked", unlocked ? "true" : "false"); } catch {}
-  }, [unlocked]);
-
-  useEffect(() => {
     try { localStorage.setItem("bast_step", step); } catch {}
   }, [step]);
 
@@ -531,24 +519,6 @@ export default function BASTInterpreter() {
       localStorage.removeItem("bast_messages");
       localStorage.removeItem("bast_step");
     } catch {}
-  };
-
-  const handleLicenseSubmit = async () => {
-    if (!licenseKey.trim()) return;
-    setLicenseLoading(true);
-    setLicenseError("");
-    const valid = await validateLicenseKey(licenseKey);
-    if (valid) {
-      setUnlocked(true);
-      beginTier2();
-    } else {
-      setLicenseError("That password doesn't appear to be correct. Please check your purchase confirmation email and try again.");
-    }
-    setLicenseLoading(false);
-  };
-
-  const handleLicenseKeyDown = (e) => {
-    if (e.key === "Enter") handleLicenseSubmit();
   };
 
   async function callAPI(newMessages, maxTokens) {
@@ -600,13 +570,14 @@ export default function BASTInterpreter() {
       role: "user",
       content: `Here is the intake for an Initial Reading:\n\n${compiled}\n\nProvide an Initial Reading based on this intake.`,
       display: compiled,
+      hidden: true,
     };
     const newMessages = [...messages, userMsg];
     setMessages(newMessages);
     try {
       const text = await callAPI(newMessages);
       setMessages(prev => [...prev, { role: "assistant", content: text }]);
-      setStep(unlocked ? "post-initial" : "paywall");
+      setStep("post-initial");
     } catch {
       setMessages(prev => [...prev, { role: "assistant", content: "There was a connection error. Please try again." }]);
     }
@@ -708,7 +679,7 @@ export default function BASTInterpreter() {
   const beginTier2 = () => {
     const kickoffMsg = {
       role: "user",
-      content: "The person has unlocked the Root Cause Reading and is ready to go deeper. Ask them your first question now — the single most useful thing to understand next, following naturally from the Initial Reading and everything in the intake. Keep the transition conversational, not clinical. End with the required status marker.",
+      content: "The person is ready to go deeper into the Root Cause Reading. Ask them your first question now — the single most useful thing to understand next, following naturally from the Initial Reading and everything in the intake. Keep the transition conversational, not clinical. End with the required status marker.",
       hidden: true,
     };
     advanceTier2Conversation([...messages, kickoffMsg]);
@@ -774,60 +745,7 @@ export default function BASTInterpreter() {
     );
   }
 
-  // ---- RENDER: PAYWALL (after Initial Reading, before Tier 2) ----
-
-  if (step === "paywall" && !unlocked) {
-    return (
-      <div style={{ height: "100vh", overflow: "hidden", background: c.bg, color: c.textPrimary, fontFamily: SERIF, display: "flex", flexDirection: "column" }}>
-        <Header messages={messages} t1Index={t1Index} clearHistory={clearHistory} />
-        <Transcript messages={messages} loading={loading} messagesEndRef={messagesEndRef}
-          ctaSlot={
-            <div style={{ maxWidth: "460px", margin: "0 auto", width: "100%" }}>
-              <div style={{ textAlign: "center", marginBottom: "1.5rem" }}>
-                <div style={{ fontSize: "20px", fontWeight: 700, color: c.textPrimary, marginBottom: "0.5rem", fontFamily: SANS }}>
-                  Go deeper: get your Root Cause Reading
-                </div>
-                <div style={{ fontSize: "16px", color: c.textSecondary, lineHeight: 1.7 }}>
-                  Unlock a real conversation that goes as deep as it needs to — and a complete, no-limit root-cause reading once we've gathered enough to do it justice.
-                </div>
-              </div>
-              <div style={{ background: c.bgInput, border: `1px solid ${c.borderMid}`, borderRadius: "10px", padding: "1.25rem" }}>
-                <div style={{ fontSize: "12px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: c.textMuted, marginBottom: "0.6rem", fontFamily: SANS }}>
-                  Access Password
-                </div>
-                <input
-                  type="password"
-                  value={licenseKey}
-                  onChange={e => { setLicenseKey(e.target.value); setLicenseError(""); }}
-                  onKeyDown={handleLicenseKeyDown}
-                  placeholder="Enter your access password"
-                  style={{ width: "100%", background: "transparent", border: "none", outline: "none", color: c.textPrimary, fontSize: "16px", fontFamily: SANS, padding: "0.25rem 0" }}
-                />
-              </div>
-              {licenseError && (
-                <div style={{ marginTop: "0.75rem", fontSize: "14px", color: "#b94040", lineHeight: 1.6 }}>{licenseError}</div>
-              )}
-              <button
-                onClick={handleLicenseSubmit}
-                disabled={!licenseKey.trim() || licenseLoading}
-                style={{ width: "100%", marginTop: "1rem", background: licenseKey.trim() && !licenseLoading ? c.accent : c.accentMid, border: "none", borderRadius: "6px", padding: "14px", fontSize: "15px", color: licenseKey.trim() && !licenseLoading ? "#fff" : c.textMuted, cursor: licenseKey.trim() && !licenseLoading ? "pointer" : "default", fontFamily: SANS, fontWeight: 700, letterSpacing: "0.04em" }}
-              >
-                {licenseLoading ? "Verifying..." : "Unlock Root Cause Reading \u2192"}
-              </button>
-              <div style={{ textAlign: "center", marginTop: "1.5rem", fontSize: "14px", color: c.textMuted, fontFamily: SERIF }}>
-                Don't have an access password?{" "}
-                <a href="https://zborchster.gumroad.com/l/dxrekr" style={{ color: c.accent, textDecoration: "underline" }}>
-                  Purchase access here
-                </a>
-              </div>
-            </div>
-          }
-        />
-      </div>
-    );
-  }
-
-  // ---- RENDER: POST-INITIAL (already-unlocked users see the reading before continuing) ----
+  // ---- RENDER: POST-INITIAL (shows the reading before continuing into Tier 2) ----
 
   if (step === "post-initial" && !loading) {
     return (
@@ -886,6 +804,7 @@ export default function BASTInterpreter() {
     <div style={{ height: "100vh", overflow: "hidden", background: c.bg, color: c.textPrimary, fontFamily: SERIF, display: "flex", flexDirection: "column" }}>
       <Header messages={messages} t1Index={t1Index} clearHistory={clearHistory} />
       <Transcript messages={messages} loading={loading} messagesEndRef={messagesEndRef}
+        loadingLabel={step === "tier1" && loading ? "Building your Energetic Root Cause reading..." : undefined}
         ctaSlot={
           step === "chat" ? (
             <>
