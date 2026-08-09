@@ -380,13 +380,26 @@ function SimpleChatInput({ value, onChange, onSubmit, placeholder, loading, hand
 // ---- READING TRANSCRIPT (also hoisted, same reason) ----
 
 function Transcript({ messages, loading, messagesEndRef, lastMessageRef, ctaSlot, loadingLabel }) {
+  let lastRealIndex = -1;
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (!messages[i].hidden && !messages[i].localOnly) { lastRealIndex = i; break; }
+  }
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", maxWidth: "700px", width: "100%", margin: "0 auto" }}>
       <div style={{ flex: 1, overflowY: "auto", padding: "0 1.5rem" }}>
         <div style={{ paddingTop: "2rem" }}>
           {messages.map((msg, i) => msg.hidden ? null : (
-            <div key={i} ref={i === messages.length - 1 ? lastMessageRef : null} style={{ marginBottom: "2rem" }}>
-              {msg.role === "user" ? (
+            <div key={i} ref={i === lastRealIndex ? lastMessageRef : null} style={{ marginBottom: "2rem" }}>
+              {msg.isDonationNote ? (
+                <div style={{ background: c.bgInput, border: `1px solid ${c.borderMid}`, borderRadius: "12px", padding: "1.25rem 1.4rem", textAlign: "center" }}>
+                  <div style={{ fontSize: "16px", color: c.textPrimary, lineHeight: 1.8, fontFamily: SERIF }}>
+                    Hi, I'm Zach. Every reading this tool generates costs something behind the scenes, and I'd rather keep it free for everyone than put it behind a paywall. If it gave you something real and you'd like to help keep it that way for the next person, any amount helps. No pressure either way. The tool is yours to use for free, always.
+                  </div>
+                  <a href="https://donate.stripe.com/dRmeVeaVFg2f2Oj4GO9ws00" target="_blank" rel="noopener noreferrer" style={{ display: "inline-block", marginTop: "1rem", background: c.accent, border: "none", borderRadius: "6px", padding: "10px 22px", fontFamily: SANS, fontSize: "13px", fontWeight: 700, letterSpacing: "0.03em", color: "#fff", textDecoration: "none" }}>
+                    Support This Tool
+                  </a>
+                </div>
+              ) : msg.role === "user" ? (
                 <div style={{ display: "flex", justifyContent: "flex-end" }}>
                   <div style={{ background: c.userBubble, border: `1px solid ${c.userBubbleBorder}`, borderRadius: "14px 14px 2px 14px", padding: "12px 18px", maxWidth: "85%", fontSize: "15px", lineHeight: 1.65, color: c.textSecondary, whiteSpace: "pre-wrap", fontFamily: SERIF }}>
                     {msg.display || msg.content}
@@ -781,8 +794,10 @@ export default function BASTInterpreter() {
         max_tokens: maxTokens || 4000,
         system: SYSTEM_PROMPT,
         // Strip the local-only "display" field — the API only accepts
-        // role/content on message objects.
-        messages: newMessages.map(({ role, content }) => ({ role, content })),
+        // role/content on message objects. Also drop anything marked
+        // localOnly (e.g. the donation note) — it should be visible in
+        // the chat but never actually sent to the model.
+        messages: newMessages.filter(m => !m.localOnly).map(({ role, content }) => ({ role, content })),
       }),
     });
     const data = await response.json();
@@ -976,7 +991,10 @@ export default function BASTInterpreter() {
     const newMessages = [...priorMessages, userMsg];
     setMessages(newMessages);
     const text = await callAPI(newMessages, 8000);
-    setMessages(prev => [...prev, { role: "assistant", content: text }]);
+    setMessages(prev => [...prev,
+      { role: "assistant", content: text },
+      { role: "assistant", content: "", localOnly: true, isDonationNote: true },
+    ]);
     setTier2Progress(100);
     setStep("chat");
   };
@@ -1127,6 +1145,19 @@ export default function BASTInterpreter() {
         ctaSlot={
           step === "chat" ? (
             <>
+              <div style={{ background: c.bgInput, border: `1px solid ${c.borderMid}`, borderRadius: "10px", padding: "14px 16px", marginBottom: "10px" }}>
+                <div style={{ fontSize: "14px", color: c.textSecondary, lineHeight: 1.7, fontFamily: SERIF }}>
+                  Hi, I'm Zach. Every reading this tool generates costs something behind the scenes, and I'd rather keep it free for everyone than put it behind a paywall. If it gave you something real and you'd like to help keep it that way for the next person, any amount helps. No pressure either way.
+                </div>
+                <a
+                  href="https://donate.stripe.com/dRmeVeaVFg2f2Oj4GO9ws00"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ display: "inline-block", marginTop: "10px", background: c.accent, border: "none", borderRadius: "6px", padding: "8px 18px", fontFamily: SANS, fontSize: "13px", fontWeight: 700, letterSpacing: "0.03em", color: "#fff", textDecoration: "none" }}
+                >
+                  Support This Tool
+                </a>
+              </div>
               <div style={{ display: "flex", flexDirection: "column", gap: "8px", background: c.bgInput, border: `1px solid ${c.borderMid}`, borderRadius: "10px", padding: "10px 14px" }}>
                 <textarea
                   value={followUp}
