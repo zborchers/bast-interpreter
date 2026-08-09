@@ -451,7 +451,7 @@ const QUESTIONS_TIER1 = [
   {
     id: "diagnosis",
     type: "multiselect",
-    q: "Do you have a medical diagnosis (or diagnoses) connected to what's going on?",
+    q: "Do you have a medical diagnosis (or diagnoses)?",
     detailLabel: "If yes, what's the diagnosis? (optional, but helpful)",
     options: [
       "Yes",
