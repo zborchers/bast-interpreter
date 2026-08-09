@@ -392,8 +392,11 @@ function Transcript({ messages, loading, messagesEndRef, lastMessageRef, ctaSlot
             <div key={i} ref={i === lastRealIndex ? lastMessageRef : null} style={{ marginBottom: "2rem" }}>
               {msg.isDonationNote ? (
                 <div style={{ background: c.bgInput, border: `1px solid ${c.borderMid}`, borderRadius: "12px", padding: "1.25rem 1.4rem", textAlign: "center" }}>
+                  <div style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: c.textMuted, marginBottom: "0.7rem", fontFamily: SANS }}>
+                    A note from Zach, the creator
+                  </div>
                   <div style={{ fontSize: "16px", color: c.textPrimary, lineHeight: 1.8, fontFamily: SERIF }}>
-                    Hi, I'm Zach. Every reading this tool generates costs something behind the scenes, and I'd rather keep it free for everyone than put it behind a paywall. If it gave you something real and you'd like to help keep it that way for the next person, any amount helps. No pressure either way. The tool is yours to use for free, always.
+                    Every reading this tool generates costs money to produce. There's no paywall, and there never will be. But if this meant something to you and you'd like to help cover what it costs to run, any amount is appreciated. No pressure either way.
                   </div>
                   <a href="https://donate.stripe.com/dRmeVeaVFg2f2Oj4GO9ws00" target="_blank" rel="noopener noreferrer" style={{ display: "inline-block", marginTop: "1rem", background: c.accent, border: "none", borderRadius: "6px", padding: "10px 22px", fontFamily: SANS, fontSize: "13px", fontWeight: 700, letterSpacing: "0.03em", color: "#fff", textDecoration: "none" }}>
                     Support This Tool
