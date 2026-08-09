@@ -173,6 +173,7 @@ function QuestionScreen({ questions, index, tierLabel, loading, textDraft, setTe
                       cursor: loading ? "default" : "pointer",
                       fontFamily: SERIF,
                       fontWeight: selected ? 600 : 400,
+                      textAlign: "left",
                       transition: "all 0.15s",
                     }}
                   >
@@ -511,7 +512,7 @@ const QUESTIONS_TIER1 = [
     type: "multiselect",
     singleSelect: true,
     q: "Do you have a medical diagnosis (or diagnoses)?",
-    detailLabel: "If yes, what's the diagnosis? (optional, but helpful)",
+    detailLabel: "If yes, what's the diagnosis?",
     options: [
       "Yes",
       "Yes, and I also want to explore something separate from that diagnosis",
@@ -671,9 +672,9 @@ function regionDisplayName(region) {
   return REGION_DISPLAY[region] || region.toLowerCase();
 }
 
-function buildBodyPartForm(region) {
-  const display = regionDisplayName(region);
-  const slug = display.replace(/\s+/g, "_");
+function buildBodyPartForm(region, overrideDisplay) {
+  const display = overrideDisplay || regionDisplayName(region);
+  const slug = regionDisplayName(region).replace(/\s+/g, "_");
   const config = REGION_GROUP_CONFIG[region] || { side: true, plane: true };
 
   const groups = [];
@@ -696,11 +697,29 @@ function buildBodyPartForm(region) {
   };
 }
 
+// A description longer than this reads awkwardly once title-cased into a
+// heading ("Tell us about your ..."), so it gets trimmed to the first
+// clause or a reasonable length rather than shown in full there. The full
+// text is still what's sent to the model — only the heading is shortened.
+function shortenForHeading(text, maxLen) {
+  const firstClause = text.split(/[.!?]\s|,\s(?=and|but|which)/)[0].trim();
+  const base = firstClause.length >= 8 ? firstClause : text;
+  if (base.length <= maxLen) return base;
+  return base.slice(0, maxLen).replace(/\s+\S*$/, "") + "...";
+}
+
 function patchQuestionsForBodyParts(questions, regionAnswer) {
   const selected = (regionAnswer && regionAnswer.selected) || [];
   if (selected.length === 0) return questions;
 
-  const bodyPartForms = selected.map(buildBodyPartForm);
+  const somewhereElseDetail = (regionAnswer && regionAnswer.detail && regionAnswer.detail.trim()) || "";
+
+  const bodyPartForms = selected.map(region => {
+    if (region === "Somewhere else" && somewhereElseDetail) {
+      return buildBodyPartForm(region, shortenForHeading(somewhereElseDetail, 60));
+    }
+    return buildBodyPartForm(region);
+  });
 
   return questions.flatMap(q => {
     if (q.id === "side") return bodyPartForms;
