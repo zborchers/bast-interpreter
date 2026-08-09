@@ -65,18 +65,13 @@ function formatMessage(content) {
 // ---- SHARED HEADER (hoisted to module scope so it isn't recreated, and
 // therefore remounted, on every keystroke of a parent-controlled input) ----
 
-function Header({ messages, t1Index, clearHistory }) {
+function Header() {
   return (
     <div style={{ borderBottom: `1px solid ${c.border}`, padding: "1.25rem 2rem", display: "flex", alignItems: "center", justifyContent: "space-between", background: c.bgHeader, position: "sticky", top: 0, zIndex: 10 }}>
       <div>
         <div style={{ fontSize: "10px", letterSpacing: "0.2em", textTransform: "uppercase", color: c.accent, marginBottom: "2px", fontFamily: SANS, fontWeight: 600 }}>Voltage Wellness</div>
         <div style={{ fontSize: "17px", fontWeight: 700, color: c.textPrimary, fontFamily: SANS }}>Energetic Root Cause</div>
       </div>
-      {(messages.length > 0 || t1Index > 0) && (
-        <button onClick={clearHistory} style={{ background: "transparent", border: `1px solid ${c.borderMid}`, color: c.textMuted, padding: "6px 14px", borderRadius: "4px", fontSize: "12px", cursor: "pointer", fontFamily: SANS, fontWeight: 500 }}>
-          Start over
-        </button>
-      )}
     </div>
   );
 }
@@ -757,7 +752,6 @@ export default function BASTInterpreter() {
   const [tier2Progress, setTier2Progress] = useState(0);
   const [tier2Turn, setTier2Turn] = useState(0);
   const [textDraft, setTextDraft] = useState("");
-  const [followUp, setFollowUp] = useState("");
 
   const messagesEndRef = useRef(null);
   const lastMessageRef = useRef(null);
@@ -808,24 +802,6 @@ export default function BASTInterpreter() {
     try { localStorage.setItem("bast_step", step); } catch {}
   }, [step]);
 
-  const clearHistory = () => {
-    setMessages([]);
-    setAnswersT1({});
-    setMultiSelected([]);
-    setBodyPartSelections({});
-    setEffectiveTier1Questions(QUESTIONS_TIER1);
-    setT1Index(0);
-    setTier2Draft("");
-    setTier2Progress(0);
-    setTier2Turn(0);
-    setTextDraft("");
-    setFollowUp("");
-    setStep("tier1");
-    try {
-      localStorage.removeItem("bast_messages");
-      localStorage.removeItem("bast_step");
-    } catch {}
-  };
 
   async function callAPI(newMessages, maxTokens) {
     const response = await fetch("/api/chat", {
@@ -1086,28 +1062,6 @@ export default function BASTInterpreter() {
     advanceTier2Conversation([...messages, userMsg]);
   };
 
-  // ---- FREEFORM FOLLOW-UP (post Root Cause Reading) ----
-
-  const handleFollowUpSubmit = async () => {
-    if (!followUp.trim() || loading) return;
-    const userMessage = { role: "user", content: followUp.trim() };
-    const newMessages = [...messages, userMessage];
-    setMessages(newMessages);
-    setFollowUp("");
-    setLoading(true);
-    try {
-      const text = await callAPI(newMessages);
-      setMessages(prev => [...prev, { role: "assistant", content: text }]);
-    } catch {
-      setMessages(prev => [...prev, { role: "assistant", content: "There was a connection error. Please try again." }]);
-    }
-    setLoading(false);
-  };
-
-  const handleFollowUpKeyDown = (e) => {
-    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleFollowUpSubmit(); }
-  };
-
   const handleTextKeyDown = (submitFn) => (e) => {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submitFn(); }
   };
@@ -1117,7 +1071,7 @@ export default function BASTInterpreter() {
   if (step === "tier1" && !loading) {
     return (
       <div style={{ minHeight: "100vh", background: c.bg, color: c.textPrimary, fontFamily: SERIF, display: "flex", flexDirection: "column" }}>
-        <Header messages={messages} t1Index={t1Index} clearHistory={clearHistory} />
+        <Header />
         {t1Index === 0 && (
           <div style={{ textAlign: "center", maxWidth: "620px", margin: "1.5rem auto 0", padding: "0 1.5rem" }}>
             <div style={{ fontSize: "27px", fontWeight: 700, color: c.textPrimary, lineHeight: 1.2, fontFamily: SANS, letterSpacing: "-0.01em" }}>
@@ -1155,7 +1109,7 @@ export default function BASTInterpreter() {
   if (step === "tier2" && !loading) {
     return (
       <div style={{ height: "100vh", overflow: "hidden", background: c.bg, color: c.textPrimary, fontFamily: SERIF, display: "flex", flexDirection: "column" }}>
-        <Header messages={messages} t1Index={t1Index} clearHistory={clearHistory} />
+        <Header />
         <div style={{ flexShrink: 0, maxWidth: "700px", width: "100%", margin: "0 auto", padding: "0.85rem 1.5rem 0" }}>
           <Tier2ProgressBar progress={tier2Progress} />
         </div>
@@ -1183,7 +1137,7 @@ export default function BASTInterpreter() {
 
   return (
     <div style={{ height: "100vh", overflow: "hidden", background: c.bg, color: c.textPrimary, fontFamily: SERIF, display: "flex", flexDirection: "column" }}>
-      <Header messages={messages} t1Index={t1Index} clearHistory={clearHistory} />
+      <Header />
       {step === "tier2" && (
         <div style={{ flexShrink: 0, maxWidth: "700px", width: "100%", margin: "0 auto", padding: "0.85rem 1.5rem 0" }}>
           <Tier2ProgressBar progress={tier2Progress} />
@@ -1192,30 +1146,7 @@ export default function BASTInterpreter() {
       <Transcript messages={messages} loading={loading} messagesEndRef={messagesEndRef} lastMessageRef={lastMessageRef} copyReadingText={copyReadingText} downloadReadingText={downloadReadingText} copiedIndex={copiedIndex}
         loadingLabel={step === "tier1" && loading ? "Building your Energetic Root Cause reading..." : undefined}
         ctaSlot={
-          step === "chat" ? (
-            <>
-              <div style={{ display: "flex", flexDirection: "column", gap: "8px", background: c.bgInput, border: `1px solid ${c.borderMid}`, borderRadius: "10px", padding: "10px 14px" }}>
-                <textarea
-                  value={followUp}
-                  onChange={e => setFollowUp(e.target.value)}
-                  onKeyDown={handleFollowUpKeyDown}
-                  placeholder="Ask a follow-up or describe another symptom..."
-                  rows={2}
-                  style={{ background: "transparent", border: "none", outline: "none", color: c.textPrimary, fontSize: "18px", fontFamily: SERIF, lineHeight: 1.6, resize: "none", width: "100%" }}
-                />
-                <div style={{ display: "flex", justifyContent: "flex-end" }}>
-                  <button
-                    onClick={handleFollowUpSubmit}
-                    disabled={!followUp.trim() || loading}
-                    style={{ background: followUp.trim() && !loading ? c.accent : c.accentMid, border: "none", borderRadius: "4px", padding: "7px 18px", cursor: followUp.trim() && !loading ? "pointer" : "default", color: followUp.trim() && !loading ? "#fff" : c.textMuted, fontSize: "13px", fontFamily: SANS, fontWeight: 700, letterSpacing: "0.04em" }}
-                  >
-                    Send &rarr;
-                  </button>
-                </div>
-              </div>
-              <Disclaimer />
-            </>
-          ) : null
+          step === "chat" ? <Disclaimer /> : null
         }
       />
       <style>{`
