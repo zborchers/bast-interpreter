@@ -110,7 +110,7 @@ function Disclaimer() {
 // ---- QUESTION WIZARD SCREEN (also hoisted — this is the one that was
 // causing the reversed-typing bug in the free-text answers) ----
 
-function QuestionScreen({ questions, index, tierLabel, loading, textDraft, setTextDraft, handleTextKeyDown, multiSelected, toggleMultiSelect1, submitT1Multi }) {
+function QuestionScreen({ questions, index, tierLabel, loading, textDraft, setTextDraft, handleTextKeyDown, multiSelected, toggleMultiSelect1, submitT1Multi, goBackT1 }) {
   useScrollToTopOnMount();
 
   const q = questions[index];
@@ -195,19 +195,30 @@ function QuestionScreen({ questions, index, tierLabel, loading, textDraft, setTe
               autoFocus={q.options.length === 0}
               style={{ background: "transparent", border: "none", outline: "none", color: c.textPrimary, fontSize: "17px", fontFamily: SERIF, lineHeight: 1.7, resize: "none", width: "100%" }}
             />
-            <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: "0.75rem" }}>
-              {blocked && (
-                <div style={{ fontSize: "12px", color: c.textMuted, fontFamily: SANS, fontStyle: "italic" }}>
-                  Please fill this in to continue
-                </div>
-              )}
-              <button
-                onClick={submitT1Multi}
-                disabled={loading || blocked}
-                style={{ background: loading || blocked ? c.accentMid : c.accent, border: "none", borderRadius: "4px", padding: "8px 20px", cursor: loading ? "default" : "pointer", color: loading || blocked ? c.textMuted : "#fff", fontSize: "13px", fontFamily: SANS, fontWeight: 700, letterSpacing: "0.04em", transition: "all 0.15s" }}
-              >
-                {loading ? "Reading…" : "Next \u2192"}
-              </button>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "0.75rem" }}>
+              {index > 0 ? (
+                <button
+                  onClick={goBackT1}
+                  disabled={loading}
+                  style={{ background: "transparent", border: "none", color: c.textMuted, padding: "8px 4px", cursor: loading ? "default" : "pointer", fontSize: "13px", fontFamily: SANS, fontWeight: 600, letterSpacing: "0.03em" }}
+                >
+                  &larr; Back
+                </button>
+              ) : <div />}
+              <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                {blocked && (
+                  <div style={{ fontSize: "12px", color: c.textMuted, fontFamily: SANS, fontStyle: "italic" }}>
+                    Please fill this in to continue
+                  </div>
+                )}
+                <button
+                  onClick={submitT1Multi}
+                  disabled={loading || blocked}
+                  style={{ background: loading || blocked ? c.accentMid : c.accent, border: "none", borderRadius: "4px", padding: "8px 20px", cursor: loading ? "default" : "pointer", color: loading || blocked ? c.textMuted : "#fff", fontSize: "13px", fontFamily: SANS, fontWeight: 700, letterSpacing: "0.04em", transition: "all 0.15s" }}
+                >
+                  {loading ? "Reading…" : "Next \u2192"}
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -221,7 +232,7 @@ function QuestionScreen({ questions, index, tierLabel, loading, textDraft, setTe
 // sub-questions — side, front/back, sensation, pattern — grouped together
 // so the person can answer everything about that part at once) ----
 
-function BodyPartFormScreen({ q, index, total, loading, bodyPartSelections, toggleBodyPartOption, setBodyPartDetail, handleTextKeyDown, submitBodyPartForm }) {
+function BodyPartFormScreen({ q, index, total, loading, bodyPartSelections, toggleBodyPartOption, setBodyPartDetail, handleTextKeyDown, submitBodyPartForm, goBackT1 }) {
   useScrollToTopOnMount();
 
   const sideGroup = q.groups.find(g => g.key === "side");
@@ -323,19 +334,30 @@ function BodyPartFormScreen({ q, index, total, loading, bodyPartSelections, togg
           )}
         </div>
 
-        <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: "0.75rem", marginTop: "1rem" }}>
-          {detailMissing && (
-            <div style={{ fontSize: "12px", color: c.textMuted, fontFamily: SANS, fontStyle: "italic" }}>
-              Please fill this in to continue
-            </div>
-          )}
-          <button
-            onClick={submitBodyPartForm}
-            disabled={loading || detailMissing}
-            style={{ background: loading || detailMissing ? c.accentMid : c.accent, border: "none", borderRadius: "4px", padding: "10px 24px", cursor: (loading || detailMissing) ? "default" : "pointer", color: (loading || detailMissing) ? c.textMuted : "#fff", fontSize: "13px", fontFamily: SANS, fontWeight: 700, letterSpacing: "0.04em", transition: "all 0.15s" }}
-          >
-            {loading ? "Reading…" : "Next \u2192"}
-          </button>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "0.75rem", marginTop: "1rem" }}>
+          {index > 0 ? (
+            <button
+              onClick={goBackT1}
+              disabled={loading}
+              style={{ background: "transparent", border: "none", color: c.textMuted, padding: "8px 4px", cursor: loading ? "default" : "pointer", fontSize: "13px", fontFamily: SANS, fontWeight: 600, letterSpacing: "0.03em" }}
+            >
+              &larr; Back
+            </button>
+          ) : <div />}
+          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+            {detailMissing && (
+              <div style={{ fontSize: "12px", color: c.textMuted, fontFamily: SANS, fontStyle: "italic" }}>
+                Please fill this in to continue
+              </div>
+            )}
+            <button
+              onClick={submitBodyPartForm}
+              disabled={loading || detailMissing}
+              style={{ background: loading || detailMissing ? c.accentMid : c.accent, border: "none", borderRadius: "4px", padding: "10px 24px", cursor: (loading || detailMissing) ? "default" : "pointer", color: (loading || detailMissing) ? c.textMuted : "#fff", fontSize: "13px", fontFamily: SANS, fontWeight: 700, letterSpacing: "0.04em", transition: "all 0.15s" }}
+            >
+              {loading ? "Reading…" : "Next \u2192"}
+            </button>
+          </div>
         </div>
         <Disclaimer />
       </div>
@@ -960,6 +982,20 @@ export default function BASTInterpreter() {
     fetchInitialReading(latestAnswers, list);
   };
 
+  const goBackT1 = () => {
+    if (t1Index === 0) return;
+    const prevIndex = t1Index - 1;
+    const prevQuestion = effectiveTier1Questions[prevIndex];
+    const prevAnswer = answersT1[prevQuestion.id];
+    if (prevQuestion.type === "bodyPartForm") {
+      setBodyPartSelections(prevAnswer || {});
+    } else {
+      setMultiSelected((prevAnswer && prevAnswer.selected) || []);
+      setTextDraft((prevAnswer && prevAnswer.detail) || "");
+    }
+    setT1Index(prevIndex);
+  };
+
   // Pick up Tier 1 answers passed in via URL params from the landing
   // page's quiz (diagnosis + region), so a person doesn't have to
   // re-answer those two here. Everything body-part-specific still
@@ -1124,9 +1160,10 @@ export default function BASTInterpreter() {
             setBodyPartDetail={setBodyPartDetail}
             handleTextKeyDown={handleTextKeyDown}
             submitBodyPartForm={submitBodyPartForm}
+            goBackT1={goBackT1}
           />
         ) : (
-          <QuestionScreen key={t1Index} questions={effectiveTier1Questions} index={t1Index} tierLabel="Free Reading" loading={loading} textDraft={textDraft} setTextDraft={setTextDraft} handleTextKeyDown={handleTextKeyDown} multiSelected={multiSelected} toggleMultiSelect1={toggleMultiSelect1} submitT1Multi={submitT1Multi} />
+          <QuestionScreen key={t1Index} questions={effectiveTier1Questions} index={t1Index} tierLabel="Free Reading" loading={loading} textDraft={textDraft} setTextDraft={setTextDraft} handleTextKeyDown={handleTextKeyDown} multiSelected={multiSelected} toggleMultiSelect1={toggleMultiSelect1} submitT1Multi={submitT1Multi} goBackT1={goBackT1} />
         )}
         <style>{`* { box-sizing: border-box; } body { margin: 0; } textarea::placeholder { color: rgba(30,26,22,0.3); }`}</style>
       </div>
