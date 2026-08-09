@@ -138,7 +138,7 @@ function QuestionScreen({ questions, index, tierLabel, loading, textDraft, setTe
           )}
           {q.options.length > 0 && (
             <div style={{ fontSize: "12px", color: c.textMuted, marginTop: "0.5rem", fontFamily: SANS, fontStyle: "italic" }}>
-              Select all that apply
+              {q.singleSelect ? "Select one" : "Select all that apply"}
             </div>
           )}
           {q.required && (
@@ -182,10 +182,10 @@ function QuestionScreen({ questions, index, tierLabel, loading, textDraft, setTe
               })}
             </div>
           )}
+          <div style={{ fontSize: "14px", color: needsSomewhereElseDetail ? c.accent : c.textSecondary, fontFamily: SANS, fontWeight: 600, marginBottom: "0.5rem" }}>
+            {detailLabel}
+          </div>
           <div style={{ display: "flex", flexDirection: "column", gap: "8px", background: c.bgInput, border: `1px solid ${needsSomewhereElseDetail ? c.accent : c.borderMid}`, borderRadius: "12px", padding: "12px 16px" }}>
-            <div style={{ fontSize: "12px", color: needsSomewhereElseDetail ? c.accent : c.textMuted, fontFamily: SANS, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-              {detailLabel}
-            </div>
             <textarea
               value={textDraft}
               onChange={e => setTextDraft(e.target.value)}
@@ -226,7 +226,7 @@ function BodyPartFormScreen({ q, index, total, loading, bodyPartSelections, togg
 
   const sideGroup = q.groups.find(g => g.key === "side");
   const otherGroups = q.groups.filter(g => g.key !== "side");
-  const bothSides = q.hasSide && (bodyPartSelections.side || []).includes("Both sides");
+  const bothSides = q.hasSide && (bodyPartSelections.side || []).includes("Left") && (bodyPartSelections.side || []).includes("Right");
   const detailMissing = q.detailRequired && !(bothSides
     ? ((bodyPartSelections.left_detail || "").trim() || (bodyPartSelections.right_detail || "").trim())
     : (bodyPartSelections.detail || "").trim());
@@ -266,18 +266,20 @@ function BodyPartFormScreen({ q, index, total, loading, bodyPartSelections, togg
   );
 
   const renderDetailBox = (detailKey, label) => (
-    <div key={detailKey} style={{ display: "flex", flexDirection: "column", gap: "8px", background: c.bgInput, border: `1px solid ${c.borderMid}`, borderRadius: "12px", padding: "12px 16px", marginBottom: "1rem" }}>
-      <div style={{ fontSize: "12px", color: c.textMuted, fontFamily: SANS, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+    <div key={detailKey} style={{ marginBottom: "1.4rem" }}>
+      <div style={{ fontSize: "13px", color: c.textSecondary, fontFamily: SANS, fontWeight: 600, marginBottom: "0.5rem" }}>
         {label}
       </div>
-      <textarea
-        value={bodyPartSelections[detailKey] || ""}
-        onChange={e => setBodyPartDetail(detailKey, e.target.value)}
-        onKeyDown={handleTextKeyDown(submitBodyPartForm)}
-        placeholder="Type here..."
-        rows={2}
-        style={{ background: "transparent", border: "none", outline: "none", color: c.textPrimary, fontSize: "16px", fontFamily: SERIF, lineHeight: 1.6, resize: "none", width: "100%" }}
-      />
+      <div style={{ display: "flex", flexDirection: "column", gap: "8px", background: c.bgInput, border: `1px solid ${c.borderMid}`, borderRadius: "12px", padding: "12px 16px" }}>
+        <textarea
+          value={bodyPartSelections[detailKey] || ""}
+          onChange={e => setBodyPartDetail(detailKey, e.target.value)}
+          onKeyDown={handleTextKeyDown(submitBodyPartForm)}
+          placeholder="Type here..."
+          rows={2}
+          style={{ background: "transparent", border: "none", outline: "none", color: c.textPrimary, fontSize: "16px", fontFamily: SERIF, lineHeight: 1.6, resize: "none", width: "100%" }}
+        />
+      </div>
     </div>
   );
 
@@ -485,6 +487,7 @@ const QUESTIONS_TIER1 = [
   {
     id: "diagnosis",
     type: "multiselect",
+    singleSelect: true,
     q: "Do you have a medical diagnosis (or diagnoses)?",
     detailLabel: "If yes, what's the diagnosis? (optional, but helpful)",
     options: [
@@ -507,21 +510,21 @@ const QUESTIONS_TIER1 = [
   {
     id: "side",
     type: "multiselect",
-    q: "Is it more on the left side, the right side, centered, or on both sides?",
+    q: "Is it more on the left side, the right side, or centered?",
     detailLabel: "Anything else to add? (optional)",
-    options: ["Left side", "Right side", "Centered", "Both sides"],
+    options: ["Left side", "Right side", "Centered"],
   },
   {
     id: "plane",
     type: "multiselect",
-    q: "Do you feel it more toward the front, more toward the back, or both at once?",
+    q: "Do you feel it more toward the front, or more toward the back?",
     detailLabel: "Anything else to add? (optional)",
-    options: ["Front", "Back", "Both at once"],
+    options: ["Front", "Back"],
   },
   {
     id: "quality",
     type: "multiselect",
-    q: "How would you describe it?",
+    q: "How would you describe it? You can explain further in the box below.",
     detailLabel: "Anything else to add about how it feels? (optional)",
     options: ["Sharp", "Dull ache", "Sore", "Burning", "Tight", "Stiff", "Throbbing", "Numb", "Cramping", "Tingling", "Swollen", "Pressure", "Heavy", "Weak"],
   },
@@ -637,8 +640,8 @@ const REGION_GROUP_CONFIG = {
   "Knees": { side: true, plane: true, centered: false },
   "Ankles": { side: true, plane: false, centered: false },
   "Feet": { side: true, plane: false, centered: false },
-  "Arms": { side: true, plane: true, centered: false },
-  "Hands": { side: true, plane: true, centered: false },
+  "Arms": { side: true, plane: false, centered: false },
+  "Hands": { side: true, plane: false, centered: false },
   "Somewhere else": { side: false, plane: false, centered: false },
 };
 
@@ -653,12 +656,12 @@ function buildBodyPartForm(region) {
 
   const groups = [];
   if (config.side) {
-    const sideOptions = ["Left", "Right", "Both sides"];
+    const sideOptions = ["Left", "Right"];
     if (config.centered) sideOptions.push("Centered");
     groups.push({ key: "side", label: "Which side?", options: sideOptions });
   }
-  if (config.plane) groups.push({ key: "plane", label: "Front or back?", options: ["Front", "Back", "Both front and back"] });
-  groups.push({ key: "quality", label: "What does it feel like?", options: ["Sharp", "Dull ache", "Sore", "Burning", "Tight", "Stiff", "Throbbing", "Numb", "Cramping", "Tingling", "Swollen", "Pressure", "Heavy", "Weak"] });
+  if (config.plane) groups.push({ key: "plane", label: "Front or back?", options: ["Front", "Back"] });
+  groups.push({ key: "quality", label: "What does it feel like? You can explain further in the box below.", options: ["Sharp", "Dull ache", "Sore", "Burning", "Tight", "Stiff", "Throbbing", "Numb", "Cramping", "Tingling", "Swollen", "Pressure", "Heavy", "Weak"] });
   groups.push({ key: "pattern", label: "Is this the first time, does it come and go, or is it constant / ongoing?", options: ["First time", "Comes and goes", "Constant / ongoing"] });
 
   return {
@@ -700,7 +703,7 @@ function formatBodyPartAnswer(ans) {
   const parts = [];
   if (ans.side && ans.side.length) parts.push(`Side: ${ans.side.join(", ")}`);
 
-  const bothSides = ans.side && ans.side.includes("Both sides");
+  const bothSides = ans.side && ans.side.includes("Left") && ans.side.includes("Right");
   if (bothSides) {
     const sideParts = (prefix, label) => {
       const p = [];
@@ -851,6 +854,11 @@ export default function BASTInterpreter() {
   // ---- TIER 1 MULTI-SELECT ANSWER HANDLING ----
 
   const toggleMultiSelect1 = (option) => {
+    const q = effectiveTier1Questions[t1Index];
+    if (q?.singleSelect) {
+      setMultiSelected([option]);
+      return;
+    }
     setMultiSelected(prev =>
       prev.includes(option) ? prev.filter(o => o !== option) : [...prev, option]
     );
@@ -894,7 +902,7 @@ export default function BASTInterpreter() {
   const submitBodyPartForm = () => {
     const q = effectiveTier1Questions[t1Index];
     if (q.detailRequired) {
-      const bothSides = q.hasSide && (bodyPartSelections.side || []).includes("Both sides");
+      const bothSides = q.hasSide && (bodyPartSelections.side || []).includes("Left") && (bodyPartSelections.side || []).includes("Right");
       const filled = bothSides
         ? ((bodyPartSelections.left_detail || "").trim() || (bodyPartSelections.right_detail || "").trim())
         : (bodyPartSelections.detail || "").trim();
