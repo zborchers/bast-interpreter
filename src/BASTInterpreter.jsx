@@ -379,7 +379,7 @@ function SimpleChatInput({ value, onChange, onSubmit, placeholder, loading, hand
 
 // ---- READING TRANSCRIPT (also hoisted, same reason) ----
 
-function Transcript({ messages, loading, messagesEndRef, lastMessageRef, ctaSlot, loadingLabel }) {
+function Transcript({ messages, loading, messagesEndRef, lastMessageRef, ctaSlot, loadingLabel, copyReadingText, downloadReadingText, copiedIndex }) {
   let lastRealIndex = -1;
   for (let i = messages.length - 1; i >= 0; i--) {
     if (!messages[i].hidden && !messages[i].localOnly) { lastRealIndex = i; break; }
@@ -409,9 +409,27 @@ function Transcript({ messages, loading, messagesEndRef, lastMessageRef, ctaSlot
                   </div>
                 </div>
               ) : (
-                <div style={{ display: "flex", gap: "12px", alignItems: "flex-start" }}>
-                  <div style={{ width: "28px", height: "28px", borderRadius: "50%", background: c.accentLight, border: `1px solid ${c.borderMid}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", color: c.accent, flexShrink: 0, marginTop: "2px", fontFamily: SANS }}>&#10022;</div>
-                  <div style={{ flex: 1, fontSize: "18px", color: c.textPrimary, fontFamily: SERIF }}>{formatMessage(msg.content)}</div>
+                <div>
+                  <div style={{ display: "flex", gap: "12px", alignItems: "flex-start" }}>
+                    <div style={{ width: "28px", height: "28px", borderRadius: "50%", background: c.accentLight, border: `1px solid ${c.borderMid}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", color: c.accent, flexShrink: 0, marginTop: "2px", fontFamily: SANS }}>&#10022;</div>
+                    <div style={{ flex: 1, fontSize: "18px", color: c.textPrimary, fontFamily: SERIF }}>{formatMessage(msg.content)}</div>
+                  </div>
+                  {msg.isReading && (
+                    <div style={{ display: "flex", gap: "8px", marginTop: "0.9rem", marginLeft: "40px" }}>
+                      <button
+                        onClick={() => copyReadingText(msg.content, i)}
+                        style={{ background: "transparent", border: `1px solid ${c.borderMid}`, borderRadius: "6px", padding: "6px 14px", fontFamily: SANS, fontSize: "12px", fontWeight: 600, color: c.textSecondary, cursor: "pointer", letterSpacing: "0.02em" }}
+                      >
+                        {copiedIndex === i ? "Copied ✓" : "Copy"}
+                      </button>
+                      <button
+                        onClick={() => downloadReadingText(msg.content, msg.readingLabel)}
+                        style={{ background: "transparent", border: `1px solid ${c.borderMid}`, borderRadius: "6px", padding: "6px 14px", fontFamily: SANS, fontSize: "12px", fontWeight: 600, color: c.textSecondary, cursor: "pointer", letterSpacing: "0.02em" }}
+                      >
+                        Download
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -750,16 +768,44 @@ export default function BASTInterpreter() {
 
   const messagesEndRef = useRef(null);
   const lastMessageRef = useRef(null);
+  const suppressNextScrollRef = useRef(false);
 
   useEffect(() => {
     if (loading) {
       // Still generating — keep the loading indicator in view.
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    } else if (suppressNextScrollRef.current) {
+      // The kickoff question just landed right behind the Initial Reading —
+      // stay put so the person can actually read the reading from the top,
+      // instead of getting yanked down to the question that follows it.
+      suppressNextScrollRef.current = false;
     } else if (messages.length > 0 && messages[messages.length - 1].role === "assistant") {
       // A reading just landed — show its beginning, not its end.
       lastMessageRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     }
   }, [loading, messages]);
+
+  const [copiedIndex, setCopiedIndex] = useState(null);
+
+  const copyReadingText = (text, index) => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopiedIndex(index);
+      setTimeout(() => setCopiedIndex(prev => (prev === index ? null : prev)), 2000);
+    }).catch(() => {});
+  };
+
+  const downloadReadingText = (text, label) => {
+    const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    const filename = (label || "reading").toLowerCase().replace(/[^a-z0-9]+/g, "-") + ".txt";
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
 
   useEffect(() => {
     try { localStorage.setItem("bast_messages", JSON.stringify(messages)); } catch {}
@@ -880,16 +926,17 @@ export default function BASTInterpreter() {
     setMessages(newMessages);
     try {
       const text = await callAPI(newMessages);
-      const withInitialReading = [...newMessages, { role: "assistant", content: text }];
+      const withInitialReading = [...newMessages, { role: "assistant", content: text, isReading: true, readingLabel: "Initial Reading" }];
       setMessages(withInitialReading);
 
       // Continue straight into the deeper conversation — no pause, no button.
       // The tool is entirely free, so there's nothing left to gate.
       const kickoffMsg = {
         role: "user",
-        content: "The person just received their free Initial Reading, and the conversation now continues naturally into a deeper Root Cause conversation. Ask them your first question now — the single most useful thing to understand next, following naturally from the Initial Reading and everything in the intake. Keep the transition conversational, as though the conversation is simply continuing rather than entering some new unlocked tier. End with the required status marker.",
+        content: "The person just received their free Initial Reading, and the conversation now continues naturally into a deeper Root Cause conversation. This is the very first message of that conversation — there is no answer yet to reflect on, so do not write another long reading here. Keep this short: one or two sentences of natural conversational transition, then your first question — the single most useful thing to understand next, following naturally from the Initial Reading and everything in the intake. End with the required status marker.",
         hidden: true,
       };
+      suppressNextScrollRef.current = true;
       await advanceTier2Conversation([...withInitialReading, kickoffMsg]);
 
       // The conversation has now paused for the person's first answer —
@@ -1000,7 +1047,7 @@ export default function BASTInterpreter() {
     const newMessages = [...priorMessages, userMsg];
     setMessages(newMessages);
     const text = await callAPI(newMessages, 8000);
-    setMessages(prev => [...prev, { role: "assistant", content: text }]);
+    setMessages(prev => [...prev, { role: "assistant", content: text, isReading: true, readingLabel: "Root Cause Reading" }]);
     setTier2Progress(100);
     setStep("chat");
   };
@@ -1116,7 +1163,7 @@ export default function BASTInterpreter() {
         <div style={{ flexShrink: 0, maxWidth: "700px", width: "100%", margin: "0 auto", padding: "0.85rem 1.5rem 0" }}>
           <Tier2ProgressBar progress={tier2Progress} />
         </div>
-        <Transcript messages={messages} loading={loading} messagesEndRef={messagesEndRef} lastMessageRef={lastMessageRef}
+        <Transcript messages={messages} loading={loading} messagesEndRef={messagesEndRef} lastMessageRef={lastMessageRef} copyReadingText={copyReadingText} downloadReadingText={downloadReadingText} copiedIndex={copiedIndex}
           ctaSlot={
             <>
               <SimpleChatInput
@@ -1146,7 +1193,7 @@ export default function BASTInterpreter() {
           <Tier2ProgressBar progress={tier2Progress} />
         </div>
       )}
-      <Transcript messages={messages} loading={loading} messagesEndRef={messagesEndRef} lastMessageRef={lastMessageRef}
+      <Transcript messages={messages} loading={loading} messagesEndRef={messagesEndRef} lastMessageRef={lastMessageRef} copyReadingText={copyReadingText} downloadReadingText={downloadReadingText} copiedIndex={copiedIndex}
         loadingLabel={step === "tier1" && loading ? "Building your Energetic Root Cause reading..." : undefined}
         ctaSlot={
           step === "chat" ? (
