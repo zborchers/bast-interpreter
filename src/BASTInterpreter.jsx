@@ -116,7 +116,7 @@ function QuestionScreen({ questions, index, tierLabel, loading, textDraft, setTe
   const q = questions[index];
   const needsSomewhereElseDetail = q.id === "region" && multiSelected.includes("Somewhere else");
   const detailLabel = needsSomewhereElseDetail
-    ? "Where is this happening, specifically? (required)"
+    ? "You selected somewhere else — where is this happening, specifically?"
     : (q.detailLabel || "Anything else to add? (optional)");
   const blocked = (q.required && multiSelected.length === 0 && !textDraft.trim())
     || (needsSomewhereElseDetail && !textDraft.trim());
