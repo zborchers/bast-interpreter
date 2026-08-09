@@ -888,6 +888,12 @@ export default function BASTInterpreter() {
         hidden: true,
       };
       await advanceTier2Conversation([...withInitialReading, kickoffMsg]);
+
+      // The conversation has now paused for the person's first answer —
+      // this is the actual first natural break in the flow since the
+      // Initial Reading auto-continues straight into Tier 2 with no
+      // button or pause screen. Offer the note here, once.
+      setMessages(prev => [...prev, { role: "assistant", content: "", localOnly: true, isDonationNote: true }]);
     } catch {
       setMessages(prev => [...prev, { role: "assistant", content: "There was a connection error. Please try again." }]);
       setLoading(false);
@@ -991,10 +997,7 @@ export default function BASTInterpreter() {
     const newMessages = [...priorMessages, userMsg];
     setMessages(newMessages);
     const text = await callAPI(newMessages, 8000);
-    setMessages(prev => [...prev,
-      { role: "assistant", content: text },
-      { role: "assistant", content: "", localOnly: true, isDonationNote: true },
-    ]);
+    setMessages(prev => [...prev, { role: "assistant", content: text }]);
     setTier2Progress(100);
     setStep("chat");
   };
@@ -1145,19 +1148,6 @@ export default function BASTInterpreter() {
         ctaSlot={
           step === "chat" ? (
             <>
-              <div style={{ background: c.bgInput, border: `1px solid ${c.borderMid}`, borderRadius: "10px", padding: "14px 16px", marginBottom: "10px" }}>
-                <div style={{ fontSize: "14px", color: c.textSecondary, lineHeight: 1.7, fontFamily: SERIF }}>
-                  Hi, I'm Zach. Every reading this tool generates costs something behind the scenes, and I'd rather keep it free for everyone than put it behind a paywall. If it gave you something real and you'd like to help keep it that way for the next person, any amount helps. No pressure either way.
-                </div>
-                <a
-                  href="https://donate.stripe.com/dRmeVeaVFg2f2Oj4GO9ws00"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{ display: "inline-block", marginTop: "10px", background: c.accent, border: "none", borderRadius: "6px", padding: "8px 18px", fontFamily: SANS, fontSize: "13px", fontWeight: 700, letterSpacing: "0.03em", color: "#fff", textDecoration: "none" }}
-                >
-                  Support This Tool
-                </a>
-              </div>
               <div style={{ display: "flex", flexDirection: "column", gap: "8px", background: c.bgInput, border: `1px solid ${c.borderMid}`, borderRadius: "10px", padding: "10px 14px" }}>
                 <textarea
                   value={followUp}
