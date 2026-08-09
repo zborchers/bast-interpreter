@@ -441,7 +441,7 @@ function Transcript({ messages, loading, messagesEndRef, lastMessageRef, ctaSlot
                   <div style={{ fontSize: "16px", color: c.textPrimary, lineHeight: 1.8, fontFamily: SERIF }}>
                     Every reading this tool generates costs money to produce. There's no paywall, and there never will be. But if this meant something to you and you'd like to help cover what it costs to run, any amount is appreciated. No pressure either way.
                   </div>
-                  <a href="https://donate.stripe.com/dRmeVeaVFg2f2Oj4GO9ws00" target="_blank" rel="noopener noreferrer" style={{ display: "inline-block", marginTop: "1rem", background: c.accent, border: "none", borderRadius: "6px", padding: "10px 22px", fontFamily: SANS, fontSize: "13px", fontWeight: 700, letterSpacing: "0.03em", color: "#fff", textDecoration: "none" }}>
+                  <a href="https://buy.stripe.com/dRmeVeaVFg2f2Oj4GO9ws00" target="_blank" rel="noopener noreferrer" style={{ display: "inline-block", marginTop: "1rem", background: c.accent, border: "none", borderRadius: "6px", padding: "10px 22px", fontFamily: SANS, fontSize: "13px", fontWeight: 700, letterSpacing: "0.03em", color: "#fff", textDecoration: "none" }}>
                     Support This Tool
                   </a>
                 </div>
