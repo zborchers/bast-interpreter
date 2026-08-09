@@ -414,22 +414,20 @@ function Transcript({ messages, loading, messagesEndRef, lastMessageRef, ctaSlot
                     <div style={{ width: "28px", height: "28px", borderRadius: "50%", background: c.accentLight, border: `1px solid ${c.borderMid}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", color: c.accent, flexShrink: 0, marginTop: "2px", fontFamily: SANS }}>&#10022;</div>
                     <div style={{ flex: 1, fontSize: "18px", color: c.textPrimary, fontFamily: SERIF }}>{formatMessage(msg.content)}</div>
                   </div>
-                  {msg.isReading && (
-                    <div style={{ display: "flex", gap: "8px", marginTop: "0.9rem", marginLeft: "40px" }}>
-                      <button
-                        onClick={() => copyReadingText(msg.content, i)}
-                        style={{ background: "transparent", border: `1px solid ${c.borderMid}`, borderRadius: "6px", padding: "6px 14px", fontFamily: SANS, fontSize: "12px", fontWeight: 600, color: c.textSecondary, cursor: "pointer", letterSpacing: "0.02em" }}
-                      >
-                        {copiedIndex === i ? "Copied ✓" : "Copy"}
-                      </button>
-                      <button
-                        onClick={() => downloadReadingText(msg.content, msg.readingLabel)}
-                        style={{ background: "transparent", border: `1px solid ${c.borderMid}`, borderRadius: "6px", padding: "6px 14px", fontFamily: SANS, fontSize: "12px", fontWeight: 600, color: c.textSecondary, cursor: "pointer", letterSpacing: "0.02em" }}
-                      >
-                        Download
-                      </button>
-                    </div>
-                  )}
+                  <div style={{ display: "flex", gap: "8px", marginTop: "0.9rem", marginLeft: "40px" }}>
+                    <button
+                      onClick={() => copyReadingText(msg.content, i)}
+                      style={{ background: "transparent", border: `1px solid ${c.borderMid}`, borderRadius: "6px", padding: "6px 14px", fontFamily: SANS, fontSize: "12px", fontWeight: 600, color: c.textSecondary, cursor: "pointer", letterSpacing: "0.02em" }}
+                    >
+                      {copiedIndex === i ? "Copied ✓" : "Copy"}
+                    </button>
+                    <button
+                      onClick={() => downloadReadingText(msg.content, msg.readingLabel || "response")}
+                      style={{ background: "transparent", border: `1px solid ${c.borderMid}`, borderRadius: "6px", padding: "6px 14px", fontFamily: SANS, fontSize: "12px", fontWeight: 600, color: c.textSecondary, cursor: "pointer", letterSpacing: "0.02em" }}
+                    >
+                      Download
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -933,7 +931,7 @@ export default function BASTInterpreter() {
       // The tool is entirely free, so there's nothing left to gate.
       const kickoffMsg = {
         role: "user",
-        content: "The person just received their free Initial Reading, and the conversation now continues naturally into a deeper Root Cause conversation. This is the very first message of that conversation — there is no answer yet to reflect on, so do not write another long reading here. Keep this short: one or two sentences of natural conversational transition, then your first question — the single most useful thing to understand next, following naturally from the Initial Reading and everything in the intake. End with the required status marker.",
+        content: "The person just received their free Initial Reading, and the conversation now continues naturally into a deeper Root Cause conversation. Ask them your first question now — the single most useful thing to understand next, following naturally from the Initial Reading and everything in the intake. Keep the transition conversational, as though the conversation is simply continuing rather than entering some new unlocked tier. End with the required status marker.",
         hidden: true,
       };
       suppressNextScrollRef.current = true;
@@ -1047,7 +1045,10 @@ export default function BASTInterpreter() {
     const newMessages = [...priorMessages, userMsg];
     setMessages(newMessages);
     const text = await callAPI(newMessages, 8000);
-    setMessages(prev => [...prev, { role: "assistant", content: text, isReading: true, readingLabel: "Root Cause Reading" }]);
+    setMessages(prev => [...prev,
+      { role: "assistant", content: text, isReading: true, readingLabel: "Root Cause Reading" },
+      { role: "assistant", content: "", localOnly: true, isDonationNote: true },
+    ]);
     setTier2Progress(100);
     setStep("chat");
   };
