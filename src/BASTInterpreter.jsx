@@ -1135,6 +1135,9 @@ export default function BASTInterpreter() {
         <Transcript messages={messages} loading={loading} messagesEndRef={messagesEndRef} lastMessageRef={lastMessageRef} copyReadingText={copyReadingText} downloadReadingText={downloadReadingText} copiedIndex={copiedIndex}
           ctaSlot={
             <>
+              <div style={{ textAlign: "center", fontSize: "14px", color: c.textSecondary, fontFamily: SERIF, marginBottom: "0.85rem" }}>
+                Answer a few more questions for your deeper Root Cause Reading.
+              </div>
               <div style={{ display: "flex", justifyContent: "center" }}>
                 <button
                   onClick={beginTier2}
