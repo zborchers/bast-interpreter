@@ -539,11 +539,7 @@ const DIAGNOSIS_ALSO_SEPARATE = "Yes, and I also want to explore something separ
 
 const SEPARATE_REFRAME = {
   region: "Setting the diagnosis aside for a moment — where in the body is this separate thing happening?",
-  side: "For this separate thing — is it more on the left side, the right side, centered, or on both sides?",
-  plane: "For this separate thing — do you feel it more toward the front, more toward the back, or both at once?",
-  quality: "How would you describe this separate thing?",
-  pattern: "Is this separate thing the first time you've had it, does it come and go, or is it constant / ongoing?",
-  context: "Setting the diagnosis aside — what's actually going on in your life right now connected to this other thing?",
+  context: "Setting the diagnosis aside — is there anything stressful going on in your life right now connected to this other thing?",
 };
 
 // Required follow-up when someone wants the reading focused on their
