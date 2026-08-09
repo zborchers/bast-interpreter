@@ -186,7 +186,7 @@ function QuestionScreen({ questions, index, tierLabel, loading, textDraft, setTe
           <div style={{ fontSize: "14px", color: needsSomewhereElseDetail ? c.accent : c.textSecondary, fontFamily: SANS, fontWeight: 600, marginBottom: "0.5rem" }}>
             {detailLabel}
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: "8px", background: c.bgInput, border: `1px solid ${needsSomewhereElseDetail ? c.accent : c.borderMid}`, borderRadius: "12px", padding: "12px 16px" }}>
+          <div style={{ background: c.bgInput, border: `1px solid ${needsSomewhereElseDetail ? c.accent : c.borderMid}`, borderRadius: "12px", padding: "12px 16px" }}>
             <textarea
               value={textDraft}
               onChange={e => setTextDraft(e.target.value)}
@@ -196,33 +196,33 @@ function QuestionScreen({ questions, index, tierLabel, loading, textDraft, setTe
               autoFocus={q.options.length === 0}
               style={{ background: "transparent", border: "none", outline: "none", color: c.textPrimary, fontSize: "17px", fontFamily: SERIF, lineHeight: 1.7, resize: "none", width: "100%" }}
             />
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "0.75rem" }}>
-              {index > 0 ? (
-                <button
-                  onClick={goBackT1}
-                  disabled={loading}
-                  style={{ background: "transparent", border: "none", color: c.textMuted, padding: "8px 4px", cursor: loading ? "default" : "pointer", fontSize: "13px", fontFamily: SANS, fontWeight: 600, letterSpacing: "0.03em" }}
-                >
-                  &larr; Back
-                </button>
-              ) : <div />}
-              <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-                {blocked && (
-                  <div style={{ fontSize: "12px", color: c.textMuted, fontFamily: SANS, fontStyle: "italic" }}>
-                    Please fill this in to continue
-                  </div>
-                )}
-                <button
-                  onClick={submitT1Multi}
-                  disabled={loading || blocked}
-                  style={{ background: loading || blocked ? c.accentMid : c.accent, border: "none", borderRadius: "4px", padding: "8px 20px", cursor: loading ? "default" : "pointer", color: loading || blocked ? c.textMuted : "#fff", fontSize: "13px", fontFamily: SANS, fontWeight: 700, letterSpacing: "0.04em", transition: "all 0.15s" }}
-                >
-                  {loading ? "Reading…" : "Next \u2192"}
-                </button>
-              </div>
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "0.75rem", marginTop: "0.75rem" }}>
+            {index > 0 ? (
+              <button
+                onClick={goBackT1}
+                disabled={loading}
+                style={{ background: "transparent", border: "none", color: c.textMuted, padding: "8px 4px", cursor: loading ? "default" : "pointer", fontSize: "13px", fontFamily: SANS, fontWeight: 600, letterSpacing: "0.03em" }}
+              >
+                &larr; Back
+              </button>
+            ) : <div />}
+            <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+              {blocked && (
+                <div style={{ fontSize: "12px", color: c.textMuted, fontFamily: SANS, fontStyle: "italic" }}>
+                  Please fill this in to continue
+                </div>
+              )}
+              <button
+                onClick={submitT1Multi}
+                disabled={loading || blocked}
+                style={{ background: loading || blocked ? c.accentMid : c.accent, border: "none", borderRadius: "4px", padding: "8px 20px", cursor: loading ? "default" : "pointer", color: loading || blocked ? c.textMuted : "#fff", fontSize: "13px", fontFamily: SANS, fontWeight: 700, letterSpacing: "0.04em", transition: "all 0.15s" }}
+              >
+                {loading ? "Reading…" : "Next \u2192"}
+              </button>
+            </div>
             </div>
           </div>
-        </div>
         <Disclaimer />
       </div>
     </div>
