@@ -393,7 +393,7 @@ function SimpleChatInput({ value, onChange, onSubmit, placeholder, loading, hand
 
 // ---- READING TRANSCRIPT (also hoisted, same reason) ----
 
-function Transcript({ messages, loading, messagesEndRef, lastMessageRef, initialReadingRef, ctaSlot, loadingLabel, copyReadingText, downloadReadingText, copiedIndex }) {
+function Transcript({ messages, loading, messagesEndRef, lastMessageRef, ctaSlot, loadingLabel, copyReadingText, downloadReadingText, copiedIndex }) {
   let lastRealIndex = -1;
   for (let i = messages.length - 1; i >= 0; i--) {
     if (!messages[i].hidden && !messages[i].localOnly) { lastRealIndex = i; break; }
@@ -405,10 +405,7 @@ function Transcript({ messages, loading, messagesEndRef, lastMessageRef, initial
           {messages.map((msg, i) => msg.hidden ? null : (
             <div
               key={i}
-              ref={(el) => {
-                if (i === lastRealIndex) lastMessageRef.current = el;
-                if (msg.readingLabel === "Initial Reading") initialReadingRef.current = el;
-              }}
+              ref={i === lastRealIndex ? lastMessageRef : null}
               style={{ marginBottom: "2rem" }}
             >
               {msg.isDonationNote ? (
@@ -781,11 +778,8 @@ export default function BASTInterpreter() {
 
   const messagesEndRef = useRef(null);
   const lastMessageRef = useRef(null);
-  const initialReadingRef = useRef(null);
-  const holdAutoScrollRef = useRef(false);
 
   useEffect(() => {
-    if (holdAutoScrollRef.current) return; // fetchInitialReading is manually driving scroll right now
     let t;
     if (loading) {
       // Still generating — keep the loading indicator in view.
@@ -926,39 +920,25 @@ export default function BASTInterpreter() {
     setMessages(newMessages);
     try {
       const text = await callAPI(newMessages);
-      const withInitialReading = [...newMessages, { role: "assistant", content: text, isReading: true, readingLabel: "Initial Reading" }];
-
-      // From here until the kickoff question lands, we're driving the
-      // scroll position ourselves. The generic effect assumes "loading"
-      // means "not landed yet, keep scrolling to the bottom" — but here
-      // loading stays true through the entire kickoff call too, so left
-      // to itself that effect would keep pulling the view down to the
-      // bottom instead of settling on the reading's actual beginning.
-      holdAutoScrollRef.current = true;
+      const withInitialReading = [...newMessages,
+        { role: "assistant", content: text, isReading: true, readingLabel: "Initial Reading" },
+        { role: "assistant", content: "", localOnly: true, isDonationNote: true },
+      ];
       setMessages(withInitialReading);
-      requestAnimationFrame(() => {
-        initialReadingRef.current?.scrollIntoView({ behavior: "auto", block: "start" });
-      });
-
-      // Continue straight into the deeper conversation — no pause, no button.
-      // The tool is entirely free, so there's nothing left to gate.
-      const kickoffMsg = {
-        role: "user",
-        content: "The person just received their free Initial Reading, and the conversation now continues naturally into a deeper Root Cause conversation. Ask them your first question now — the single most useful thing to understand next, following naturally from the Initial Reading and everything in the intake. Keep the transition conversational, as though the conversation is simply continuing rather than entering some new unlocked tier. End with the required status marker.",
-        hidden: true,
-      };
-      await advanceTier2Conversation([...withInitialReading, kickoffMsg]);
-      holdAutoScrollRef.current = false;
-
-      // The conversation has now paused for the person's first answer —
-      // this is the actual first natural break in the flow since the
-      // Initial Reading auto-continues straight into Tier 2 with no
-      // button or pause screen. Offer the note here, once.
-      setMessages(prev => [...prev, { role: "assistant", content: "", localOnly: true, isDonationNote: true }]);
+      setStep("post-initial");
     } catch {
       setMessages(prev => [...prev, { role: "assistant", content: "There was a connection error. Please try again." }]);
-      setLoading(false);
     }
+    setLoading(false);
+  };
+
+  const beginTier2 = () => {
+    const kickoffMsg = {
+      role: "user",
+      content: "The person is ready to go deeper into the Root Cause Reading. Ask them your first question now — the single most useful thing to understand next, following naturally from the Initial Reading and everything in the intake. Keep the transition conversational, not clinical. End with the required status marker.",
+      hidden: true,
+    };
+    advanceTier2Conversation([...messages, kickoffMsg]);
   };
 
   const advanceT1 = (latestAnswers, questionsList) => {
@@ -1145,6 +1125,33 @@ export default function BASTInterpreter() {
     );
   }
 
+  // ---- RENDER: POST-INITIAL (Initial Reading shown, waiting for the
+  // person to consciously continue into the deeper conversation) ----
+
+  if (step === "post-initial" && !loading) {
+    return (
+      <div style={{ height: "100vh", overflow: "hidden", background: c.bg, color: c.textPrimary, fontFamily: SERIF, display: "flex", flexDirection: "column" }}>
+        <Header />
+        <Transcript messages={messages} loading={loading} messagesEndRef={messagesEndRef} lastMessageRef={lastMessageRef} copyReadingText={copyReadingText} downloadReadingText={downloadReadingText} copiedIndex={copiedIndex}
+          ctaSlot={
+            <>
+              <div style={{ display: "flex", justifyContent: "center" }}>
+                <button
+                  onClick={beginTier2}
+                  style={{ background: c.accent, border: "none", borderRadius: "6px", padding: "14px 28px", fontSize: "15px", color: "#fff", cursor: "pointer", fontFamily: SANS, fontWeight: 700, letterSpacing: "0.04em" }}
+                >
+                  Go Deeper: Get My Root Cause Reading &rarr;
+                </button>
+              </div>
+              <Disclaimer />
+            </>
+          }
+        />
+        <style>{`* { box-sizing: border-box; } body { margin: 0; } textarea::placeholder { color: rgba(30,26,22,0.3); }`}</style>
+      </div>
+    );
+  }
+
   // ---- RENDER: TIER 2 (dynamic, open-ended conversation — plain input,
   // subtle progress indicator, no fixed question card) ----
 
@@ -1155,7 +1162,7 @@ export default function BASTInterpreter() {
         <div style={{ flexShrink: 0, maxWidth: "700px", width: "100%", margin: "0 auto", padding: "0.85rem 1.5rem 0" }}>
           <Tier2ProgressBar progress={tier2Progress} />
         </div>
-        <Transcript messages={messages} loading={loading} messagesEndRef={messagesEndRef} lastMessageRef={lastMessageRef} initialReadingRef={initialReadingRef} copyReadingText={copyReadingText} downloadReadingText={downloadReadingText} copiedIndex={copiedIndex}
+        <Transcript messages={messages} loading={loading} messagesEndRef={messagesEndRef} lastMessageRef={lastMessageRef} copyReadingText={copyReadingText} downloadReadingText={downloadReadingText} copiedIndex={copiedIndex}
           ctaSlot={
             <>
               <SimpleChatInput
@@ -1185,7 +1192,7 @@ export default function BASTInterpreter() {
           <Tier2ProgressBar progress={tier2Progress} />
         </div>
       )}
-      <Transcript messages={messages} loading={loading} messagesEndRef={messagesEndRef} lastMessageRef={lastMessageRef} initialReadingRef={initialReadingRef} copyReadingText={copyReadingText} downloadReadingText={downloadReadingText} copiedIndex={copiedIndex}
+      <Transcript messages={messages} loading={loading} messagesEndRef={messagesEndRef} lastMessageRef={lastMessageRef} copyReadingText={copyReadingText} downloadReadingText={downloadReadingText} copiedIndex={copiedIndex}
         loadingLabel={step === "tier1" && loading ? "Building your Energetic Root Cause reading..." : undefined}
         ctaSlot={
           step === "chat" ? <Disclaimer /> : null
