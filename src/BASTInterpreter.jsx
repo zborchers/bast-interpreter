@@ -539,7 +539,6 @@ const DIAGNOSIS_ALSO_SEPARATE = "Yes, and I also want to explore something separ
 
 const SEPARATE_REFRAME = {
   region: "Setting the diagnosis aside for a moment — where in the body is this separate thing happening?",
-  context: "Setting the diagnosis aside — is there anything stressful going on in your life right now connected to this other thing?",
 };
 
 // Required follow-up when someone wants the reading focused on their
