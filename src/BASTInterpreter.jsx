@@ -21,6 +21,29 @@ const c = {
   userBubbleBorder: "rgba(100,80,60,0.18)",
 };
 
+// Scrolling to the top sounds trivial but isn't always reliable in
+// practice: window.scrollTo alone can silently no-op on some mobile
+// browsers, different browsers read scroll position off window vs
+// document.documentElement vs document.body inconsistently, and a late
+// layout shift (web fonts finishing their swap-in, for instance) can
+// nudge the page after the initial scroll already fired. This covers
+// all of those bases and re-asserts once, shortly after mount.
+function scrollToTop() {
+  try {
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+  } catch {}
+}
+
+function useScrollToTopOnMount() {
+  useEffect(() => {
+    scrollToTop();
+    const t = setTimeout(scrollToTop, 60);
+    return () => clearTimeout(t);
+  }, []);
+}
+
 function formatMessage(content) {
   // A per-turn conversational question, tagged by the model so it can be
   // visually set apart from the surrounding reflection.
@@ -88,9 +111,7 @@ function Disclaimer() {
 // causing the reversed-typing bug in the free-text answers) ----
 
 function QuestionScreen({ questions, index, tierLabel, loading, textDraft, setTextDraft, handleTextKeyDown, multiSelected, toggleMultiSelect1, submitT1Multi }) {
-  useEffect(() => {
-    window.scrollTo(0, 0);
-  }, []);
+  useScrollToTopOnMount();
 
   const q = questions[index];
   const needsSomewhereElseDetail = q.id === "region" && multiSelected.includes("Somewhere else");
@@ -201,9 +222,7 @@ function QuestionScreen({ questions, index, tierLabel, loading, textDraft, setTe
 // so the person can answer everything about that part at once) ----
 
 function BodyPartFormScreen({ q, index, total, loading, bodyPartSelections, toggleBodyPartOption, setBodyPartDetail, handleTextKeyDown, submitBodyPartForm }) {
-  useEffect(() => {
-    window.scrollTo(0, 0);
-  }, []);
+  useScrollToTopOnMount();
 
   const sideGroup = q.groups.find(g => g.key === "side");
   const otherGroups = q.groups.filter(g => g.key !== "side");
@@ -758,18 +777,26 @@ export default function BASTInterpreter() {
   const suppressNextScrollRef = useRef(false);
 
   useEffect(() => {
+    let t;
     if (loading) {
       // Still generating — keep the loading indicator in view.
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
     } else if (suppressNextScrollRef.current) {
       // The kickoff question just landed right behind the Initial Reading —
       // stay put so the person can actually read the reading from the top,
       // instead of getting yanked down to the question that follows it.
       suppressNextScrollRef.current = false;
     } else if (messages.length > 0 && messages[messages.length - 1].role === "assistant") {
-      // A reading just landed — show its beginning, not its end.
-      lastMessageRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      // A reading just landed — show its beginning, not its end. Using
+      // "auto" instead of "smooth" since smooth-scroll can get silently
+      // interrupted on some mobile browsers; re-asserting once shortly
+      // after covers any late content reflow (e.g. web fonts swapping in).
+      lastMessageRef.current?.scrollIntoView({ behavior: "auto", block: "start" });
+      t = setTimeout(() => {
+        lastMessageRef.current?.scrollIntoView({ behavior: "auto", block: "start" });
+      }, 60);
     }
+    return () => { if (t) clearTimeout(t); };
   }, [loading, messages]);
 
   const [copiedIndex, setCopiedIndex] = useState(null);
