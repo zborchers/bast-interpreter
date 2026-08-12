@@ -133,8 +133,8 @@ function QuestionScreen({ questions, index, tierLabel, loading, textDraft, setTe
     || (needsSomewhereElseDetail && !textDraft.trim());
 
   return (
-    <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "flex-start", padding: "2.5rem 1.5rem" }}>
-      <div style={{ width: "100%", maxWidth: "620px" }}>
+    <div style={{ width: "100%", maxWidth: "620px", margin: "1.75rem auto", padding: "0 1.5rem", boxSizing: "border-box" }}>
+      <div style={{ width: "100%" }}>
         <div style={{ background: c.bgInput, border: `1.5px solid ${c.borderMid}`, borderRadius: "12px", padding: "24px 26px", textAlign: "left" }}>
           <div style={{ fontSize: "11px", fontWeight: 600, letterSpacing: "0.15em", textTransform: "uppercase", color: c.accent, marginBottom: "0.9rem", fontFamily: SANS }}>
             {tierLabel} · Question {index + 1} of {questions.length}
@@ -305,8 +305,8 @@ function BodyPartFormScreen({ q, index, total, loading, bodyPartSelections, togg
   );
 
   return (
-    <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "flex-start", padding: "2.5rem 1.5rem" }}>
-      <div style={{ width: "100%", maxWidth: "620px" }}>
+    <div style={{ width: "100%", maxWidth: "620px", margin: "1.75rem auto", padding: "0 1.5rem", boxSizing: "border-box" }}>
+      <div style={{ width: "100%" }}>
         <div style={{ background: c.bgInput, border: `1.5px solid ${c.borderMid}`, borderRadius: "12px", padding: "24px 26px", textAlign: "left" }}>
           <div style={{ marginBottom: "1.25rem" }}>
             <div style={{ fontSize: "11px", fontWeight: 600, letterSpacing: "0.15em", textTransform: "uppercase", color: c.accent, marginBottom: "0.9rem", fontFamily: SANS }}>
