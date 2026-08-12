@@ -1314,7 +1314,7 @@ export default function BASTInterpreter() {
                 The more detail you share, the more accurate your reading will&nbsp;be.
               </div>
               <div style={{ fontSize: "15px", color: c.textSecondary, lineHeight: 1.7, marginBottom: "1.5rem", fontFamily: SERIF }}>
-                Whenever you see a text box, use it — specifics about what you're feeling, when it started, and what else is going on matter more than the multiple-choice options alone. Additional detail isn't necessary, but it does lead to a more accurate reading.
+                Whenever you see a text box, use it — specifics about what you're feeling, when it started, and what else is going on matter more than the multiple-choice options alone. Additional detail isn't required, but it does lead to a more accurate reading.
               </div>
               <button
                 onClick={dismissDetailTip}
