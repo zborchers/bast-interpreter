@@ -631,13 +631,6 @@ const QUESTIONS_TIER1 = [
     detailLabel: "Anything else to add about the pattern? (optional)",
     options: ["First time", "Comes and goes", "Constant / ongoing"],
   },
-  {
-    id: "context",
-    type: "multiselect",
-    q: "Is there anything stressful going on in your life right now?",
-    detailLabel: "Explain more — what's going on, specifically?",
-    options: ["Work stress", "Relationship or family stress", "Grief or loss", "Major life transition", "Financial stress", "Caregiving responsibilities"],
-  },
 ];
 
 // ---- DIAGNOSIS ROUTING ----
@@ -1058,7 +1051,7 @@ export default function BASTInterpreter() {
   const beginTier2 = () => {
     const kickoffMsg = {
       role: "user",
-      content: "The person is ready to go deeper into the Root Cause Reading. Ask them your first question now — the single most useful thing to understand next, following naturally from the Initial Reading and everything in the intake. Keep the transition conversational, not clinical. End with the required status marker.",
+      content: "The person is ready to go deeper into the Root Cause Reading. Your first question should open into their life context — what's actually going on for them right now, whether that's work, relationships, money, grief, a major transition, caregiving, or something else entirely. Don't ask this generically. Ground it in what the Initial Reading actually surfaced: name the specific pattern or symptom it pointed to, and ask what's happening in their life that might connect to it. Keep the transition conversational, not clinical. End with the required status marker.",
       hidden: true,
     };
     advanceTier2Conversation([...messages, kickoffMsg]);
