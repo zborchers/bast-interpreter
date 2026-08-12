@@ -124,38 +124,36 @@ function QuestionScreen({ questions, index, tierLabel, loading, textDraft, setTe
   return (
     <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "2rem 1.5rem" }}>
       <div style={{ width: "100%", maxWidth: "620px" }}>
-        <div style={{ textAlign: "center", marginBottom: "2rem" }}>
-          <div style={{ fontSize: "11px", fontWeight: 600, letterSpacing: "0.2em", textTransform: "uppercase", color: c.accent, marginBottom: "1rem", fontFamily: SANS }}>
+        <div style={{ background: c.bgInput, border: `1.5px solid ${c.borderMid}`, borderRadius: "12px", padding: "24px 26px", textAlign: "left" }}>
+          <div style={{ fontSize: "11px", fontWeight: 600, letterSpacing: "0.15em", textTransform: "uppercase", color: c.accent, marginBottom: "0.9rem", fontFamily: SANS }}>
             {tierLabel} · Question {index + 1} of {questions.length}
           </div>
-          <div style={{ fontSize: "24px", fontWeight: 700, color: c.textPrimary, marginBottom: "0.5rem", lineHeight: 1.3, fontFamily: SANS, letterSpacing: "-0.01em" }}>
+          <div style={{ fontSize: "21px", fontWeight: 700, color: c.textPrimary, marginBottom: "0.4rem", lineHeight: 1.35, fontFamily: SANS }}>
             {q.q}
           </div>
           {q.hint && (
-            <div style={{ fontSize: "14px", color: c.textMuted, lineHeight: 1.6, marginTop: "0.75rem", fontFamily: SERIF, fontStyle: "italic" }}>
+            <div style={{ fontSize: "14px", color: c.textMuted, lineHeight: 1.6, marginBottom: "0.5rem", fontFamily: SERIF, fontStyle: "italic" }}>
               {q.hint}
             </div>
           )}
           {q.options.length > 0 && (
-            <div style={{ fontSize: "12px", color: c.textMuted, marginTop: "0.5rem", fontFamily: SANS, fontStyle: "italic" }}>
+            <div style={{ fontSize: "12px", color: c.textMuted, marginBottom: "1rem", fontFamily: SANS, fontStyle: "italic" }}>
               {q.singleSelect ? "Select one" : "Select all that apply"}
             </div>
           )}
           {q.required && (
-            <div style={{ fontSize: "12px", color: c.accentPop, marginTop: "0.5rem", fontFamily: SANS, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+            <div style={{ fontSize: "12px", color: c.accentPop, marginBottom: "1rem", fontFamily: SANS, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }}>
               Required
             </div>
           )}
           {q.optional && (
-            <div style={{ fontSize: "12px", color: c.accentPop, marginTop: "0.5rem", fontFamily: SANS, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+            <div style={{ fontSize: "12px", color: c.accentPop, marginBottom: "1rem", fontFamily: SANS, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }}>
               Optional — skip if unsure
             </div>
           )}
-        </div>
 
-        <div>
           {q.options.length > 0 && (
-            <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", justifyContent: "center", marginBottom: "1.1rem" }}>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", marginBottom: "1.1rem" }}>
               {q.options.map(opt => {
                 const selected = multiSelected.includes(opt);
                 return (
@@ -164,7 +162,7 @@ function QuestionScreen({ questions, index, tierLabel, loading, textDraft, setTe
                     onClick={() => toggleMultiSelect1(opt)}
                     disabled={loading}
                     style={{
-                      background: selected ? c.accent : c.bgInput,
+                      background: selected ? c.accent : c.bg,
                       border: `1.5px solid ${selected ? c.accent : c.borderMid}`,
                       borderRadius: "10px",
                       padding: "12px 20px",
@@ -186,7 +184,7 @@ function QuestionScreen({ questions, index, tierLabel, loading, textDraft, setTe
           <div style={{ fontSize: "14px", color: needsSomewhereElseDetail ? c.accent : c.textSecondary, fontFamily: SANS, fontWeight: 600, marginBottom: "0.5rem" }}>
             {detailLabel}
           </div>
-          <div style={{ background: c.bgInput, border: `1px solid ${needsSomewhereElseDetail ? c.accent : c.borderMid}`, borderRadius: "12px", padding: "12px 16px" }}>
+          <div style={{ background: c.bg, border: `1px solid ${needsSomewhereElseDetail ? c.accent : c.borderMid}`, borderRadius: "8px", padding: "12px 14px" }}>
             <textarea
               value={textDraft}
               onChange={e => setTextDraft(e.target.value)}
@@ -197,7 +195,7 @@ function QuestionScreen({ questions, index, tierLabel, loading, textDraft, setTe
               style={{ background: "transparent", border: "none", outline: "none", color: c.textPrimary, fontSize: "17px", fontFamily: SERIF, lineHeight: 1.7, resize: "none", width: "100%" }}
             />
           </div>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "0.75rem", marginTop: "0.75rem" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "0.75rem", marginTop: "0.6rem" }}>
             {index > 0 ? (
               <button
                 onClick={goBackT1}
@@ -216,13 +214,13 @@ function QuestionScreen({ questions, index, tierLabel, loading, textDraft, setTe
               <button
                 onClick={submitT1Multi}
                 disabled={loading || blocked}
-                style={{ background: loading || blocked ? c.accentMid : c.accent, border: "none", borderRadius: "4px", padding: "8px 20px", cursor: loading ? "default" : "pointer", color: loading || blocked ? c.textMuted : "#fff", fontSize: "13px", fontFamily: SANS, fontWeight: 700, letterSpacing: "0.04em", transition: "all 0.15s" }}
+                style={{ background: loading || blocked ? c.accentMid : c.accent, border: "none", borderRadius: "6px", padding: "10px 22px", cursor: loading ? "default" : "pointer", color: loading || blocked ? c.textMuted : "#fff", fontSize: "13px", fontFamily: SANS, fontWeight: 700, letterSpacing: "0.04em", transition: "all 0.15s" }}
               >
                 {loading ? "Reading…" : "Next \u2192"}
               </button>
             </div>
-            </div>
           </div>
+        </div>
         <Disclaimer />
       </div>
     </div>
@@ -257,7 +255,7 @@ function BodyPartFormScreen({ q, index, total, loading, bodyPartSelections, togg
               onClick={() => toggleBodyPartOption(stateKey, opt)}
               disabled={loading}
               style={{
-                background: selected ? c.accent : c.bgInput,
+                background: selected ? c.accent : c.bg,
                 border: `1.5px solid ${selected ? c.accent : c.borderMid}`,
                 borderRadius: "8px",
                 padding: "9px 16px",
@@ -282,7 +280,7 @@ function BodyPartFormScreen({ q, index, total, loading, bodyPartSelections, togg
       <div style={{ fontSize: "13px", color: c.textSecondary, fontFamily: SANS, fontWeight: 600, marginBottom: "0.5rem" }}>
         {label}
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: "8px", background: c.bgInput, border: `1px solid ${c.borderMid}`, borderRadius: "12px", padding: "12px 16px" }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: "8px", background: c.bg, border: `1px solid ${c.borderMid}`, borderRadius: "12px", padding: "12px 16px" }}>
         <textarea
           value={bodyPartSelections[detailKey] || ""}
           onChange={e => setBodyPartDetail(detailKey, e.target.value)}
@@ -298,66 +296,78 @@ function BodyPartFormScreen({ q, index, total, loading, bodyPartSelections, togg
   return (
     <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "2rem 1.5rem" }}>
       <div style={{ width: "100%", maxWidth: "620px" }}>
-        <div style={{ textAlign: "center", marginBottom: "1.5rem" }}>
-          <div style={{ fontSize: "11px", fontWeight: 600, letterSpacing: "0.2em", textTransform: "uppercase", color: c.accent, marginBottom: "1rem", fontFamily: SANS }}>
-            Free Reading · Question {index + 1} of {total}
+        <div style={{ background: c.bgInput, border: `1.5px solid ${c.borderMid}`, borderRadius: "12px", padding: "24px 26px", textAlign: "left" }}>
+          <div style={{ marginBottom: "1.25rem" }}>
+            <div style={{ fontSize: "11px", fontWeight: 600, letterSpacing: "0.15em", textTransform: "uppercase", color: c.accent, marginBottom: "0.9rem", fontFamily: SANS }}>
+              Free Reading · Question {index + 1} of {total}
+            </div>
+            <div style={{ fontSize: "21px", fontWeight: 700, color: c.textPrimary, marginBottom: "0.4rem", lineHeight: 1.35, fontFamily: SANS, textTransform: "capitalize" }}>
+              Tell us about your {q.bodyPart}
+            </div>
+            <div style={{ fontSize: "13px", color: c.textMuted, fontFamily: SANS, fontStyle: "italic" }}>
+              Select whatever applies below — skip anything that doesn't make sense for this body part.
+            </div>
           </div>
-          <div style={{ fontSize: "24px", fontWeight: 700, color: c.textPrimary, marginBottom: "0.5rem", lineHeight: 1.3, fontFamily: SANS, letterSpacing: "-0.01em", textTransform: "capitalize" }}>
-            Tell us about your {q.bodyPart}
-          </div>
-          <div style={{ fontSize: "13px", color: c.textMuted, fontFamily: SANS, fontStyle: "italic" }}>
-            Select whatever applies below — skip anything that doesn't make sense for this body part.
-          </div>
-        </div>
 
-        <div style={{ maxHeight: "54vh", overflowY: "auto", paddingRight: "4px" }}>
-          {sideGroup && renderOptionGroup(sideGroup, "side", null)}
+          <div style={{ maxHeight: "54vh", overflowY: "auto", paddingRight: "4px" }}>
+            {sideGroup && renderOptionGroup(sideGroup, "side", null)}
 
-          {bothSides ? (
-            <>
-              <div style={{ fontSize: "12px", fontWeight: 700, color: c.accent, textTransform: "uppercase", letterSpacing: "0.08em", margin: "1.2rem 0 0.8rem", borderTop: `1px solid ${c.borderMid}`, paddingTop: "1rem" }}>
-                Left {q.bodyPart}
-              </div>
-              {otherGroups.map(g => renderOptionGroup(g, `left_${g.key}`, null))}
-              {renderDetailBox("left_detail", `Do you know when this first started in your left ${q.bodyPart}, or what the situation was when it appeared? (optional)`)}
+            {bothSides ? (
+              <>
+                <div style={{ margin: "1.5rem 0 1.1rem" }}>
+                  <div style={{ display: "inline-block", background: c.accent, color: "#fff", fontSize: "12px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", padding: "5px 14px", borderRadius: "20px", marginBottom: "0.6rem", fontFamily: SANS }}>
+                    Left side
+                  </div>
+                  <div style={{ fontSize: "20px", fontWeight: 700, color: c.textPrimary, fontFamily: SANS, letterSpacing: "-0.01em", textTransform: "capitalize" }}>
+                    Now, tell us about your left {q.bodyPart}
+                  </div>
+                </div>
+                {otherGroups.map(g => renderOptionGroup(g, `left_${g.key}`, null))}
+                {renderDetailBox("left_detail", `Do you know when this first started in your left ${q.bodyPart}, or what the situation was when it appeared? (optional)`)}
 
-              <div style={{ fontSize: "12px", fontWeight: 700, color: c.accent, textTransform: "uppercase", letterSpacing: "0.08em", margin: "0.4rem 0 0.8rem", borderTop: `1px solid ${c.borderMid}`, paddingTop: "1rem" }}>
-                Right {q.bodyPart}
-              </div>
-              {otherGroups.map(g => renderOptionGroup(g, `right_${g.key}`, null))}
-              {renderDetailBox("right_detail", `Do you know when this first started in your right ${q.bodyPart}, or what the situation was when it appeared? (optional)`)}
-            </>
-          ) : (
-            <>
-              {otherGroups.map(g => renderOptionGroup(g, g.key, null))}
-              {renderDetailBox("detail", q.detailLabel)}
-            </>
-          )}
-        </div>
-
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "0.75rem", marginTop: "1rem" }}>
-          {index > 0 ? (
-            <button
-              onClick={goBackT1}
-              disabled={loading}
-              style={{ background: "transparent", border: "none", color: c.textMuted, padding: "8px 4px", cursor: loading ? "default" : "pointer", fontSize: "13px", fontFamily: SANS, fontWeight: 600, letterSpacing: "0.03em" }}
-            >
-              &larr; Back
-            </button>
-          ) : <div />}
-          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-            {detailMissing && (
-              <div style={{ fontSize: "12px", color: c.textMuted, fontFamily: SANS, fontStyle: "italic" }}>
-                Please fill this in to continue
-              </div>
+                <div style={{ margin: "2rem 0 1.1rem", borderTop: `2px solid ${c.borderMid}`, paddingTop: "1.75rem" }}>
+                  <div style={{ display: "inline-block", background: c.accent, color: "#fff", fontSize: "12px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", padding: "5px 14px", borderRadius: "20px", marginBottom: "0.6rem", fontFamily: SANS }}>
+                    Right side
+                  </div>
+                  <div style={{ fontSize: "20px", fontWeight: 700, color: c.textPrimary, fontFamily: SANS, letterSpacing: "-0.01em", textTransform: "capitalize" }}>
+                    Now, tell us about your right {q.bodyPart}
+                  </div>
+                </div>
+                {otherGroups.map(g => renderOptionGroup(g, `right_${g.key}`, null))}
+                {renderDetailBox("right_detail", `Do you know when this first started in your right ${q.bodyPart}, or what the situation was when it appeared? (optional)`)}
+              </>
+            ) : (
+              <>
+                {otherGroups.map(g => renderOptionGroup(g, g.key, null))}
+                {renderDetailBox("detail", q.detailLabel)}
+              </>
             )}
-            <button
-              onClick={submitBodyPartForm}
-              disabled={loading || detailMissing}
-              style={{ background: loading || detailMissing ? c.accentMid : c.accent, border: "none", borderRadius: "4px", padding: "10px 24px", cursor: (loading || detailMissing) ? "default" : "pointer", color: (loading || detailMissing) ? c.textMuted : "#fff", fontSize: "13px", fontFamily: SANS, fontWeight: 700, letterSpacing: "0.04em", transition: "all 0.15s" }}
-            >
-              {loading ? "Reading…" : "Next \u2192"}
-            </button>
+          </div>
+
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "0.75rem", marginTop: "1rem" }}>
+            {index > 0 ? (
+              <button
+                onClick={goBackT1}
+                disabled={loading}
+                style={{ background: "transparent", border: "none", color: c.textMuted, padding: "8px 4px", cursor: loading ? "default" : "pointer", fontSize: "13px", fontFamily: SANS, fontWeight: 600, letterSpacing: "0.03em" }}
+              >
+                &larr; Back
+              </button>
+            ) : <div />}
+            <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+              {detailMissing && (
+                <div style={{ fontSize: "12px", color: c.textMuted, fontFamily: SANS, fontStyle: "italic" }}>
+                  Please fill this in to continue
+                </div>
+              )}
+              <button
+                onClick={submitBodyPartForm}
+                disabled={loading || detailMissing}
+                style={{ background: loading || detailMissing ? c.accentMid : c.accent, border: "none", borderRadius: "6px", padding: "10px 22px", cursor: (loading || detailMissing) ? "default" : "pointer", color: (loading || detailMissing) ? c.textMuted : "#fff", fontSize: "13px", fontFamily: SANS, fontWeight: 700, letterSpacing: "0.04em", transition: "all 0.15s" }}
+              >
+                {loading ? "Reading…" : "Next \u2192"}
+              </button>
+            </div>
           </div>
         </div>
         <Disclaimer />
@@ -1159,11 +1169,24 @@ export default function BASTInterpreter() {
         <Header />
         {t1Index === 0 && (
           <div style={{ textAlign: "center", maxWidth: "620px", margin: "1.5rem auto 0", padding: "0 1.5rem" }}>
-            <div style={{ fontSize: "27px", fontWeight: 700, color: c.textPrimary, lineHeight: 1.2, fontFamily: SANS, letterSpacing: "-0.01em" }}>
-              What is your body trying to tell you?
+            <div style={{ display: "flex", justifyContent: "center", marginBottom: "0.5rem" }}>
+              <svg width="88" height="88" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Voltage Wellness">
+                <circle cx="50" cy="50" r="42" fill="none" stroke="#1e1a16" strokeWidth="1" opacity="0.22"/>
+                <line x1="50" y1="8" x2="50" y2="2" stroke="#1e1a16" strokeWidth="1.5" opacity="0.32"/>
+                <line x1="50" y1="92" x2="50" y2="98" stroke="#1e1a16" strokeWidth="1.5" opacity="0.32"/>
+                <line x1="8" y1="50" x2="2" y2="50" stroke="#1e1a16" strokeWidth="1.5" opacity="0.32"/>
+                <line x1="92" y1="50" x2="98" y2="50" stroke="#1e1a16" strokeWidth="1.5" opacity="0.32"/>
+                <path d="M42.4,34.83 L33.2,51.73 L47.5,51.93 L33.65,82.17 L72.0,44.73 L54.0,44.62 L53.3,17.83 Z" fill="#1e1a16"/>
+              </svg>
             </div>
-            <div style={{ fontSize: "17px", color: c.textSecondary, lineHeight: 1.8, fontFamily: SERIF, marginTop: "0.75rem" }}>
-              Answer a few quick questions and we'll give you a free Reading.
+            <div style={{ fontSize: "11px", fontWeight: 600, letterSpacing: "0.2em", textTransform: "uppercase", color: c.accent, marginBottom: "0.75rem", fontFamily: SANS }}>
+              Free &amp; Instant
+            </div>
+            <div style={{ fontSize: "38px", fontWeight: 800, color: c.textPrimary, lineHeight: 1.15, fontFamily: SANS, letterSpacing: "-0.02em" }}>
+              Discover the <em style={{ color: c.accentPop, fontFamily: SERIF }}>root</em> cause.
+            </div>
+            <div style={{ fontSize: "17px", color: c.textSecondary, lineHeight: 1.8, fontFamily: SERIF, marginTop: "1rem" }}>
+              Every symptom and disease traces back to an energetic imbalance. Answer a few questions to discover what's actually causing yours.
             </div>
           </div>
         )}
