@@ -1163,7 +1163,7 @@ export default function BASTInterpreter() {
               What is your body trying to tell you?
             </div>
             <div style={{ fontSize: "17px", color: c.textSecondary, lineHeight: 1.8, fontFamily: SERIF, marginTop: "0.75rem" }}>
-              Answer a few quick questions and we'll give you a free Initial Reading.
+              Answer a few quick questions and we'll give you a free Reading.
             </div>
           </div>
         )}
