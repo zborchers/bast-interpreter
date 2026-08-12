@@ -30,9 +30,6 @@ const c = {
 // all of those bases and re-asserts once, shortly after mount.
 function scrollToTop(startElRef, innerRef) {
   try {
-    if (document.activeElement && typeof document.activeElement.blur === "function") {
-      document.activeElement.blur();
-    }
     // window.scrollTo only resets the actual browser window's own
     // scroll position — but this app's outer HTML shell isn't defined
     // in this file, and if some wrapper element up the tree has its own
@@ -65,20 +62,43 @@ function scrollToTop(startElRef, innerRef) {
 function useScrollToTopOnMount(startElRef, innerRef) {
   useEffect(() => {
     scrollToTop(startElRef, innerRef);
-    // A single retry isn't reliable enough in practice — mobile browsers
-    // especially can still be settling layout (a web font swapping in, a
-    // question card's height changing) well after the initial call,
-    // which silently leaves the page scrolled somewhere other than the
-    // top. This re-asserts repeatedly across the window where that
-    // settling actually happens, so the last call wins regardless of
-    // what else is trying to move the scroll position in between.
+    // A handful of retries, spaced out rather than clustered right at
+    // the start — clustering them in the first 100-150ms means several
+    // DOM touches land in the exact window where a fast answer on the
+    // next question might already be mid-tap, which can itself interfere
+    // with that tap registering. Spacing them out further, with a longer
+    // tail, still catches slow layout settling (and momentum scrolling
+    // that's still finishing on some mobile browsers) without hammering
+    // the DOM during the moment someone's most likely to be interacting.
     const raf1 = requestAnimationFrame(() => scrollToTop(startElRef, innerRef));
-    const raf2 = requestAnimationFrame(() => requestAnimationFrame(() => scrollToTop(startElRef, innerRef)));
-    const timers = [30, 60, 100, 150, 250, 400, 600, 900].map(delay => setTimeout(() => scrollToTop(startElRef, innerRef), delay));
+    const timers = [200, 500, 1000, 1500].map(delay => setTimeout(() => scrollToTop(startElRef, innerRef), delay));
+
+    // Dismissing the on-screen keyboard resizes the viewport, and
+    // different mobile browsers finish that resize on different
+    // timelines — timed retries alone are a guess about how long that
+    // takes, and a guess that's right for one browser can be wrong for
+    // another. Re-asserting on the actual resize event, whenever it
+    // fires, isn't a guess: it directly catches the moment the viewport
+    // actually finishes changing, regardless of how long that took on
+    // this particular browser.
+    const handleResize = () => scrollToTop(startElRef, innerRef);
+    window.addEventListener("resize", handleResize);
+    const vv = window.visualViewport;
+    if (vv) vv.addEventListener("resize", handleResize);
+
+    // Stop listening after a few seconds so this isn't still fighting
+    // the user's own deliberate scrolling later in the same screen.
+    const stopListening = setTimeout(() => {
+      window.removeEventListener("resize", handleResize);
+      if (vv) vv.removeEventListener("resize", handleResize);
+    }, 2500);
+
     return () => {
       cancelAnimationFrame(raf1);
-      cancelAnimationFrame(raf2);
       timers.forEach(clearTimeout);
+      clearTimeout(stopListening);
+      window.removeEventListener("resize", handleResize);
+      if (vv) vv.removeEventListener("resize", handleResize);
     };
   }, []);
 }
