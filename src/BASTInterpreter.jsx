@@ -28,8 +28,15 @@ const c = {
 // layout shift (web fonts finishing their swap-in, for instance) can
 // nudge the page after the initial scroll already fired. This covers
 // all of those bases and re-asserts once, shortly after mount.
-function scrollToTop(innerRef, topRef) {
+function scrollToTop(innerRef) {
   try {
+    // A focused input can cause the browser to scroll it into view on
+    // its own, fighting an explicit scroll-to-top call and winning. Clear
+    // focus first so nothing else has a reason to move the scroll
+    // position on its own.
+    if (document.activeElement && typeof document.activeElement.blur === "function") {
+      document.activeElement.blur();
+    }
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
     document.documentElement.scrollTop = 0;
     document.body.scrollTop = 0;
@@ -41,34 +48,25 @@ function scrollToTop(innerRef, topRef) {
     if (innerRef && innerRef.current) {
       innerRef.current.scrollTop = 0;
     }
-    // window.scrollTo(0,0) can end up fighting with the browser's own
-    // "scroll the relevant element into view" behavior (for instance
-    // around focus changes), and lose. Anchoring directly on the actual
-    // topmost visible element with scrollIntoView is more forceful and
-    // isn't just asserting a coordinate that something else can silently
-    // override afterward.
-    if (topRef && topRef.current) {
-      topRef.current.scrollIntoView({ behavior: "auto", block: "start" });
-    }
   } catch {}
 }
 
-function useScrollToTopOnMount(innerRef, topRef) {
+function useScrollToTopOnMount(innerRef) {
   useEffect(() => {
-    scrollToTop(innerRef, topRef);
+    scrollToTop(innerRef);
     // A single retry isn't reliable enough in practice — mobile browsers
     // especially can still be settling layout (a web font swapping in, a
     // question card's height changing) well after the initial call,
     // which silently leaves the page scrolled somewhere other than the
-    // top. This re-asserts across several points: the next paint via
-    // requestAnimationFrame, and a spread of timeouts, so at least one of
-    // them lands after the content has actually finished shifting (and
-    // after anything else that might try to move the scroll position on
-    // its own).
-    const raf = requestAnimationFrame(() => scrollToTop(innerRef, topRef));
-    const timers = [50, 150, 300, 500].map(delay => setTimeout(() => scrollToTop(innerRef, topRef), delay));
+    // top. This re-asserts repeatedly across the window where that
+    // settling actually happens, so the last call wins regardless of
+    // what else is trying to move the scroll position in between.
+    const raf1 = requestAnimationFrame(() => scrollToTop(innerRef));
+    const raf2 = requestAnimationFrame(() => requestAnimationFrame(() => scrollToTop(innerRef)));
+    const timers = [30, 60, 100, 150, 250, 400, 600, 900].map(delay => setTimeout(() => scrollToTop(innerRef), delay));
     return () => {
-      cancelAnimationFrame(raf);
+      cancelAnimationFrame(raf1);
+      cancelAnimationFrame(raf2);
       timers.forEach(clearTimeout);
     };
   }, []);
@@ -141,8 +139,7 @@ function Disclaimer() {
 // causing the reversed-typing bug in the free-text answers) ----
 
 function QuestionScreen({ questions, index, tierLabel, loading, textDraft, setTextDraft, handleTextKeyDown, multiSelected, toggleMultiSelect1, submitT1Multi, goBackT1 }) {
-  const topRef = useRef(null);
-  useScrollToTopOnMount(null, topRef);
+  useScrollToTopOnMount();
 
   const q = questions[index];
   const needsSomewhereElseDetail = q.id === "region" && multiSelected.includes("Somewhere else");
@@ -153,7 +150,7 @@ function QuestionScreen({ questions, index, tierLabel, loading, textDraft, setTe
     || (needsSomewhereElseDetail && !textDraft.trim());
 
   return (
-    <div ref={topRef} style={{ width: "100%", maxWidth: "620px", margin: "1.75rem auto", padding: "0 1.5rem", boxSizing: "border-box" }}>
+    <div style={{ width: "100%", maxWidth: "620px", margin: "1.75rem auto", padding: "0 1.5rem", boxSizing: "border-box" }}>
       <div style={{ width: "100%" }}>
         <div style={{ background: c.bgInput, border: `1.5px solid ${c.borderMid}`, borderRadius: "12px", padding: "24px 26px", textAlign: "left" }}>
           <div style={{ fontSize: "11px", fontWeight: 600, letterSpacing: "0.15em", textTransform: "uppercase", color: c.accent, marginBottom: "0.9rem", fontFamily: SANS }}>
@@ -264,8 +261,7 @@ function QuestionScreen({ questions, index, tierLabel, loading, textDraft, setTe
 
 function BodyPartFormScreen({ q, index, total, loading, bodyPartSelections, toggleBodyPartOption, setBodyPartDetail, handleTextKeyDown, submitBodyPartForm, goBackT1 }) {
   const innerScrollRef = useRef(null);
-  const topRef = useRef(null);
-  useScrollToTopOnMount(innerScrollRef, topRef);
+  useScrollToTopOnMount(innerScrollRef);
 
   const sideGroup = q.groups.find(g => g.key === "side");
   const otherGroups = q.groups.filter(g => g.key !== "side");
@@ -327,7 +323,7 @@ function BodyPartFormScreen({ q, index, total, loading, bodyPartSelections, togg
   );
 
   return (
-    <div ref={topRef} style={{ width: "100%", maxWidth: "620px", margin: "1.75rem auto", padding: "0 1.5rem", boxSizing: "border-box" }}>
+    <div style={{ width: "100%", maxWidth: "620px", margin: "1.75rem auto", padding: "0 1.5rem", boxSizing: "border-box" }}>
       <div style={{ width: "100%" }}>
         <div style={{ background: c.bgInput, border: `1.5px solid ${c.borderMid}`, borderRadius: "12px", padding: "24px 26px", textAlign: "left" }}>
           <div style={{ marginBottom: "1.25rem" }}>
