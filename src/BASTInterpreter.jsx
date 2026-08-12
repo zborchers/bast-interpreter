@@ -893,13 +893,6 @@ export default function BASTInterpreter() {
   const [tier2Progress, setTier2Progress] = useState(0);
   const [tier2Turn, setTier2Turn] = useState(0);
   const [textDraft, setTextDraft] = useState("");
-  // Shown once, the first time someone tries to move past question 1 —
-  // interrupts that specific transition rather than sitting as a note
-  // that's easy to skim past, since detail level is the single biggest
-  // lever on how accurate the reading ends up being.
-  const [showDetailTip, setShowDetailTip] = useState(false);
-  const [detailTipShown, setDetailTipShown] = useState(false);
-  const [pendingAdvance, setPendingAdvance] = useState(null);
 
   const messagesEndRef = useRef(null);
   const lastMessageRef = useRef(null);
@@ -1073,11 +1066,6 @@ export default function BASTInterpreter() {
 
   const advanceT1 = (latestAnswers, questionsList) => {
     const list = questionsList || effectiveTier1Questions;
-    if (t1Index === 0 && !detailTipShown) {
-      setPendingAdvance({ latestAnswers, list });
-      setShowDetailTip(true);
-      return;
-    }
     if (t1Index < list.length - 1) {
       setT1Index(t1Index + 1);
       return;
@@ -1085,19 +1073,6 @@ export default function BASTInterpreter() {
     // Tier 1 complete (or short-circuited because the diagnosis alone was
     // enough) — request Initial Reading.
     fetchInitialReading(latestAnswers, list);
-  };
-
-  const dismissDetailTip = () => {
-    setShowDetailTip(false);
-    setDetailTipShown(true);
-    if (!pendingAdvance) return;
-    const { latestAnswers, list } = pendingAdvance;
-    setPendingAdvance(null);
-    if (t1Index < list.length - 1) {
-      setT1Index(t1Index + 1);
-    } else {
-      fetchInitialReading(latestAnswers, list);
-    }
   };
 
   const goBackT1 = () => {
@@ -1296,35 +1271,6 @@ export default function BASTInterpreter() {
         ) : (
           <QuestionScreen key={t1Index} questions={effectiveTier1Questions} index={t1Index} tierLabel="Free Reading" loading={loading} textDraft={textDraft} setTextDraft={setTextDraft} handleTextKeyDown={handleTextKeyDown} multiSelected={multiSelected} toggleMultiSelect1={toggleMultiSelect1} submitT1Multi={submitT1Multi} goBackT1={goBackT1} />
         )}
-        {showDetailTip && (
-          <div
-            role="dialog"
-            aria-modal="true"
-            style={{ position: "fixed", inset: 0, background: "rgba(30,26,22,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: "1.5rem", zIndex: 100 }}
-            onClick={dismissDetailTip}
-          >
-            <div
-              onClick={e => e.stopPropagation()}
-              style={{ background: c.bg, border: `1.5px solid ${c.borderMid}`, borderRadius: "14px", padding: "2rem 1.75rem", maxWidth: "420px", width: "100%", textAlign: "center", boxShadow: "0 12px 40px rgba(30,26,22,0.25)" }}
-            >
-              <div style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.15em", textTransform: "uppercase", color: c.accentPop, marginBottom: "0.75rem", fontFamily: SANS }}>
-                One quick tip
-              </div>
-              <div style={{ fontSize: "20px", fontWeight: 700, color: c.textPrimary, lineHeight: 1.35, marginBottom: "0.85rem", fontFamily: SANS }}>
-                The more detail you share, the more accurate your reading will&nbsp;be.
-              </div>
-              <div style={{ fontSize: "15px", color: c.textSecondary, lineHeight: 1.7, marginBottom: "1.5rem", fontFamily: SERIF }}>
-                Whenever you see a text box, use it — specifics about what you're feeling, when it started, and what else is going on matter more than the multiple-choice options alone. Additional detail isn't required, but it does lead to a more accurate reading.
-              </div>
-              <button
-                onClick={dismissDetailTip}
-                style={{ background: c.accent, border: "none", borderRadius: "6px", padding: "12px 28px", fontSize: "14px", color: "#fff", cursor: "pointer", fontFamily: SANS, fontWeight: 700, letterSpacing: "0.03em" }}
-              >
-                Got it &rarr;
-              </button>
-            </div>
-          </div>
-        )}
         <style>{`* { box-sizing: border-box; } body { margin: 0; } textarea::placeholder { color: rgba(30,26,22,0.3); }`}</style>
       </div>
     );
@@ -1340,6 +1286,11 @@ export default function BASTInterpreter() {
         <Transcript messages={messages} loading={loading} messagesEndRef={messagesEndRef} lastMessageRef={lastMessageRef} copyReadingText={copyReadingText} downloadReadingText={downloadReadingText} copiedIndex={copiedIndex}
           ctaSlot={
             <>
+              <div style={{ background: c.accentLight, border: `1px solid ${c.accentMid}`, borderRadius: "10px", padding: "0.9rem 1.1rem", marginBottom: "1rem", textAlign: "center" }}>
+                <div style={{ fontSize: "13.5px", color: c.textPrimary, lineHeight: 1.6, fontFamily: SERIF }}>
+                  This reading was built entirely from your anatomy and sensations. The tool can go much deeper — and the more detail you're willing to share from here, the more precise it gets.
+                </div>
+              </div>
               <div style={{ textAlign: "center", fontSize: "14px", color: c.textSecondary, fontFamily: SERIF, marginBottom: "0.85rem" }}>
                 Answer a few more questions for your deeper Root Cause Reading.
               </div>
