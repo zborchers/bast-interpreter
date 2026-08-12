@@ -944,7 +944,7 @@ export default function BASTInterpreter() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "claude-sonnet-4-5",
+        model: "claude-sonnet-5",
         max_tokens: maxTokens || 4000,
         system: SYSTEM_PROMPT,
         // Strip the local-only "display" field — the API only accepts
