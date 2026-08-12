@@ -598,7 +598,7 @@ const QUESTIONS_TIER1 = [
     q: "Where in the body is this happening?",
     detailLabel: "Anything else to add about where or how it shows up? (optional)",
     options: [
-      "Head", "Neck", "Throat", "Shoulders", "Chest", "Heart",
+      "Head", "Neck", "Throat", "Mouth", "Shoulders", "Chest", "Heart",
       "Upper Back", "Lower Back", "Abdomen", "Gut", "Hips", "Pelvis",
       "Legs", "Knees", "Ankles", "Feet", "Arms", "Hands", "Somewhere else",
     ],
@@ -622,7 +622,7 @@ const QUESTIONS_TIER1 = [
     type: "multiselect",
     q: "How would you describe it? You can explain further in the box below.",
     detailLabel: "Anything else to add about how it feels? (optional)",
-    options: ["Sharp", "Dull ache", "Sore", "Burning", "Tight", "Stiff", "Throbbing", "Numb", "Cramping", "Tingling", "Swollen", "Pressure", "Heavy", "Weak"],
+    options: ["Sharp", "Dull ache", "Sore", "Burning", "Tight", "Stiff", "Throbbing", "Numb", "Cramping", "Tingling", "Swollen", "Bloating", "Pressure", "Heavy", "Weak"],
   },
   {
     id: "pattern",
@@ -708,7 +708,7 @@ function buildEffectiveTier1Questions(diagnosisAnswer) {
 // side, front/back, sensation, and pattern all together — replacing the
 // generic side/plane/quality/pattern questions entirely.
 const REGION_DISPLAY = {
-  "Head": "head", "Neck": "neck", "Throat": "throat", "Shoulders": "shoulder",
+  "Head": "head", "Neck": "neck", "Throat": "throat", "Mouth": "mouth", "Shoulders": "shoulder",
   "Chest": "chest", "Heart": "heart", "Upper Back": "upper back", "Lower Back": "lower back",
   "Abdomen": "abdomen", "Gut": "gut", "Hips": "hip", "Pelvis": "pelvis",
   "Legs": "leg", "Knees": "knee", "Ankles": "ankle", "Feet": "foot",
@@ -723,6 +723,7 @@ const REGION_GROUP_CONFIG = {
   "Head": { side: true, plane: true, centered: true },
   "Neck": { side: true, plane: true, centered: true },
   "Throat": { side: false, plane: false, centered: false },
+  "Mouth": { side: false, plane: false, centered: false },
   "Shoulders": { side: true, plane: true, centered: false },
   "Chest": { side: true, plane: false, centered: true },
   "Heart": { side: false, plane: false, centered: false },
@@ -757,7 +758,7 @@ function buildBodyPartForm(region, overrideDisplay) {
     groups.push({ key: "side", label: "Which side?", options: sideOptions });
   }
   if (config.plane) groups.push({ key: "plane", label: "Front or back?", options: ["Front", "Back"] });
-  groups.push({ key: "quality", label: "What does it feel like? You can explain further in the box below.", options: ["Sharp", "Dull ache", "Sore", "Burning", "Tight", "Stiff", "Throbbing", "Numb", "Cramping", "Tingling", "Swollen", "Pressure", "Heavy", "Weak"] });
+  groups.push({ key: "quality", label: "What does it feel like? You can explain further in the box below.", options: ["Sharp", "Dull ache", "Sore", "Burning", "Tight", "Stiff", "Throbbing", "Numb", "Cramping", "Tingling", "Swollen", "Bloating", "Pressure", "Heavy", "Weak"] });
   groups.push({ key: "pattern", label: "Is this the first time, does it come and go, or is it constant / ongoing?", options: ["First time", "Comes and goes", "Constant / ongoing"] });
 
   return {
@@ -1310,10 +1311,10 @@ export default function BASTInterpreter() {
                 One quick tip
               </div>
               <div style={{ fontSize: "20px", fontWeight: 700, color: c.textPrimary, lineHeight: 1.35, marginBottom: "0.85rem", fontFamily: SANS }}>
-                The more detail you share, the more accurate your reading will be.
+                The more detail you share, the more accurate your reading will&nbsp;be.
               </div>
               <div style={{ fontSize: "15px", color: c.textSecondary, lineHeight: 1.7, marginBottom: "1.5rem", fontFamily: SERIF }}>
-                Whenever you see a text box, use it — specifics about what you're feeling, when it started, and what else is going on matter more than the multiple-choice options alone.
+                Whenever you see a text box, use it — specifics about what you're feeling, when it started, and what else is going on matter more than the multiple-choice options alone. Additional detail isn't necessary, but it does lead to a more accurate reading.
               </div>
               <button
                 onClick={dismissDetailTip}
