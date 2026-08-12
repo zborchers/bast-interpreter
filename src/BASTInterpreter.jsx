@@ -39,8 +39,19 @@ function scrollToTop() {
 function useScrollToTopOnMount() {
   useEffect(() => {
     scrollToTop();
-    const t = setTimeout(scrollToTop, 60);
-    return () => clearTimeout(t);
+    // A single retry isn't reliable enough in practice — mobile browsers
+    // especially can still be settling layout (a web font swapping in, a
+    // question card's height changing) well after the initial call,
+    // which silently leaves the page scrolled somewhere other than the
+    // top. This re-asserts across several points: the next paint via
+    // requestAnimationFrame, and a spread of timeouts, so at least one of
+    // them lands after the content has actually finished shifting.
+    const raf = requestAnimationFrame(scrollToTop);
+    const timers = [50, 150, 300].map(delay => setTimeout(scrollToTop, delay));
+    return () => {
+      cancelAnimationFrame(raf);
+      timers.forEach(clearTimeout);
+    };
   }, []);
 }
 
@@ -122,7 +133,7 @@ function QuestionScreen({ questions, index, tierLabel, loading, textDraft, setTe
     || (needsSomewhereElseDetail && !textDraft.trim());
 
   return (
-    <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "2rem 1.5rem" }}>
+    <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "flex-start", padding: "2.5rem 1.5rem" }}>
       <div style={{ width: "100%", maxWidth: "620px" }}>
         <div style={{ background: c.bgInput, border: `1.5px solid ${c.borderMid}`, borderRadius: "12px", padding: "24px 26px", textAlign: "left" }}>
           <div style={{ fontSize: "11px", fontWeight: 600, letterSpacing: "0.15em", textTransform: "uppercase", color: c.accent, marginBottom: "0.9rem", fontFamily: SANS }}>
@@ -294,7 +305,7 @@ function BodyPartFormScreen({ q, index, total, loading, bodyPartSelections, togg
   );
 
   return (
-    <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "2rem 1.5rem" }}>
+    <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "flex-start", padding: "2.5rem 1.5rem" }}>
       <div style={{ width: "100%", maxWidth: "620px" }}>
         <div style={{ background: c.bgInput, border: `1.5px solid ${c.borderMid}`, borderRadius: "12px", padding: "24px 26px", textAlign: "left" }}>
           <div style={{ marginBottom: "1.25rem" }}>
