@@ -28,17 +28,25 @@ const c = {
 // layout shift (web fonts finishing their swap-in, for instance) can
 // nudge the page after the initial scroll already fired. This covers
 // all of those bases and re-asserts once, shortly after mount.
-function scrollToTop() {
+function scrollToTop(innerRef) {
   try {
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
     document.documentElement.scrollTop = 0;
     document.body.scrollTop = 0;
+    // Some screens have their own internally-scrolling region (the
+    // grouped body-part options, when there's enough content to need
+    // it) — that's a separate scroll context from the page itself, so
+    // resetting the window's scroll position never touches it. Reset it
+    // explicitly too whenever a ref to one is passed in.
+    if (innerRef && innerRef.current) {
+      innerRef.current.scrollTop = 0;
+    }
   } catch {}
 }
 
-function useScrollToTopOnMount() {
+function useScrollToTopOnMount(innerRef) {
   useEffect(() => {
-    scrollToTop();
+    scrollToTop(innerRef);
     // A single retry isn't reliable enough in practice — mobile browsers
     // especially can still be settling layout (a web font swapping in, a
     // question card's height changing) well after the initial call,
@@ -46,8 +54,8 @@ function useScrollToTopOnMount() {
     // top. This re-asserts across several points: the next paint via
     // requestAnimationFrame, and a spread of timeouts, so at least one of
     // them lands after the content has actually finished shifting.
-    const raf = requestAnimationFrame(scrollToTop);
-    const timers = [50, 150, 300].map(delay => setTimeout(scrollToTop, delay));
+    const raf = requestAnimationFrame(() => scrollToTop(innerRef));
+    const timers = [50, 150, 300].map(delay => setTimeout(() => scrollToTop(innerRef), delay));
     return () => {
       cancelAnimationFrame(raf);
       timers.forEach(clearTimeout);
@@ -243,7 +251,8 @@ function QuestionScreen({ questions, index, tierLabel, loading, textDraft, setTe
 // so the person can answer everything about that part at once) ----
 
 function BodyPartFormScreen({ q, index, total, loading, bodyPartSelections, toggleBodyPartOption, setBodyPartDetail, handleTextKeyDown, submitBodyPartForm, goBackT1 }) {
-  useScrollToTopOnMount();
+  const innerScrollRef = useRef(null);
+  useScrollToTopOnMount(innerScrollRef);
 
   const sideGroup = q.groups.find(g => g.key === "side");
   const otherGroups = q.groups.filter(g => g.key !== "side");
@@ -320,7 +329,7 @@ function BodyPartFormScreen({ q, index, total, loading, bodyPartSelections, togg
             </div>
           </div>
 
-          <div style={{ maxHeight: "54vh", overflowY: "auto", paddingRight: "4px" }}>
+          <div ref={innerScrollRef} style={{ maxHeight: "54vh", overflowY: "auto", paddingRight: "4px" }}>
             {sideGroup && renderOptionGroup(sideGroup, "side", null)}
 
             {bothSides ? (
