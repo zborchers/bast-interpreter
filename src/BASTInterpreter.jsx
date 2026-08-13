@@ -600,7 +600,7 @@ const QUESTIONS_TIER1 = [
     options: [
       "Head", "Neck", "Throat", "Mouth", "Shoulders", "Chest", "Heart",
       "Upper Back", "Lower Back", "Abdomen", "Gut", "Hips", "Pelvis",
-      "Legs", "Knees", "Ankles", "Feet", "Arms", "Hands", "Somewhere else",
+      "Legs", "Knees", "Ankles", "Feet", "Arms", "Hands", "Skin", "Somewhere else",
     ],
   },
   {
@@ -705,7 +705,7 @@ const REGION_DISPLAY = {
   "Chest": "chest", "Heart": "heart", "Upper Back": "upper back", "Lower Back": "lower back",
   "Abdomen": "abdomen", "Gut": "gut", "Hips": "hip", "Pelvis": "pelvis",
   "Legs": "leg", "Knees": "knee", "Ankles": "ankle", "Feet": "foot",
-  "Arms": "arm", "Hands": "hand", "Somewhere else": "the area you mentioned",
+  "Arms": "arm", "Hands": "hand", "Skin": "skin", "Somewhere else": "the area you mentioned",
 };
 
 // Not every body part has a meaningful left/right or front/back — a gut
@@ -732,6 +732,7 @@ const REGION_GROUP_CONFIG = {
   "Feet": { side: true, plane: false, centered: false },
   "Arms": { side: true, plane: false, centered: false },
   "Hands": { side: true, plane: false, centered: false },
+  "Skin": { side: false, plane: false, centered: false },
   "Somewhere else": { side: false, plane: false, centered: false },
 };
 
