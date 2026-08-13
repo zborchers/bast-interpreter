@@ -740,10 +740,21 @@ function regionDisplayName(region) {
   return REGION_DISPLAY[region] || region.toLowerCase();
 }
 
+// The general sensation list (Sharp, Burning, Tight, etc.) covers most of
+// the body well, but doesn't fit skin — nobody describes a rash as
+// "throbbing" or a breakout as "cramping." Skin gets its own tailored
+// set instead of cluttering the shared list with terms that would only
+// ever apply to one body part.
+const QUALITY_OPTIONS_DEFAULT = ["Sharp", "Dull ache", "Sore", "Burning", "Tight", "Stiff", "Throbbing", "Numb", "Cramping", "Tingling", "Swollen", "Bloating", "Pressure", "Heavy", "Weak"];
+const QUALITY_OPTIONS_BY_REGION = {
+  "Skin": ["Itchy", "Dry", "Flaky", "Rash", "Burning", "Tingling", "Tight", "Breakouts", "Redness", "Numb"],
+};
+
 function buildBodyPartForm(region, overrideDisplay) {
   const display = overrideDisplay || regionDisplayName(region);
   const slug = regionDisplayName(region).replace(/\s+/g, "_");
   const config = REGION_GROUP_CONFIG[region] || { side: true, plane: true };
+  const qualityOptions = QUALITY_OPTIONS_BY_REGION[region] || QUALITY_OPTIONS_DEFAULT;
 
   const groups = [];
   if (config.side) {
@@ -752,7 +763,7 @@ function buildBodyPartForm(region, overrideDisplay) {
     groups.push({ key: "side", label: "Which side?", options: sideOptions });
   }
   if (config.plane) groups.push({ key: "plane", label: "Front or back?", options: ["Front", "Back"] });
-  groups.push({ key: "quality", label: "What does it feel like? You can explain further in the box below.", options: ["Sharp", "Dull ache", "Sore", "Burning", "Tight", "Stiff", "Throbbing", "Numb", "Cramping", "Tingling", "Swollen", "Bloating", "Pressure", "Heavy", "Weak"] });
+  groups.push({ key: "quality", label: "What does it feel like? You can explain further in the box below.", options: qualityOptions });
   groups.push({ key: "pattern", label: "Is this the first time, does it come and go, or is it constant / ongoing?", options: ["First time", "Comes and goes", "Constant / ongoing"] });
 
   return {
