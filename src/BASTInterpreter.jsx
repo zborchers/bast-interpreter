@@ -1015,7 +1015,13 @@ export default function BASTInterpreter() {
         // structure in between.
         const containerRect = container.getBoundingClientRect();
         const targetRect = targetEl.getBoundingClientRect();
-        container.scrollTop = container.scrollTop + (targetRect.top - containerRect.top);
+        // Landing exactly at the calculated boundary has been cutting
+        // off the first couple of lines by a small, consistent amount —
+        // rather than continue chasing pixel-perfect precision, land
+        // slightly above it on purpose so there's a bit of margin
+        // instead of butting right up against the true top.
+        const buffer = 40;
+        container.scrollTop = Math.max(0, container.scrollTop + (targetRect.top - containerRect.top) - buffer);
       }
     };
     const timers = [];
