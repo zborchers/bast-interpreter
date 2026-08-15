@@ -555,11 +555,36 @@ function SimpleChatInput({ value, onChange, onSubmit, placeholder, loading, hand
 
 // ---- READING TRANSCRIPT (also hoisted, same reason) ----
 
-function Transcript({ messages, loading, messagesEndRef, lastMessageRef, scrollContainerRef, ctaSlot, loadingLabel, copyReadingText, downloadReadingText, copiedIndex }) {
+function Transcript({ messages, loading, messagesEndRef, lastMessageRef, loadingRef, scrollContainerRef, ctaSlot, revealCtaOnScroll, loadingLabel, copyReadingText, downloadReadingText, copiedIndex }) {
   let lastRealIndex = -1;
   for (let i = messages.length - 1; i >= 0; i--) {
     if (!messages[i].hidden && !messages[i].localOnly) { lastRealIndex = i; break; }
   }
+  // When revealCtaOnScroll is set, the CTA (the "Go Deeper" prompt on the
+  // Initial Reading screen) stays hidden until the person has actually
+  // scrolled to the bottom of the reading, rather than sitting visible
+  // the whole time and inviting people to skip past what they were just
+  // told the tool built from. Not gated at all when this prop is off
+  // (Tier 2's real input, and the final chat view, need to stay usable
+  // immediately).
+  const [scrolledToBottom, setScrolledToBottom] = useState(!revealCtaOnScroll);
+  useEffect(() => {
+    if (!revealCtaOnScroll) { setScrolledToBottom(true); return; }
+    setScrolledToBottom(false);
+    const check = () => {
+      const el = scrollContainerRef.current;
+      if (!el) return;
+      const nearBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 24;
+      if (nearBottom) setScrolledToBottom(true);
+    };
+    const el = scrollContainerRef.current;
+    if (el) {
+      el.addEventListener("scroll", check, { passive: true });
+      check();
+    }
+    return () => { if (el) el.removeEventListener("scroll", check); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [revealCtaOnScroll, messages]);
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", maxWidth: "700px", width: "100%", margin: "0 auto" }}>
       <div ref={scrollContainerRef} style={{ flex: 1, overflowY: "auto", padding: "0 1.5rem" }}>
@@ -615,7 +640,7 @@ function Transcript({ messages, loading, messagesEndRef, lastMessageRef, scrollC
           ))}
 
           {loading && (
-            <div style={{ display: "flex", gap: "12px", alignItems: "flex-start", marginBottom: "2rem" }}>
+            <div ref={loadingRef} style={{ display: "flex", gap: "12px", alignItems: "flex-start", marginBottom: "2rem" }}>
               <div style={{ width: "28px", height: "28px", borderRadius: "50%", background: c.accentLight, border: `1px solid ${c.borderMid}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", color: c.accent, flexShrink: 0 }}>&#10022;</div>
               <div style={{ paddingTop: "6px" }}>
                 {loadingLabel && (
@@ -633,8 +658,8 @@ function Transcript({ messages, loading, messagesEndRef, lastMessageRef, scrollC
         </div>
       </div>
 
-      {ctaSlot && (
-        <div style={{ flexShrink: 0, background: c.bg, borderTop: `1px solid ${c.border}`, padding: "1rem 1.5rem 1.25rem" }}>
+      {ctaSlot && scrolledToBottom && (
+        <div style={{ flexShrink: 0, background: c.bg, borderTop: `1px solid ${c.border}`, padding: "1rem 1.5rem 1.25rem", animation: revealCtaOnScroll ? "bast-fade-in 0.35s ease" : "none" }}>
           {ctaSlot}
         </div>
       )}
@@ -985,6 +1010,7 @@ export default function BASTInterpreter() {
   const [textDraft, setTextDraft] = useState("");
 
   const messagesEndRef = useRef(null);
+  const loadingRef = useRef(null);
   const lastMessageRef = useRef(null);
   const scrollContainerRef = useRef(null);
 
@@ -1026,8 +1052,16 @@ export default function BASTInterpreter() {
     };
     const timers = [];
     if (loading) {
-      // Still generating — keep the loading indicator in view.
-      scrollWithinContainer(messagesEndRef.current, "end");
+      // Align the loading indicator's own top to the container's top,
+      // same as the reading gets aligned once it lands — scrolling to
+      // the container's absolute bottom (scrollHeight) doesn't actually
+      // guarantee the indicator's own top edge is visible, particularly
+      // once other layout (like the fixed header taking space) changes
+      // how much of the container is actually visible.
+      scrollWithinContainer(loadingRef.current, "start");
+      [30, 80].forEach(delay => {
+        timers.push(setTimeout(() => scrollWithinContainer(loadingRef.current, "start"), delay));
+      });
     } else if (messages.length > 0 && messages[messages.length - 1].role === "assistant") {
       // A reading just landed — show its beginning, not its end.
       // Re-asserting a few times shortly after covers any late content
@@ -1465,7 +1499,7 @@ export default function BASTInterpreter() {
     return (
       <div style={{ height: "100vh", overflow: "hidden", background: c.bg, color: c.textPrimary, fontFamily: SERIF, display: "flex", flexDirection: "column", paddingTop: "80px" }}>
         <Header onClear={handleClearChat} />
-        <Transcript messages={messages} loading={loading} messagesEndRef={messagesEndRef} lastMessageRef={lastMessageRef} scrollContainerRef={scrollContainerRef} copyReadingText={copyReadingText} downloadReadingText={downloadReadingText} copiedIndex={copiedIndex}
+        <Transcript messages={messages} loading={loading} messagesEndRef={messagesEndRef} lastMessageRef={lastMessageRef} loadingRef={loadingRef} scrollContainerRef={scrollContainerRef} revealCtaOnScroll={true} copyReadingText={copyReadingText} downloadReadingText={downloadReadingText} copiedIndex={copiedIndex}
           ctaSlot={
             <>
               <div style={{ background: c.accentLight, border: `1px solid ${c.accentMid}`, borderRadius: "10px", padding: "0.9rem 1.1rem", marginBottom: "1rem", textAlign: "center" }}>
@@ -1488,7 +1522,7 @@ export default function BASTInterpreter() {
             </>
           }
         />
-        <style>{`* { box-sizing: border-box; overflow-anchor: none; } body { margin: 0; } textarea::placeholder { color: rgba(30,26,22,0.3); }`}</style>
+        <style>{`* { box-sizing: border-box; overflow-anchor: none; } body { margin: 0; } textarea::placeholder { color: rgba(30,26,22,0.3); } @keyframes bast-fade-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }`}</style>
       </div>
     );
   }
@@ -1503,7 +1537,7 @@ export default function BASTInterpreter() {
         <div style={{ flexShrink: 0, maxWidth: "700px", width: "100%", margin: "0 auto", padding: "0.85rem 1.5rem 0" }}>
           <Tier2ProgressBar progress={tier2Progress} />
         </div>
-        <Transcript messages={messages} loading={loading} messagesEndRef={messagesEndRef} lastMessageRef={lastMessageRef} scrollContainerRef={scrollContainerRef} copyReadingText={copyReadingText} downloadReadingText={downloadReadingText} copiedIndex={copiedIndex}
+        <Transcript messages={messages} loading={loading} messagesEndRef={messagesEndRef} lastMessageRef={lastMessageRef} loadingRef={loadingRef} scrollContainerRef={scrollContainerRef} copyReadingText={copyReadingText} downloadReadingText={downloadReadingText} copiedIndex={copiedIndex}
           ctaSlot={
             <>
               <SimpleChatInput
@@ -1533,7 +1567,7 @@ export default function BASTInterpreter() {
           <Tier2ProgressBar progress={tier2Progress} />
         </div>
       )}
-      <Transcript messages={messages} loading={loading} messagesEndRef={messagesEndRef} lastMessageRef={lastMessageRef} scrollContainerRef={scrollContainerRef} copyReadingText={copyReadingText} downloadReadingText={downloadReadingText} copiedIndex={copiedIndex}
+      <Transcript messages={messages} loading={loading} messagesEndRef={messagesEndRef} lastMessageRef={lastMessageRef} loadingRef={loadingRef} scrollContainerRef={scrollContainerRef} copyReadingText={copyReadingText} downloadReadingText={downloadReadingText} copiedIndex={copiedIndex}
         loadingLabel={step === "tier1" && loading ? "Building your Energetic Root Cause reading..." : undefined}
         ctaSlot={
           step === "chat" ? <Disclaimer /> : null
@@ -1541,6 +1575,7 @@ export default function BASTInterpreter() {
       />
       <style>{`
         @keyframes bast-pulse { 0%, 100% { opacity: 0.2; transform: scale(0.8); } 50% { opacity: 0.8; transform: scale(1); } }
+        @keyframes bast-fade-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
         textarea::placeholder { color: rgba(30,26,22,0.3); }
         * { box-sizing: border-box; overflow-anchor: none; }
         body { margin: 0; }
