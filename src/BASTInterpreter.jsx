@@ -1005,23 +1005,34 @@ export default function BASTInterpreter() {
       if (align === "end") {
         container.scrollTop = container.scrollHeight;
       } else {
-        container.scrollTop = targetEl.offsetTop;
+        // offsetTop depends on the browser's offsetParent calculation,
+        // which can be thrown off by intermediate padded or positioned
+        // ancestors — producing a small, consistent gap rather than a
+        // total failure, which is exactly the kind of thing that's easy
+        // to miss until something else (like the header layout) changes
+        // and makes it visible. Measuring the actual current gap between
+        // the two elements directly is precise regardless of DOM
+        // structure in between.
+        const containerRect = container.getBoundingClientRect();
+        const targetRect = targetEl.getBoundingClientRect();
+        container.scrollTop = container.scrollTop + (targetRect.top - containerRect.top);
       }
     };
-    let t;
+    const timers = [];
     if (loading) {
       // Still generating — keep the loading indicator in view.
       scrollWithinContainer(messagesEndRef.current, "end");
     } else if (messages.length > 0 && messages[messages.length - 1].role === "assistant") {
       // A reading just landed — show its beginning, not its end.
-      // Re-asserting once shortly after covers any late content reflow
-      // (e.g. web fonts swapping in).
+      // Re-asserting a few times shortly after covers any late content
+      // reflow (e.g. web fonts swapping in, or the reading's own height
+      // still settling for a long response).
       scrollWithinContainer(lastMessageRef.current, "start");
-      t = setTimeout(() => {
-        scrollWithinContainer(lastMessageRef.current, "start");
-      }, 60);
+      [30, 60, 120, 250, 400].forEach(delay => {
+        timers.push(setTimeout(() => scrollWithinContainer(lastMessageRef.current, "start"), delay));
+      });
     }
-    return () => { if (t) clearTimeout(t); };
+    return () => { timers.forEach(clearTimeout); };
   }, [loading, messages]);
 
   // The scroll-reset above only moves content around inside the
