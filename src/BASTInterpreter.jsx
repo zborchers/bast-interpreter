@@ -62,16 +62,19 @@ function scrollToTop(startElRef, innerRef) {
 function useScrollToTopOnMount(startElRef, innerRef) {
   useEffect(() => {
     scrollToTop(startElRef, innerRef);
-    // A handful of retries, spaced out rather than clustered right at
-    // the start — clustering them in the first 100-150ms means several
-    // DOM touches land in the exact window where a fast answer on the
-    // next question might already be mid-tap, which can itself interfere
-    // with that tap registering. Spacing them out further, with a longer
-    // tail, still catches slow layout settling (and momentum scrolling
-    // that's still finishing on some mobile browsers) without hammering
-    // the DOM during the moment someone's most likely to be interacting.
+    // The first scroll call can silently no-op on some mobile browsers
+    // (a known quirk, not specific to this app), so retries exist to
+    // correct that. They need to be dense and early to actually feel
+    // reliable — a sparse, late-starting schedule leaves the screen
+    // visibly unscrolled for a stretch that reads as "broken" even
+    // though it self-corrects eventually. (An earlier version spaced
+    // these out to avoid interfering with a fast tap on the next
+    // question, but that interference was actually caused by a
+    // document.activeElement.blur() call that's since been removed —
+    // it's safe to be dense and early again without reintroducing
+    // that.)
     const raf1 = requestAnimationFrame(() => scrollToTop(startElRef, innerRef));
-    const timers = [200, 500, 1000, 1500].map(delay => setTimeout(() => scrollToTop(startElRef, innerRef), delay));
+    const timers = [30, 60, 100, 200, 350, 500].map(delay => setTimeout(() => scrollToTop(startElRef, innerRef), delay));
 
     // Dismissing the on-screen keyboard resizes the viewport, and
     // different mobile browsers finish that resize on different
