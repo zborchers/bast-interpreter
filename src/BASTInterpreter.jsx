@@ -555,43 +555,11 @@ function SimpleChatInput({ value, onChange, onSubmit, placeholder, loading, hand
 
 // ---- READING TRANSCRIPT (also hoisted, same reason) ----
 
-function Transcript({ messages, loading, messagesEndRef, lastMessageRef, loadingRef, scrollContainerRef, ctaSlot, revealCtaOnScroll, loadingLabel, copyReadingText, downloadReadingText, copiedIndex }) {
+function Transcript({ messages, loading, messagesEndRef, lastMessageRef, loadingRef, scrollContainerRef, ctaSlot, inlineCta, loadingLabel, copyReadingText, downloadReadingText, copiedIndex }) {
   let lastRealIndex = -1;
   for (let i = messages.length - 1; i >= 0; i--) {
     if (!messages[i].hidden && !messages[i].localOnly) { lastRealIndex = i; break; }
   }
-  // When revealCtaOnScroll is set, the CTA (the "Go Deeper" prompt on the
-  // Initial Reading screen) stays hidden until the person has actually
-  // scrolled to the bottom of the reading, rather than sitting visible
-  // the whole time and inviting people to skip past what they were just
-  // told the tool built from. Not gated at all when this prop is off
-  // (Tier 2's real input, and the final chat view, need to stay usable
-  // immediately).
-  //
-  // Polling on an interval instead of relying only on a scroll event
-  // listener — attaching a listener to a ref that may not be settled
-  // yet, or a scroll event that doesn't fire the way expected on some
-  // mobile browsers, are both easy ways for this to silently never
-  // trigger. Checking the actual scroll position directly and
-  // repeatedly removes that dependency entirely.
-  const [scrolledToBottom, setScrolledToBottom] = useState(!revealCtaOnScroll);
-  useEffect(() => {
-    if (!revealCtaOnScroll) { setScrolledToBottom(true); return; }
-    setScrolledToBottom(false);
-    const check = () => {
-      const el = scrollContainerRef.current;
-      if (!el) return false;
-      const nearBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 32;
-      if (nearBottom) setScrolledToBottom(true);
-      return nearBottom;
-    };
-    if (check()) return;
-    const interval = setInterval(() => {
-      if (check()) clearInterval(interval);
-    }, 300);
-    return () => clearInterval(interval);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [revealCtaOnScroll, messages]);
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", maxWidth: "700px", width: "100%", margin: "0 auto" }}>
       <div ref={scrollContainerRef} style={{ flex: 1, overflowY: "auto", padding: "0 1.5rem" }}>
@@ -661,12 +629,13 @@ function Transcript({ messages, loading, messagesEndRef, lastMessageRef, loading
               </div>
             </div>
           )}
+          {!loading && inlineCta}
           <div ref={messagesEndRef} style={{ paddingBottom: "1rem" }} />
         </div>
       </div>
 
-      {ctaSlot && scrolledToBottom && (
-        <div style={{ flexShrink: 0, background: c.bg, borderTop: `1px solid ${c.border}`, padding: "1rem 1.5rem 1.25rem", animation: revealCtaOnScroll ? "bast-fade-in 0.35s ease" : "none" }}>
+      {ctaSlot && (
+        <div style={{ flexShrink: 0, background: c.bg, borderTop: `1px solid ${c.border}`, padding: "1rem 1.5rem 1.25rem" }}>
           {ctaSlot}
         </div>
       )}
@@ -1021,66 +990,14 @@ export default function BASTInterpreter() {
   const lastMessageRef = useRef(null);
   const scrollContainerRef = useRef(null);
 
-  useEffect(() => {
-    // Position content within the transcript's own scroll container
-    // directly, by setting its scrollTop, rather than using
-    // element.scrollIntoView() — scrollIntoView scrolls whatever the
-    // browser decides is the "necessary" scrolling ancestor, and on some
-    // mobile browsers that can end up including the window itself even
-    // when a nearer container should have absorbed it, fighting against
-    // the separate effect responsible for keeping the window pinned to
-    // the top on each step transition. Setting scrollTop on the known
-    // container directly has no such ambiguity — it can only ever move
-    // that one element, never the window.
-    const scrollWithinContainer = (targetEl, align) => {
-      const container = scrollContainerRef.current;
-      if (!container || !targetEl) return;
-      if (align === "end") {
-        container.scrollTop = container.scrollHeight;
-      } else {
-        // offsetTop depends on the browser's offsetParent calculation,
-        // which can be thrown off by intermediate padded or positioned
-        // ancestors — producing a small, consistent gap rather than a
-        // total failure, which is exactly the kind of thing that's easy
-        // to miss until something else (like the header layout) changes
-        // and makes it visible. Measuring the actual current gap between
-        // the two elements directly is precise regardless of DOM
-        // structure in between.
-        const containerRect = container.getBoundingClientRect();
-        const targetRect = targetEl.getBoundingClientRect();
-        // Landing exactly at the calculated boundary has been cutting
-        // off the first couple of lines by a small, consistent amount —
-        // rather than continue chasing pixel-perfect precision, land
-        // slightly above it on purpose so there's a bit of margin
-        // instead of butting right up against the true top.
-        const buffer = 40;
-        container.scrollTop = Math.max(0, container.scrollTop + (targetRect.top - containerRect.top) - buffer);
-      }
-    };
-    const timers = [];
-    if (loading) {
-      // Align the loading indicator's own top to the container's top,
-      // same as the reading gets aligned once it lands — scrolling to
-      // the container's absolute bottom (scrollHeight) doesn't actually
-      // guarantee the indicator's own top edge is visible, particularly
-      // once other layout (like the fixed header taking space) changes
-      // how much of the container is actually visible.
-      scrollWithinContainer(loadingRef.current, "start");
-      [30, 80].forEach(delay => {
-        timers.push(setTimeout(() => scrollWithinContainer(loadingRef.current, "start"), delay));
-      });
-    } else if (messages.length > 0 && messages[messages.length - 1].role === "assistant") {
-      // A reading just landed — show its beginning, not its end.
-      // Re-asserting a few times shortly after covers any late content
-      // reflow (e.g. web fonts swapping in, or the reading's own height
-      // still settling for a long response).
-      scrollWithinContainer(lastMessageRef.current, "start");
-      [30, 60, 120, 250, 400].forEach(delay => {
-        timers.push(setTimeout(() => scrollWithinContainer(lastMessageRef.current, "start"), delay));
-      });
-    }
-    return () => { timers.forEach(clearTimeout); };
-  }, [loading, messages]);
+  // A freshly-mounted scroll container starts at scrollTop 0 on its
+  // own — a new step means a new Transcript instance, and therefore a
+  // new DOM element for scrollContainerRef, so no JS is needed to
+  // position a landed reading or the loading indicator at the top of
+  // it. The manual scroll-correction that used to run here was trying
+  // to solve a problem that mostly didn't exist, and was itself the
+  // source of the small positioning bugs reported after each round of
+  // "fixing" it further — removed rather than tuned again.
 
   // The scroll-reset above only moves content around inside the
   // transcript's own scrolling region — it never touches the window's
@@ -1506,9 +1423,9 @@ export default function BASTInterpreter() {
     return (
       <div style={{ height: "100vh", overflow: "hidden", background: c.bg, color: c.textPrimary, fontFamily: SERIF, display: "flex", flexDirection: "column", paddingTop: "80px" }}>
         <Header onClear={handleClearChat} />
-        <Transcript messages={messages} loading={loading} messagesEndRef={messagesEndRef} lastMessageRef={lastMessageRef} loadingRef={loadingRef} scrollContainerRef={scrollContainerRef} revealCtaOnScroll={true} copyReadingText={copyReadingText} downloadReadingText={downloadReadingText} copiedIndex={copiedIndex}
-          ctaSlot={
-            <>
+        <Transcript messages={messages} loading={loading} messagesEndRef={messagesEndRef} lastMessageRef={lastMessageRef} loadingRef={loadingRef} scrollContainerRef={scrollContainerRef} copyReadingText={copyReadingText} downloadReadingText={downloadReadingText} copiedIndex={copiedIndex}
+          inlineCta={
+            <div style={{ marginTop: "0.5rem" }}>
               <div style={{ background: c.accentLight, border: `1px solid ${c.accentMid}`, borderRadius: "10px", padding: "0.9rem 1.1rem", marginBottom: "1rem", textAlign: "center" }}>
                 <div style={{ fontSize: "13.5px", color: c.textPrimary, lineHeight: 1.6, fontFamily: SERIF }}>
                   This reading was built entirely from your anatomy and sensations. The tool can go much deeper — and the more detail you're willing to share from here, the more precise it gets.
@@ -1526,10 +1443,10 @@ export default function BASTInterpreter() {
                 </button>
               </div>
               <Disclaimer />
-            </>
+            </div>
           }
         />
-        <style>{`* { box-sizing: border-box; overflow-anchor: none; } body { margin: 0; } textarea::placeholder { color: rgba(30,26,22,0.3); } @keyframes bast-fade-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }`}</style>
+        <style>{`* { box-sizing: border-box; overflow-anchor: none; } body { margin: 0; } textarea::placeholder { color: rgba(30,26,22,0.3); }`}</style>
       </div>
     );
   }
