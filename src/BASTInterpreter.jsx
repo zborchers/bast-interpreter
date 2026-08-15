@@ -1357,6 +1357,9 @@ export default function BASTInterpreter() {
         loadingLabel={step === "tier1" && loading ? "Building your Energetic Root Cause reading..." : undefined}
         ctaSlot={
           <>
+            <div style={{ textAlign: "center", fontSize: "12px", color: c.textMuted, marginBottom: "0.6rem", fontStyle: "italic", fontFamily: SERIF }}>
+              The more detail you share, the more precise this gets.
+            </div>
             <SimpleChatInput
               value={chatDraft}
               onChange={setChatDraft}
