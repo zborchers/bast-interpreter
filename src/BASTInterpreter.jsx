@@ -957,7 +957,7 @@ export default function BASTInterpreter() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         model: "claude-sonnet-5",
-        max_tokens: maxTokens || 4000,
+        max_tokens: maxTokens || 6000,
         system: SYSTEM_PROMPT,
         // Strip the local-only "display" field — the API only accepts
         // role/content on message objects. Also drop anything marked
@@ -1047,7 +1047,7 @@ export default function BASTInterpreter() {
     const newMessages = [...messages, userMsg];
     setMessages(newMessages);
     try {
-      const text = await callAPI(newMessages);
+      const text = await callAPI(newMessages, 6000);
       const withInitialReading = [...newMessages,
         { role: "assistant", content: text, isReading: true, readingLabel: "Initial Reading" },
         { role: "assistant", content: "", localOnly: true, isDonationNote: true },
@@ -1179,7 +1179,7 @@ export default function BASTInterpreter() {
     };
     const newMessages = [...priorMessages, userMsg];
     setMessages(newMessages);
-    const text = await callAPI(newMessages, 8000);
+    const text = await callAPI(newMessages, 12000);
     setMessages(prev => [...prev,
       { role: "assistant", content: text, isReading: true, readingLabel: "Root Cause Reading" },
       { role: "assistant", content: "", localOnly: true, isDonationNote: true },
@@ -1192,7 +1192,7 @@ export default function BASTInterpreter() {
     setLoading(true);
     setMessages(messagesForApi);
     try {
-      const raw = await callAPI(messagesForApi, 4000);
+      const raw = await callAPI(messagesForApi, 6000);
       const { cleaned, progress, ready } = parseTier2Status(raw);
       const withReply = [...messagesForApi, { role: "assistant", content: cleaned }];
       setMessages(withReply);
