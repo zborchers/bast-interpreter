@@ -962,6 +962,13 @@ export default function BASTInterpreter() {
   // transition, so the header — and the Clear Chat button in it — is
   // reliably visible the moment a new screen (including the Initial
   // Reading landing) appears, the same way the wizard's own screens do.
+  //
+  // This runs at the same moment as the lastMessageRef.scrollIntoView
+  // effect above, which is scoped to the transcript's own scroll area
+  // but can end up nudging the window too on some mobile browsers,
+  // landing the page partway between the two rather than fully at
+  // either. The retries here reach further out than that effect's,
+  // specifically so this one fires last and wins.
   useEffect(() => {
     const reset = () => {
       try {
@@ -972,7 +979,7 @@ export default function BASTInterpreter() {
     };
     reset();
     const raf = requestAnimationFrame(reset);
-    const timers = [50, 150, 400].map(delay => setTimeout(reset, delay));
+    const timers = [50, 150, 400, 700, 1100].map(delay => setTimeout(reset, delay));
     return () => {
       cancelAnimationFrame(raf);
       timers.forEach(clearTimeout);
