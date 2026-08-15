@@ -81,6 +81,28 @@ function scrollLabelBelowHeader(labelRef) {
   } catch {}
 }
 
+// The post-initial/tier2/chat screens don't have a per-question label to
+// anchor against the way the wizard does — but they have the header
+// itself, and "is the header actually fully visible" is exactly the
+// thing that needs to be true. Measure the header's own position
+// directly: if its top isn't at 0, the window is off by exactly that
+// amount, so correct by that precise difference instead of assuming a
+// blind scroll-to-0 landed correctly.
+function ensureHeaderVisible() {
+  try {
+    const headerEl = document.getElementById("app-header");
+    if (!headerEl) return;
+    const rect = headerEl.getBoundingClientRect();
+    if (Math.round(rect.top) !== 0) {
+      const currentScroll = window.scrollY || window.pageYOffset || document.documentElement.scrollTop || 0;
+      const target = Math.max(0, currentScroll + rect.top);
+      window.scrollTo({ top: target, left: 0, behavior: "auto" });
+      document.documentElement.scrollTop = target;
+      document.body.scrollTop = target;
+    }
+  } catch {}
+}
+
 function useScrollToTopOnMount(startElRef, innerRef, labelRef) {
   useEffect(() => {
     const runReset = () => {
@@ -1015,10 +1037,12 @@ export default function BASTInterpreter() {
   //
   // The transcript-internal scroll effect above now sets scrollTop
   // directly on its own container instead of using scrollIntoView, so
-  // it can no longer bubble up and fight this one — a short retry
-  // window covering normal layout settling is enough; it doesn't need
-  // to keep re-asserting for a full second afterward, which would just
-  // end up fighting the person's own scrolling instead.
+  // it can no longer bubble up and fight this one. Uses the same
+  // measured approach as the wizard now uses (rather than assuming
+  // scroll-to-0 is correct) and the same dense, early retry schedule —
+  // that combination is what actually fixed the equivalent issue on the
+  // question-to-question transitions, so this should get the same
+  // reliability on the Initial Reading landing and other step changes.
   useEffect(() => {
     const reset = () => {
       try {
@@ -1026,10 +1050,11 @@ export default function BASTInterpreter() {
         document.documentElement.scrollTop = 0;
         document.body.scrollTop = 0;
       } catch {}
+      ensureHeaderVisible();
     };
     reset();
     const raf = requestAnimationFrame(reset);
-    const timers = [50, 150].map(delay => setTimeout(reset, delay));
+    const timers = [30, 60, 100, 200, 350, 500].map(delay => setTimeout(reset, delay));
     return () => {
       cancelAnimationFrame(raf);
       timers.forEach(clearTimeout);
