@@ -200,7 +200,7 @@ function formatMessage(content) {
 
 function Header({ onClear }) {
   return (
-    <div id="app-header" style={{ borderBottom: `1px solid ${c.border}`, padding: "1.25rem 2rem", display: "flex", alignItems: "center", justifyContent: "space-between", background: c.bgHeader, zIndex: 10 }}>
+    <div id="app-header" style={{ position: "fixed", top: 0, left: 0, right: 0, borderBottom: `1px solid ${c.border}`, padding: "1.25rem 2rem", display: "flex", alignItems: "center", justifyContent: "space-between", background: c.bgHeader, zIndex: 50 }}>
       <div>
         <div style={{ fontSize: "10px", letterSpacing: "0.2em", textTransform: "uppercase", color: c.accent, marginBottom: "2px", fontFamily: SANS, fontWeight: 600 }}>Voltage Wellness</div>
         <div style={{ fontSize: "17px", fontWeight: 700, color: c.textPrimary, fontFamily: SANS }}>Energetic Root Cause</div>
@@ -1394,7 +1394,7 @@ export default function BASTInterpreter() {
 
   if (step === "tier1" && !loading) {
     return (
-      <div style={{ minHeight: "100vh", background: c.bg, color: c.textPrimary, fontFamily: SERIF, display: "flex", flexDirection: "column" }}>
+      <div style={{ minHeight: "100vh", background: c.bg, color: c.textPrimary, fontFamily: SERIF, display: "flex", flexDirection: "column", paddingTop: "80px" }}>
         <Header onClear={handleClearChat} />
         {t1Index === 0 && (
           <div style={{ textAlign: "center", maxWidth: "620px", margin: "1.5rem auto 0", padding: "0 1.5rem" }}>
@@ -1446,7 +1446,7 @@ export default function BASTInterpreter() {
 
   if (step === "post-initial" && !loading) {
     return (
-      <div style={{ height: "100vh", overflow: "hidden", background: c.bg, color: c.textPrimary, fontFamily: SERIF, display: "flex", flexDirection: "column" }}>
+      <div style={{ height: "100vh", overflow: "hidden", background: c.bg, color: c.textPrimary, fontFamily: SERIF, display: "flex", flexDirection: "column", paddingTop: "80px" }}>
         <Header onClear={handleClearChat} />
         <Transcript messages={messages} loading={loading} messagesEndRef={messagesEndRef} lastMessageRef={lastMessageRef} scrollContainerRef={scrollContainerRef} copyReadingText={copyReadingText} downloadReadingText={downloadReadingText} copiedIndex={copiedIndex}
           ctaSlot={
@@ -1481,7 +1481,7 @@ export default function BASTInterpreter() {
 
   if (step === "tier2" && !loading) {
     return (
-      <div style={{ height: "100vh", overflow: "hidden", background: c.bg, color: c.textPrimary, fontFamily: SERIF, display: "flex", flexDirection: "column" }}>
+      <div style={{ height: "100vh", overflow: "hidden", background: c.bg, color: c.textPrimary, fontFamily: SERIF, display: "flex", flexDirection: "column", paddingTop: "80px" }}>
         <Header onClear={handleClearChat} />
         <div style={{ flexShrink: 0, maxWidth: "700px", width: "100%", margin: "0 auto", padding: "0.85rem 1.5rem 0" }}>
           <Tier2ProgressBar progress={tier2Progress} />
@@ -1509,7 +1509,7 @@ export default function BASTInterpreter() {
   // ---- RENDER: CHAT (post Root Cause Reading, or mid-request loading state) ----
 
   return (
-    <div style={{ height: "100vh", overflow: "hidden", background: c.bg, color: c.textPrimary, fontFamily: SERIF, display: "flex", flexDirection: "column" }}>
+    <div style={{ height: "100vh", overflow: "hidden", background: c.bg, color: c.textPrimary, fontFamily: SERIF, display: "flex", flexDirection: "column", paddingTop: "80px" }}>
       <Header onClear={handleClearChat} />
       {step === "tier2" && (
         <div style={{ flexShrink: 0, maxWidth: "700px", width: "100%", margin: "0 auto", padding: "0.85rem 1.5rem 0" }}>
