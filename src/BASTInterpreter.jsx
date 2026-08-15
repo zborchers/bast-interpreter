@@ -1015,7 +1015,10 @@ export default function BASTInterpreter() {
         // structure in between.
         const containerRect = container.getBoundingClientRect();
         const targetRect = targetEl.getBoundingClientRect();
-        container.scrollTop = container.scrollTop + (targetRect.top - containerRect.top);
+        // A small buffer so this lands slightly above the exact
+        // calculated boundary rather than butting right up against it.
+        const buffer = 12;
+        container.scrollTop = Math.max(0, container.scrollTop + (targetRect.top - containerRect.top) - buffer);
       }
     };
     const timers = [];
@@ -1024,11 +1027,15 @@ export default function BASTInterpreter() {
       scrollWithinContainer(messagesEndRef.current, "end");
     } else if (messages.length > 0 && messages[messages.length - 1].role === "assistant") {
       // A reading just landed — show its beginning, not its end.
-      // Re-asserting a few times shortly after covers any late content
-      // reflow (e.g. web fonts swapping in, or the reading's own height
-      // still settling for a long response).
+      // Re-asserting several times shortly after covers any late content
+      // reflow (web fonts swapping in, a long response's height still
+      // settling) — and this needs to cover more ground specifically
+      // when this transition also involves a full screen change (like
+      // "Go Deeper" moving from the post-initial screen into Tier 2),
+      // since a fresh screen mount settles its layout more slowly than
+      // a new message landing within an already-stable screen.
       scrollWithinContainer(lastMessageRef.current, "start");
-      [30, 60, 120, 250, 400].forEach(delay => {
+      [30, 60, 120, 250, 400, 650, 900].forEach(delay => {
         timers.push(setTimeout(() => scrollWithinContainer(lastMessageRef.current, "start"), delay));
       });
     }
