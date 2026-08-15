@@ -1005,41 +1005,23 @@ export default function BASTInterpreter() {
       if (align === "end") {
         container.scrollTop = container.scrollHeight;
       } else {
-        // offsetTop depends on the browser's offsetParent calculation,
-        // which can be thrown off by intermediate padded or positioned
-        // ancestors — producing a small, consistent gap rather than a
-        // total failure, which is exactly the kind of thing that's easy
-        // to miss until something else (like the header layout) changes
-        // and makes it visible. Measuring the actual current gap between
-        // the two elements directly is precise regardless of DOM
-        // structure in between.
-        const containerRect = container.getBoundingClientRect();
-        const targetRect = targetEl.getBoundingClientRect();
-        // A small buffer so this lands slightly above the exact
-        // calculated boundary rather than butting right up against it.
-        const buffer = 12;
-        container.scrollTop = Math.max(0, container.scrollTop + (targetRect.top - containerRect.top) - buffer);
+        container.scrollTop = targetEl.offsetTop;
       }
     };
-    const timers = [];
+    let t;
     if (loading) {
       // Still generating — keep the loading indicator in view.
       scrollWithinContainer(messagesEndRef.current, "end");
     } else if (messages.length > 0 && messages[messages.length - 1].role === "assistant") {
       // A reading just landed — show its beginning, not its end.
-      // Re-asserting several times shortly after covers any late content
-      // reflow (web fonts swapping in, a long response's height still
-      // settling) — and this needs to cover more ground specifically
-      // when this transition also involves a full screen change (like
-      // "Go Deeper" moving from the post-initial screen into Tier 2),
-      // since a fresh screen mount settles its layout more slowly than
-      // a new message landing within an already-stable screen.
+      // Re-asserting once shortly after covers any late content reflow
+      // (e.g. web fonts swapping in).
       scrollWithinContainer(lastMessageRef.current, "start");
-      [30, 60, 120, 250, 400, 650, 900].forEach(delay => {
-        timers.push(setTimeout(() => scrollWithinContainer(lastMessageRef.current, "start"), delay));
-      });
+      t = setTimeout(() => {
+        scrollWithinContainer(lastMessageRef.current, "start");
+      }, 60);
     }
-    return () => { timers.forEach(clearTimeout); };
+    return () => { if (t) clearTimeout(t); };
   }, [loading, messages]);
 
   // The scroll-reset above only moves content around inside the
