@@ -991,14 +991,48 @@ export default function BASTInterpreter() {
   const lastMessageRef = useRef(null);
   const scrollContainerRef = useRef(null);
 
-  // A freshly-mounted scroll container starts at scrollTop 0 on its
-  // own — a new step means a new Transcript instance, and therefore a
-  // new DOM element for scrollContainerRef, so no JS is needed to
-  // position a landed reading or the loading indicator at the top of
-  // it. The manual scroll-correction that used to run here was trying
-  // to solve a problem that mostly didn't exist, and was itself the
-  // source of the small positioning bugs reported after each round of
-  // "fixing" it further — removed rather than tuned again.
+  // This was removed entirely in a previous pass on the theory that a
+  // freshly-mounted scroll container starts at scrollTop 0 on its own,
+  // so no JS correction should be needed. That's true for a genuinely
+  // fresh mount (a new step, a new Transcript instance) — but it's
+  // false for messages appended to an ALREADY-mounted container, which
+  // is exactly what happens when the chakra button, the free-text
+  // reply, or a Tier 2 turn adds a new message: the same scroll
+  // container persists, already scrolled wherever the person left it,
+  // and nothing repositions it toward the new content that just
+  // landed below the fold. That gap was the actual bug behind the
+  // chakra button landing mid-message instead of at its top.
+  //
+  // Reinstated using precise measurement (not offsetTop, which can be
+  // thrown off by intermediate padded/positioned ancestors, and not
+  // scrollIntoView, which can bubble up and fight the window-level
+  // reset below) — and applied on every change rather than only on
+  // mount, since it's a safe no-op on an already-correct fresh
+  // container and a real correction on an already-scrolled one.
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+    const align = (targetEl) => {
+      if (!targetEl) return;
+      const containerRect = container.getBoundingClientRect();
+      const targetRect = targetEl.getBoundingClientRect();
+      container.scrollTop = Math.max(0, container.scrollTop + (targetRect.top - containerRect.top) - 12);
+    };
+    const run = () => {
+      if (loading) {
+        align(loadingRef.current);
+      } else if (messages.length > 0 && messages[messages.length - 1].role === "assistant") {
+        align(lastMessageRef.current);
+      }
+    };
+    run();
+    const raf = requestAnimationFrame(run);
+    const timers = [30, 80, 180, 350].map(delay => setTimeout(run, delay));
+    return () => {
+      cancelAnimationFrame(raf);
+      timers.forEach(clearTimeout);
+    };
+  }, [loading, messages]);
 
   // The scroll-reset above only moves content around inside the
   // transcript's own scrolling region — it never touches the window's
@@ -1470,7 +1504,37 @@ export default function BASTInterpreter() {
     );
   }
 
-  // ---- RENDER: POST-INITIAL (Initial Reading shown, waiting for the
+  // ---- RENDER: BUILDING THE INITIAL READING ----
+  // Its own dedicated screen, deliberately not sharing any machinery
+  // with Transcript's scrollable message area. There's nothing else to
+  // preserve on screen at this point (no reading yet, no conversation),
+  // so rather than depend on a scroll container being correctly
+  // positioned — the exact thing that's been unreliable across many
+  // rounds of fixes — this just centers the loading content directly in
+  // the remaining viewport space using plain flexbox, with normal page
+  // flow (not a fixed-height, overflow-hidden shell). There's no scroll
+  // position for this content's visibility to depend on getting right.
+
+  if (step === "tier1" && loading) {
+    return (
+      <div style={{ minHeight: "100vh", background: c.bg, color: c.textPrimary, fontFamily: SERIF, display: "flex", flexDirection: "column", paddingTop: "80px" }}>
+        <Header onClear={handleClearChat} />
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "2rem 1.5rem" }}>
+          <div style={{ width: "34px", height: "34px", borderRadius: "50%", background: c.accentLight, border: `1px solid ${c.borderMid}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "13px", color: c.accent, marginBottom: "1.4rem" }}>&#10022;</div>
+          <div style={{ fontSize: "15px", color: c.textSecondary, fontFamily: SANS, marginBottom: "1.1rem", textAlign: "center" }}>
+            Building your Energetic Root Cause reading...
+          </div>
+          <div style={{ display: "flex", gap: "6px" }}>
+            {[0, 1, 2].map(i => (
+              <div key={i} style={{ width: "7px", height: "7px", borderRadius: "50%", background: c.accent, animation: `bast-pulse 1.2s ease-in-out ${i * 0.2}s infinite`, opacity: 0.45 }} />
+            ))}
+          </div>
+        </div>
+        <style>{`* { box-sizing: border-box; overflow-anchor: none; } body { margin: 0; } @keyframes bast-pulse { 0%, 100% { opacity: 0.2; transform: scale(0.8); } 50% { opacity: 0.8; transform: scale(1); } }`}</style>
+      </div>
+    );
+  }
+
   // person to consciously continue into the deeper conversation) ----
 
   if (step === "post-initial" && !loading) {
@@ -1511,7 +1575,7 @@ export default function BASTInterpreter() {
                 <div style={{ display: "flex", justifyContent: "center" }}>
                   <button
                     onClick={beginChakraEducation}
-                    style={{ background: "transparent", border: `1.5px solid ${c.accent}`, borderRadius: "6px", padding: "10px 20px", fontSize: "13.5px", color: c.accent, cursor: "pointer", fontFamily: SANS, fontWeight: 700, letterSpacing: "0.04em" }}
+                    style={{ background: c.accent, border: "none", borderRadius: "6px", padding: "10px 20px", fontSize: "13.5px", color: "#fff", cursor: "pointer", fontFamily: SANS, fontWeight: 700, letterSpacing: "0.04em" }}
                   >
                     Learn About the Chakra System &rarr;
                   </button>
@@ -1582,7 +1646,7 @@ export default function BASTInterpreter() {
         </div>
       )}
       <Transcript messages={messages} loading={loading} messagesEndRef={messagesEndRef} lastMessageRef={lastMessageRef} loadingRef={loadingRef} scrollContainerRef={scrollContainerRef} copyReadingText={copyReadingText} downloadReadingText={downloadReadingText} copiedIndex={copiedIndex}
-        loadingLabel={step === "tier1" && loading ? "Building your Energetic Root Cause reading..." : undefined}
+        loadingLabel={undefined}
         ctaSlot={
           step === "chat" ? <Disclaimer /> : null
         }
