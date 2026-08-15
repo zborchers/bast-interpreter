@@ -155,44 +155,7 @@ function useScrollToTopOnMount(startElRef, innerRef, labelRef) {
 }
 
 function formatMessage(content) {
-  // A per-turn conversational question, tagged by the model so it can be
-  // visually set apart from the surrounding reflection.
-  const qMatch = content.match(/\[\[Q\]\]([\s\S]*?)\[\[\/Q\]\]/i);
-  const mainText = qMatch ? content.replace(qMatch[0], "").trim() : content;
-  const questionText = qMatch ? qMatch[1].trim() : null;
-
-  const parts = mainText.split(/(Guiding Question[:\s]*)/i);
-  if (parts.length > 1) {
-    return (
-      <>
-        <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.82 }}>{parts[0]}</div>
-        <div style={{ marginTop: "1.5rem", padding: "1rem 1.25rem", background: "rgba(193,127,58,0.08)", borderLeft: "3px solid #c17f3a", borderRadius: "0 8px 8px 0" }}>
-          <div style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.15em", textTransform: "uppercase", color: "#c17f3a", marginBottom: "0.4rem", fontFamily: SANS }}>
-            Guiding Question
-          </div>
-          <div style={{ fontSize: "18px", fontStyle: "italic", lineHeight: 1.75, color: "#1e1a16", fontFamily: SERIF }}>
-            {parts.slice(2).join("").trim()}
-          </div>
-        </div>
-      </>
-    );
-  }
-
-  return (
-    <>
-      <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.82 }}>{mainText}</div>
-      {questionText && (
-        <div style={{ marginTop: "1.25rem", padding: "0.9rem 1.1rem", background: c.accentLight, borderLeft: `3px solid ${c.accent}`, borderRadius: "0 8px 8px 0" }}>
-          <div style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.15em", textTransform: "uppercase", color: c.accent, marginBottom: "0.35rem", fontFamily: SANS }}>
-            Question
-          </div>
-          <div style={{ fontSize: "17px", lineHeight: 1.65, color: c.textPrimary, fontFamily: SERIF }}>
-            {questionText}
-          </div>
-        </div>
-      )}
-    </>
-  );
+  return <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.82 }}>{content}</div>;
 }
 
 // ---- SHARED HEADER (hoisted to module scope so it isn't recreated, and
