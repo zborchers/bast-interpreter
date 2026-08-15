@@ -502,14 +502,14 @@ function SimpleChatInput({ value, onChange, onSubmit, placeholder, loading, hand
 
 // ---- READING TRANSCRIPT (also hoisted, same reason) ----
 
-function Transcript({ messages, loading, messagesEndRef, lastMessageRef, ctaSlot, loadingLabel, copyReadingText, downloadReadingText, copiedIndex }) {
+function Transcript({ messages, loading, messagesEndRef, lastMessageRef, scrollContainerRef, ctaSlot, loadingLabel, copyReadingText, downloadReadingText, copiedIndex }) {
   let lastRealIndex = -1;
   for (let i = messages.length - 1; i >= 0; i--) {
     if (!messages[i].hidden && !messages[i].localOnly) { lastRealIndex = i; break; }
   }
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", maxWidth: "700px", width: "100%", margin: "0 auto" }}>
-      <div style={{ flex: 1, overflowY: "auto", padding: "0 1.5rem" }}>
+      <div ref={scrollContainerRef} style={{ flex: 1, overflowY: "auto", padding: "0 1.5rem" }}>
         <div style={{ paddingTop: "2rem" }}>
           {messages.map((msg, i) => msg.hidden ? null : (
             <div
@@ -933,20 +933,39 @@ export default function BASTInterpreter() {
 
   const messagesEndRef = useRef(null);
   const lastMessageRef = useRef(null);
+  const scrollContainerRef = useRef(null);
 
   useEffect(() => {
+    // Position content within the transcript's own scroll container
+    // directly, by setting its scrollTop, rather than using
+    // element.scrollIntoView() — scrollIntoView scrolls whatever the
+    // browser decides is the "necessary" scrolling ancestor, and on some
+    // mobile browsers that can end up including the window itself even
+    // when a nearer container should have absorbed it, fighting against
+    // the separate effect responsible for keeping the window pinned to
+    // the top on each step transition. Setting scrollTop on the known
+    // container directly has no such ambiguity — it can only ever move
+    // that one element, never the window.
+    const scrollWithinContainer = (targetEl, align) => {
+      const container = scrollContainerRef.current;
+      if (!container || !targetEl) return;
+      if (align === "end") {
+        container.scrollTop = container.scrollHeight;
+      } else {
+        container.scrollTop = targetEl.offsetTop;
+      }
+    };
     let t;
     if (loading) {
       // Still generating — keep the loading indicator in view.
-      messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
+      scrollWithinContainer(messagesEndRef.current, "end");
     } else if (messages.length > 0 && messages[messages.length - 1].role === "assistant") {
-      // A reading just landed — show its beginning, not its end. Using
-      // "auto" instead of "smooth" since smooth-scroll can get silently
-      // interrupted on some mobile browsers; re-asserting once shortly
-      // after covers any late content reflow (e.g. web fonts swapping in).
-      lastMessageRef.current?.scrollIntoView({ behavior: "auto", block: "start" });
+      // A reading just landed — show its beginning, not its end.
+      // Re-asserting once shortly after covers any late content reflow
+      // (e.g. web fonts swapping in).
+      scrollWithinContainer(lastMessageRef.current, "start");
       t = setTimeout(() => {
-        lastMessageRef.current?.scrollIntoView({ behavior: "auto", block: "start" });
+        scrollWithinContainer(lastMessageRef.current, "start");
       }, 60);
     }
     return () => { if (t) clearTimeout(t); };
@@ -962,6 +981,13 @@ export default function BASTInterpreter() {
   // transition, so the header — and the Clear Chat button in it — is
   // reliably visible the moment a new screen (including the Initial
   // Reading landing) appears, the same way the wizard's own screens do.
+  //
+  // The transcript-internal scroll effect above now sets scrollTop
+  // directly on its own container instead of using scrollIntoView, so
+  // it can no longer bubble up and fight this one — a short retry
+  // window covering normal layout settling is enough; it doesn't need
+  // to keep re-asserting for a full second afterward, which would just
+  // end up fighting the person's own scrolling instead.
   useEffect(() => {
     const reset = () => {
       try {
@@ -972,7 +998,7 @@ export default function BASTInterpreter() {
     };
     reset();
     const raf = requestAnimationFrame(reset);
-    const timers = [50, 150, 400].map(delay => setTimeout(reset, delay));
+    const timers = [50, 150].map(delay => setTimeout(reset, delay));
     return () => {
       cancelAnimationFrame(raf);
       timers.forEach(clearTimeout);
@@ -1366,7 +1392,7 @@ export default function BASTInterpreter() {
     return (
       <div style={{ height: "100vh", overflow: "hidden", background: c.bg, color: c.textPrimary, fontFamily: SERIF, display: "flex", flexDirection: "column" }}>
         <Header onClear={handleClearChat} />
-        <Transcript messages={messages} loading={loading} messagesEndRef={messagesEndRef} lastMessageRef={lastMessageRef} copyReadingText={copyReadingText} downloadReadingText={downloadReadingText} copiedIndex={copiedIndex}
+        <Transcript messages={messages} loading={loading} messagesEndRef={messagesEndRef} lastMessageRef={lastMessageRef} scrollContainerRef={scrollContainerRef} copyReadingText={copyReadingText} downloadReadingText={downloadReadingText} copiedIndex={copiedIndex}
           ctaSlot={
             <>
               <div style={{ background: c.accentLight, border: `1px solid ${c.accentMid}`, borderRadius: "10px", padding: "0.9rem 1.1rem", marginBottom: "1rem", textAlign: "center" }}>
@@ -1404,7 +1430,7 @@ export default function BASTInterpreter() {
         <div style={{ flexShrink: 0, maxWidth: "700px", width: "100%", margin: "0 auto", padding: "0.85rem 1.5rem 0" }}>
           <Tier2ProgressBar progress={tier2Progress} />
         </div>
-        <Transcript messages={messages} loading={loading} messagesEndRef={messagesEndRef} lastMessageRef={lastMessageRef} copyReadingText={copyReadingText} downloadReadingText={downloadReadingText} copiedIndex={copiedIndex}
+        <Transcript messages={messages} loading={loading} messagesEndRef={messagesEndRef} lastMessageRef={lastMessageRef} scrollContainerRef={scrollContainerRef} copyReadingText={copyReadingText} downloadReadingText={downloadReadingText} copiedIndex={copiedIndex}
           ctaSlot={
             <>
               <SimpleChatInput
@@ -1434,7 +1460,7 @@ export default function BASTInterpreter() {
           <Tier2ProgressBar progress={tier2Progress} />
         </div>
       )}
-      <Transcript messages={messages} loading={loading} messagesEndRef={messagesEndRef} lastMessageRef={lastMessageRef} copyReadingText={copyReadingText} downloadReadingText={downloadReadingText} copiedIndex={copiedIndex}
+      <Transcript messages={messages} loading={loading} messagesEndRef={messagesEndRef} lastMessageRef={lastMessageRef} scrollContainerRef={scrollContainerRef} copyReadingText={copyReadingText} downloadReadingText={downloadReadingText} copiedIndex={copiedIndex}
         loadingLabel={step === "tier1" && loading ? "Building your Energetic Root Cause reading..." : undefined}
         ctaSlot={
           step === "chat" ? <Disclaimer /> : null
