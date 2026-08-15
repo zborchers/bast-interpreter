@@ -555,7 +555,7 @@ function SimpleChatInput({ value, onChange, onSubmit, placeholder, loading, hand
 
 // ---- READING TRANSCRIPT (also hoisted, same reason) ----
 
-function Transcript({ messages, loading, messagesEndRef, lastMessageRef, loadingRef, scrollContainerRef, ctaSlot, inlineCta, loadingLabel, copyReadingText, downloadReadingText, copiedIndex }) {
+function Transcript({ messages, loading, messagesEndRef, lastMessageRef, scrollContainerRef, ctaSlot, loadingLabel, copyReadingText, downloadReadingText, copiedIndex }) {
   let lastRealIndex = -1;
   for (let i = messages.length - 1; i >= 0; i--) {
     if (!messages[i].hidden && !messages[i].localOnly) { lastRealIndex = i; break; }
@@ -615,7 +615,7 @@ function Transcript({ messages, loading, messagesEndRef, lastMessageRef, loading
           ))}
 
           {loading && (
-            <div ref={loadingRef} style={{ display: "flex", gap: "12px", alignItems: "flex-start", marginBottom: "2rem" }}>
+            <div style={{ display: "flex", gap: "12px", alignItems: "flex-start", marginBottom: "2rem" }}>
               <div style={{ width: "28px", height: "28px", borderRadius: "50%", background: c.accentLight, border: `1px solid ${c.borderMid}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", color: c.accent, flexShrink: 0 }}>&#10022;</div>
               <div style={{ paddingTop: "6px" }}>
                 {loadingLabel && (
@@ -629,7 +629,6 @@ function Transcript({ messages, loading, messagesEndRef, lastMessageRef, loading
               </div>
             </div>
           )}
-          {!loading && inlineCta}
           <div ref={messagesEndRef} style={{ paddingBottom: "1rem" }} />
         </div>
       </div>
@@ -984,54 +983,56 @@ export default function BASTInterpreter() {
   const [tier2Progress, setTier2Progress] = useState(0);
   const [tier2Turn, setTier2Turn] = useState(0);
   const [textDraft, setTextDraft] = useState("");
-  const [postInitialDraft, setPostInitialDraft] = useState("");
 
   const messagesEndRef = useRef(null);
-  const loadingRef = useRef(null);
   const lastMessageRef = useRef(null);
   const scrollContainerRef = useRef(null);
 
-  // This was removed entirely in a previous pass on the theory that a
-  // freshly-mounted scroll container starts at scrollTop 0 on its own,
-  // so no JS correction should be needed. That's true for a genuinely
-  // fresh mount (a new step, a new Transcript instance) — but it's
-  // false for messages appended to an ALREADY-mounted container, which
-  // is exactly what happens when the chakra button, the free-text
-  // reply, or a Tier 2 turn adds a new message: the same scroll
-  // container persists, already scrolled wherever the person left it,
-  // and nothing repositions it toward the new content that just
-  // landed below the fold. That gap was the actual bug behind the
-  // chakra button landing mid-message instead of at its top.
-  //
-  // Reinstated using precise measurement (not offsetTop, which can be
-  // thrown off by intermediate padded/positioned ancestors, and not
-  // scrollIntoView, which can bubble up and fight the window-level
-  // reset below) — and applied on every change rather than only on
-  // mount, since it's a safe no-op on an already-correct fresh
-  // container and a real correction on an already-scrolled one.
   useEffect(() => {
-    const container = scrollContainerRef.current;
-    if (!container) return;
-    const align = (targetEl) => {
-      if (!targetEl) return;
-      const containerRect = container.getBoundingClientRect();
-      const targetRect = targetEl.getBoundingClientRect();
-      container.scrollTop = Math.max(0, container.scrollTop + (targetRect.top - containerRect.top) - 12);
-    };
-    const run = () => {
-      if (loading) {
-        align(loadingRef.current);
-      } else if (messages.length > 0 && messages[messages.length - 1].role === "assistant") {
-        align(lastMessageRef.current);
+    // Position content within the transcript's own scroll container
+    // directly, by setting its scrollTop, rather than using
+    // element.scrollIntoView() — scrollIntoView scrolls whatever the
+    // browser decides is the "necessary" scrolling ancestor, and on some
+    // mobile browsers that can end up including the window itself even
+    // when a nearer container should have absorbed it, fighting against
+    // the separate effect responsible for keeping the window pinned to
+    // the top on each step transition. Setting scrollTop on the known
+    // container directly has no such ambiguity — it can only ever move
+    // that one element, never the window.
+    const scrollWithinContainer = (targetEl, align) => {
+      const container = scrollContainerRef.current;
+      if (!container || !targetEl) return;
+      if (align === "end") {
+        container.scrollTop = container.scrollHeight;
+      } else {
+        // offsetTop depends on the browser's offsetParent calculation,
+        // which can be thrown off by intermediate padded or positioned
+        // ancestors — producing a small, consistent gap rather than a
+        // total failure, which is exactly the kind of thing that's easy
+        // to miss until something else (like the header layout) changes
+        // and makes it visible. Measuring the actual current gap between
+        // the two elements directly is precise regardless of DOM
+        // structure in between.
+        const containerRect = container.getBoundingClientRect();
+        const targetRect = targetEl.getBoundingClientRect();
+        container.scrollTop = container.scrollTop + (targetRect.top - containerRect.top);
       }
     };
-    run();
-    const raf = requestAnimationFrame(run);
-    const timers = [30, 80, 180, 350].map(delay => setTimeout(run, delay));
-    return () => {
-      cancelAnimationFrame(raf);
-      timers.forEach(clearTimeout);
-    };
+    const timers = [];
+    if (loading) {
+      // Still generating — keep the loading indicator in view.
+      scrollWithinContainer(messagesEndRef.current, "end");
+    } else if (messages.length > 0 && messages[messages.length - 1].role === "assistant") {
+      // A reading just landed — show its beginning, not its end.
+      // Re-asserting a few times shortly after covers any late content
+      // reflow (e.g. web fonts swapping in, or the reading's own height
+      // still settling for a long response).
+      scrollWithinContainer(lastMessageRef.current, "start");
+      [30, 60, 120, 250, 400].forEach(delay => {
+        timers.push(setTimeout(() => scrollWithinContainer(lastMessageRef.current, "start"), delay));
+      });
+    }
+    return () => { timers.forEach(clearTimeout); };
   }, [loading, messages]);
 
   // The scroll-reset above only moves content around inside the
@@ -1069,7 +1070,7 @@ export default function BASTInterpreter() {
       cancelAnimationFrame(raf);
       timers.forEach(clearTimeout);
     };
-  }, [step, messages.length, loading]);
+  }, [step, messages.length]);
 
   const [copiedIndex, setCopiedIndex] = useState(null);
 
@@ -1218,59 +1219,6 @@ export default function BASTInterpreter() {
       hidden: true,
     };
     advanceTier2Conversation([...messages, kickoffMsg]);
-  };
-
-  // A genuine reply box on the Initial Reading screen — separate from
-  // the "Go Deeper" button, which starts the full, structured Tier 2
-  // deepening flow. This exists because the reading itself can end with
-  // a direct question to the person (the chakra-education invitation,
-  // for instance — "just let me know" — or any other follow-up), and
-  // there was previously no way to actually answer it without committing
-  // to the whole Tier 2 process. This just continues the conversation
-  // naturally and shows the reply inline, with no status markers or
-  // progress tracking involved.
-  const submitPostInitialReply = async () => {
-    const trimmed = postInitialDraft.trim();
-    if (!trimmed || loading) return;
-    const userMsg = { role: "user", content: trimmed };
-    const newMessages = [...messages, userMsg];
-    setPostInitialDraft("");
-    setMessages(newMessages);
-    setLoading(true);
-    try {
-      const text = await callAPI(newMessages, 4000);
-      setMessages(prev => [...prev, { role: "assistant", content: text }]);
-    } catch {
-      setMessages(prev => [...prev, { role: "assistant", content: "There was a connection error. Please try again." }]);
-    }
-    setLoading(false);
-  };
-
-  // The second explicit path: learning the framework itself — the
-  // chakra system and the awakening process it maps onto — rather than
-  // going deeper into this specific reading. The system prompt already
-  // has this content fully written out (the "chakra system and energetic
-  // awakening" teaching), normally triggered by the person typing
-  // something like "yes" after the reading's own invitation. This
-  // triggers the same behavior directly, so it's a real button instead
-  // of something only reachable by guessing the right thing to type.
-  const beginChakraEducation = async () => {
-    if (loading) return;
-    const kickoffMsg = {
-      role: "user",
-      content: "The person wants to learn more about how the chakra system works and its role in the energetic awakening process. Teach them this now, following the chakra system and energetic awakening content in full.",
-      hidden: true,
-    };
-    const newMessages = [...messages, kickoffMsg];
-    setMessages(newMessages);
-    setLoading(true);
-    try {
-      const text = await callAPI(newMessages, 6000);
-      setMessages(prev => [...prev, { role: "assistant", content: text }]);
-    } catch {
-      setMessages(prev => [...prev, { role: "assistant", content: "There was a connection error. Please try again." }]);
-    }
-    setLoading(false);
   };
 
   const advanceT1 = (latestAnswers, questionsList) => {
@@ -1504,100 +1452,34 @@ export default function BASTInterpreter() {
     );
   }
 
-  // ---- RENDER: BUILDING THE INITIAL READING ----
-  // Its own dedicated screen, deliberately not sharing any machinery
-  // with Transcript's scrollable message area. There's nothing else to
-  // preserve on screen at this point (no reading yet, no conversation),
-  // so rather than depend on a scroll container being correctly
-  // positioned — the exact thing that's been unreliable across many
-  // rounds of fixes — this just centers the loading content directly in
-  // the remaining viewport space using plain flexbox, with normal page
-  // flow (not a fixed-height, overflow-hidden shell). There's no scroll
-  // position for this content's visibility to depend on getting right.
-
-  if (step === "tier1" && loading) {
-    return (
-      <div style={{ minHeight: "100vh", background: c.bg, color: c.textPrimary, fontFamily: SERIF, display: "flex", flexDirection: "column", paddingTop: "80px" }}>
-        <Header onClear={handleClearChat} />
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "2rem 1.5rem" }}>
-          <div style={{ width: "34px", height: "34px", borderRadius: "50%", background: c.accentLight, border: `1px solid ${c.borderMid}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "13px", color: c.accent, marginBottom: "1.4rem" }}>&#10022;</div>
-          <div style={{ fontSize: "15px", color: c.textSecondary, fontFamily: SANS, marginBottom: "1.1rem", textAlign: "center" }}>
-            Building your Energetic Root Cause reading...
-          </div>
-          <div style={{ display: "flex", gap: "6px" }}>
-            {[0, 1, 2].map(i => (
-              <div key={i} style={{ width: "7px", height: "7px", borderRadius: "50%", background: c.accent, animation: `bast-pulse 1.2s ease-in-out ${i * 0.2}s infinite`, opacity: 0.45 }} />
-            ))}
-          </div>
-        </div>
-        <style>{`* { box-sizing: border-box; overflow-anchor: none; } body { margin: 0; } @keyframes bast-pulse { 0%, 100% { opacity: 0.2; transform: scale(0.8); } 50% { opacity: 0.8; transform: scale(1); } }`}</style>
-      </div>
-    );
-  }
-
+  // ---- RENDER: POST-INITIAL (Initial Reading shown, waiting for the
   // person to consciously continue into the deeper conversation) ----
 
   if (step === "post-initial" && !loading) {
     return (
       <div style={{ height: "100vh", overflow: "hidden", background: c.bg, color: c.textPrimary, fontFamily: SERIF, display: "flex", flexDirection: "column", paddingTop: "80px" }}>
         <Header onClear={handleClearChat} />
-        <Transcript messages={messages} loading={loading} messagesEndRef={messagesEndRef} lastMessageRef={lastMessageRef} loadingRef={loadingRef} scrollContainerRef={scrollContainerRef} copyReadingText={copyReadingText} downloadReadingText={downloadReadingText} copiedIndex={copiedIndex}
-          inlineCta={
-            <div style={{ marginTop: "0.5rem" }}>
-              <div style={{ fontSize: "13px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: c.accent, marginBottom: "0.75rem", textAlign: "center" }}>
-                Two ways to go from here
-              </div>
-
-              <div style={{ background: c.accentLight, border: `1px solid ${c.accentMid}`, borderRadius: "10px", padding: "0.85rem 1rem", marginBottom: "0.7rem" }}>
-                <div style={{ fontSize: "14.5px", fontWeight: 700, color: c.textPrimary, marginBottom: "0.3rem", fontFamily: SANS }}>
-                  Go deeper into your reading
-                </div>
-                <div style={{ fontSize: "13px", color: c.textSecondary, lineHeight: 1.55, fontFamily: SERIF, marginBottom: "0.7rem" }}>
-                  Answer a few more questions and the tool will trace this specific pattern further — the more you share, the more precise it gets.
-                </div>
-                <div style={{ display: "flex", justifyContent: "center" }}>
-                  <button
-                    onClick={beginTier2}
-                    style={{ background: c.accent, border: "none", borderRadius: "6px", padding: "10px 20px", fontSize: "13.5px", color: "#fff", cursor: "pointer", fontFamily: SANS, fontWeight: 700, letterSpacing: "0.04em" }}
-                  >
-                    Go Deeper: Get My Root Cause Reading &rarr;
-                  </button>
+        <Transcript messages={messages} loading={loading} messagesEndRef={messagesEndRef} lastMessageRef={lastMessageRef} scrollContainerRef={scrollContainerRef} copyReadingText={copyReadingText} downloadReadingText={downloadReadingText} copiedIndex={copiedIndex}
+          ctaSlot={
+            <>
+              <div style={{ background: c.accentLight, border: `1px solid ${c.accentMid}`, borderRadius: "10px", padding: "0.9rem 1.1rem", marginBottom: "1rem", textAlign: "center" }}>
+                <div style={{ fontSize: "13.5px", color: c.textPrimary, lineHeight: 1.6, fontFamily: SERIF }}>
+                  This reading was built entirely from your anatomy and sensations. The tool can go much deeper — and the more detail you're willing to share from here, the more precise it gets.
                 </div>
               </div>
-
-              <div style={{ background: c.bgInput, border: `1px solid ${c.borderMid}`, borderRadius: "10px", padding: "0.85rem 1rem", marginBottom: "1.2rem" }}>
-                <div style={{ fontSize: "14.5px", fontWeight: 700, color: c.textPrimary, marginBottom: "0.3rem", fontFamily: SANS }}>
-                  Learn how your body actually works
-                </div>
-                <div style={{ fontSize: "13px", color: c.textSecondary, lineHeight: 1.55, fontFamily: SERIF, marginBottom: "0.7rem" }}>
-                  Understand the chakra system itself — the map this whole framework is built on — and what it means for the awakening process your body is guiding you through.
-                </div>
-                <div style={{ display: "flex", justifyContent: "center" }}>
-                  <button
-                    onClick={beginChakraEducation}
-                    style={{ background: c.accent, border: "none", borderRadius: "6px", padding: "10px 20px", fontSize: "13.5px", color: "#fff", cursor: "pointer", fontFamily: SANS, fontWeight: 700, letterSpacing: "0.04em" }}
-                  >
-                    Learn About the Chakra System &rarr;
-                  </button>
-                </div>
+              <div style={{ textAlign: "center", fontSize: "14px", color: c.textSecondary, fontFamily: SERIF, marginBottom: "0.85rem" }}>
+                Answer a few more questions for your deeper Root Cause Reading.
               </div>
-
-              <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", margin: "1.5rem 0" }}>
-                <div style={{ flex: 1, height: "1px", background: c.borderMid }} />
-                <div style={{ fontSize: "11px", color: c.textMuted, fontFamily: SANS, letterSpacing: "0.05em", textTransform: "uppercase" }}>or ask something else</div>
-                <div style={{ flex: 1, height: "1px", background: c.borderMid }} />
+              <div style={{ display: "flex", justifyContent: "center" }}>
+                <button
+                  onClick={beginTier2}
+                  style={{ background: c.accent, border: "none", borderRadius: "6px", padding: "14px 28px", fontSize: "15px", color: "#fff", cursor: "pointer", fontFamily: SANS, fontWeight: 700, letterSpacing: "0.04em" }}
+                >
+                  Go Deeper: Get My Root Cause Reading &rarr;
+                </button>
               </div>
-              <SimpleChatInput
-                value={postInitialDraft}
-                onChange={setPostInitialDraft}
-                onSubmit={submitPostInitialReply}
-                placeholder="Type your question or response..."
-                loading={loading}
-                handleTextKeyDown={handleTextKeyDown}
-              />
-
               <Disclaimer />
-            </div>
+            </>
           }
         />
         <style>{`* { box-sizing: border-box; overflow-anchor: none; } body { margin: 0; } textarea::placeholder { color: rgba(30,26,22,0.3); }`}</style>
@@ -1615,7 +1497,7 @@ export default function BASTInterpreter() {
         <div style={{ flexShrink: 0, maxWidth: "700px", width: "100%", margin: "0 auto", padding: "0.85rem 1.5rem 0" }}>
           <Tier2ProgressBar progress={tier2Progress} />
         </div>
-        <Transcript messages={messages} loading={loading} messagesEndRef={messagesEndRef} lastMessageRef={lastMessageRef} loadingRef={loadingRef} scrollContainerRef={scrollContainerRef} copyReadingText={copyReadingText} downloadReadingText={downloadReadingText} copiedIndex={copiedIndex}
+        <Transcript messages={messages} loading={loading} messagesEndRef={messagesEndRef} lastMessageRef={lastMessageRef} scrollContainerRef={scrollContainerRef} copyReadingText={copyReadingText} downloadReadingText={downloadReadingText} copiedIndex={copiedIndex}
           ctaSlot={
             <>
               <SimpleChatInput
@@ -1645,15 +1527,14 @@ export default function BASTInterpreter() {
           <Tier2ProgressBar progress={tier2Progress} />
         </div>
       )}
-      <Transcript messages={messages} loading={loading} messagesEndRef={messagesEndRef} lastMessageRef={lastMessageRef} loadingRef={loadingRef} scrollContainerRef={scrollContainerRef} copyReadingText={copyReadingText} downloadReadingText={downloadReadingText} copiedIndex={copiedIndex}
-        loadingLabel={undefined}
+      <Transcript messages={messages} loading={loading} messagesEndRef={messagesEndRef} lastMessageRef={lastMessageRef} scrollContainerRef={scrollContainerRef} copyReadingText={copyReadingText} downloadReadingText={downloadReadingText} copiedIndex={copiedIndex}
+        loadingLabel={step === "tier1" && loading ? "Building your Energetic Root Cause reading..." : undefined}
         ctaSlot={
           step === "chat" ? <Disclaimer /> : null
         }
       />
       <style>{`
         @keyframes bast-pulse { 0%, 100% { opacity: 0.2; transform: scale(0.8); } 50% { opacity: 0.8; transform: scale(1); } }
-        @keyframes bast-fade-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
         textarea::placeholder { color: rgba(30,26,22,0.3); }
         * { box-sizing: border-box; overflow-anchor: none; }
         body { margin: 0; }
