@@ -59,9 +59,35 @@ function scrollToTop(startElRef, innerRef) {
   } catch {}
 }
 
-function useScrollToTopOnMount(startElRef, innerRef) {
+// scrollToTop assumes window scroll position 0 is the correct target —
+// true in most cases, but if it isn't landing right for some reason
+// this doesn't depend on, this measures reality directly instead of
+// assuming: where the "Free Reading" label actually is on screen right
+// now, and how tall the sticky header actually renders at, then moves
+// the window by exactly the difference. That self-corrects regardless
+// of what's causing any discrepancy, rather than repeating the same
+// assumption and hoping it holds.
+function scrollLabelBelowHeader(labelRef) {
+  try {
+    if (!labelRef || !labelRef.current) return;
+    const headerEl = document.getElementById("app-header");
+    const headerHeight = headerEl ? headerEl.getBoundingClientRect().height : 0;
+    const rect = labelRef.current.getBoundingClientRect();
+    const currentScroll = window.scrollY || window.pageYOffset || document.documentElement.scrollTop || 0;
+    const target = Math.max(0, currentScroll + rect.top - headerHeight - 12);
+    window.scrollTo({ top: target, left: 0, behavior: "auto" });
+    document.documentElement.scrollTop = target;
+    document.body.scrollTop = target;
+  } catch {}
+}
+
+function useScrollToTopOnMount(startElRef, innerRef, labelRef) {
   useEffect(() => {
-    scrollToTop(startElRef, innerRef);
+    const runReset = () => {
+      scrollToTop(startElRef, innerRef);
+      scrollLabelBelowHeader(labelRef);
+    };
+    runReset();
     // The first scroll call can silently no-op on some mobile browsers
     // (a known quirk, not specific to this app), so retries exist to
     // correct that. They need to be dense and early to actually feel
@@ -73,8 +99,8 @@ function useScrollToTopOnMount(startElRef, innerRef) {
     // document.activeElement.blur() call that's since been removed —
     // it's safe to be dense and early again without reintroducing
     // that.)
-    const raf1 = requestAnimationFrame(() => scrollToTop(startElRef, innerRef));
-    const timers = [30, 60, 100, 200, 350, 500].map(delay => setTimeout(() => scrollToTop(startElRef, innerRef), delay));
+    const raf1 = requestAnimationFrame(runReset);
+    const timers = [30, 60, 100, 200, 350, 500].map(delay => setTimeout(runReset, delay));
 
     // Dismissing the on-screen keyboard resizes the viewport, and
     // different mobile browsers finish that resize on different
@@ -84,7 +110,7 @@ function useScrollToTopOnMount(startElRef, innerRef) {
     // fires, isn't a guess: it directly catches the moment the viewport
     // actually finishes changing, regardless of how long that took on
     // this particular browser.
-    const handleResize = () => scrollToTop(startElRef, innerRef);
+    const handleResize = () => runReset();
     window.addEventListener("resize", handleResize);
     const vv = window.visualViewport;
     if (vv) vv.addEventListener("resize", handleResize);
@@ -152,7 +178,7 @@ function formatMessage(content) {
 
 function Header({ onClear }) {
   return (
-    <div style={{ borderBottom: `1px solid ${c.border}`, padding: "1.25rem 2rem", display: "flex", alignItems: "center", justifyContent: "space-between", background: c.bgHeader, position: "sticky", top: 0, zIndex: 10 }}>
+    <div id="app-header" style={{ borderBottom: `1px solid ${c.border}`, padding: "1.25rem 2rem", display: "flex", alignItems: "center", justifyContent: "space-between", background: c.bgHeader, position: "sticky", top: 0, zIndex: 10 }}>
       <div>
         <div style={{ fontSize: "10px", letterSpacing: "0.2em", textTransform: "uppercase", color: c.accent, marginBottom: "2px", fontFamily: SANS, fontWeight: 600 }}>Voltage Wellness</div>
         <div style={{ fontSize: "17px", fontWeight: 700, color: c.textPrimary, fontFamily: SANS }}>Energetic Root Cause</div>
@@ -186,7 +212,8 @@ function Disclaimer() {
 
 function QuestionScreen({ questions, index, tierLabel, loading, textDraft, setTextDraft, handleTextKeyDown, multiSelected, toggleMultiSelect1, submitT1Multi, goBackT1 }) {
   const rootElRef = useRef(null);
-  useScrollToTopOnMount(rootElRef);
+  const labelRef = useRef(null);
+  useScrollToTopOnMount(rootElRef, null, labelRef);
 
   const q = questions[index];
   const needsSomewhereElseDetail = q.id === "region" && multiSelected.includes("Somewhere else");
@@ -200,7 +227,7 @@ function QuestionScreen({ questions, index, tierLabel, loading, textDraft, setTe
     <div ref={rootElRef} style={{ width: "100%", maxWidth: "620px", margin: "1.75rem auto", padding: "0 1.5rem", boxSizing: "border-box" }}>
       <div style={{ width: "100%" }}>
         <div style={{ background: c.bgInput, border: `1.5px solid ${c.borderMid}`, borderRadius: "12px", padding: "24px 26px", textAlign: "left" }}>
-          <div style={{ fontSize: "11px", fontWeight: 600, letterSpacing: "0.15em", textTransform: "uppercase", color: c.accent, marginBottom: "0.9rem", fontFamily: SANS }}>
+          <div ref={labelRef} style={{ fontSize: "11px", fontWeight: 600, letterSpacing: "0.15em", textTransform: "uppercase", color: c.accent, marginBottom: "0.9rem", fontFamily: SANS }}>
             {tierLabel} · Question {index + 1} of {questions.length}
           </div>
           <div style={{ fontSize: "21px", fontWeight: 700, color: c.textPrimary, marginBottom: "0.4rem", lineHeight: 1.35, fontFamily: SANS }}>
@@ -309,7 +336,8 @@ function QuestionScreen({ questions, index, tierLabel, loading, textDraft, setTe
 function BodyPartFormScreen({ q, index, total, loading, bodyPartSelections, toggleBodyPartOption, setBodyPartDetail, handleTextKeyDown, submitBodyPartForm, goBackT1 }) {
   const rootElRef = useRef(null);
   const innerScrollRef = useRef(null);
-  useScrollToTopOnMount(rootElRef, innerScrollRef);
+  const labelRef = useRef(null);
+  useScrollToTopOnMount(rootElRef, innerScrollRef, labelRef);
 
   const sideGroup = q.groups.find(g => g.key === "side");
   const otherGroups = q.groups.filter(g => g.key !== "side");
@@ -375,7 +403,7 @@ function BodyPartFormScreen({ q, index, total, loading, bodyPartSelections, togg
       <div style={{ width: "100%" }}>
         <div style={{ background: c.bgInput, border: `1.5px solid ${c.borderMid}`, borderRadius: "12px", padding: "24px 26px", textAlign: "left" }}>
           <div style={{ marginBottom: "1.25rem" }}>
-            <div style={{ fontSize: "11px", fontWeight: 600, letterSpacing: "0.15em", textTransform: "uppercase", color: c.accent, marginBottom: "0.9rem", fontFamily: SANS }}>
+            <div ref={labelRef} style={{ fontSize: "11px", fontWeight: 600, letterSpacing: "0.15em", textTransform: "uppercase", color: c.accent, marginBottom: "0.9rem", fontFamily: SANS }}>
               Free Reading · Question {index + 1} of {total}
             </div>
             <div style={{ fontSize: "21px", fontWeight: 700, color: c.textPrimary, marginBottom: "0.4rem", lineHeight: 1.35, fontFamily: SANS, textTransform: "capitalize" }}>
@@ -1383,7 +1411,7 @@ export default function BASTInterpreter() {
         ) : (
           <QuestionScreen key={t1Index} questions={effectiveTier1Questions} index={t1Index} tierLabel="Free Reading" loading={loading} textDraft={textDraft} setTextDraft={setTextDraft} handleTextKeyDown={handleTextKeyDown} multiSelected={multiSelected} toggleMultiSelect1={toggleMultiSelect1} submitT1Multi={submitT1Multi} goBackT1={goBackT1} />
         )}
-        <style>{`* { box-sizing: border-box; } body { margin: 0; } textarea::placeholder { color: rgba(30,26,22,0.3); }`}</style>
+        <style>{`* { box-sizing: border-box; overflow-anchor: none; } body { margin: 0; } textarea::placeholder { color: rgba(30,26,22,0.3); }`}</style>
       </div>
     );
   }
@@ -1418,7 +1446,7 @@ export default function BASTInterpreter() {
             </>
           }
         />
-        <style>{`* { box-sizing: border-box; } body { margin: 0; } textarea::placeholder { color: rgba(30,26,22,0.3); }`}</style>
+        <style>{`* { box-sizing: border-box; overflow-anchor: none; } body { margin: 0; } textarea::placeholder { color: rgba(30,26,22,0.3); }`}</style>
       </div>
     );
   }
@@ -1448,7 +1476,7 @@ export default function BASTInterpreter() {
             </>
           }
         />
-        <style>{`* { box-sizing: border-box; } body { margin: 0; } textarea::placeholder { color: rgba(30,26,22,0.3); }`}</style>
+        <style>{`* { box-sizing: border-box; overflow-anchor: none; } body { margin: 0; } textarea::placeholder { color: rgba(30,26,22,0.3); }`}</style>
       </div>
     );
   }
@@ -1472,7 +1500,7 @@ export default function BASTInterpreter() {
       <style>{`
         @keyframes bast-pulse { 0%, 100% { opacity: 0.2; transform: scale(0.8); } 50% { opacity: 0.8; transform: scale(1); } }
         textarea::placeholder { color: rgba(30,26,22,0.3); }
-        * { box-sizing: border-box; }
+        * { box-sizing: border-box; overflow-anchor: none; }
         body { margin: 0; }
       `}</style>
     </div>
