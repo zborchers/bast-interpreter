@@ -1303,14 +1303,11 @@ export default function BASTInterpreter() {
                 <path d="M42.4,34.83 L33.2,51.73 L47.5,51.93 L33.65,82.17 L72.0,44.73 L54.0,44.62 L53.3,17.83 Z" fill="#1e1a16"/>
               </svg>
             </div>
-            <div style={{ fontSize: "11px", fontWeight: 600, letterSpacing: "0.2em", textTransform: "uppercase", color: c.accent, marginBottom: "0.75rem", fontFamily: SANS }}>
-              Free &amp; Instant
-            </div>
             <div style={{ fontSize: "38px", fontWeight: 800, color: c.textPrimary, lineHeight: 1.15, fontFamily: SANS, letterSpacing: "-0.02em" }}>
               Discover the <em style={{ color: c.accentPop, fontFamily: SERIF }}>root</em> cause.
             </div>
             <div style={{ fontSize: "17px", color: c.textSecondary, lineHeight: 1.8, fontFamily: SERIF, marginTop: "1rem" }}>
-              Every symptom and disease traces back to an energetic imbalance. Answer a few questions to discover what's actually causing yours.
+              Every symptom and disease traces back to an energetic block. Answer a few questions to discover what's actually causing yours.
             </div>
           </div>
         )}
