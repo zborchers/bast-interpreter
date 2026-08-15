@@ -984,6 +984,7 @@ export default function BASTInterpreter() {
   const [tier2Progress, setTier2Progress] = useState(0);
   const [tier2Turn, setTier2Turn] = useState(0);
   const [textDraft, setTextDraft] = useState("");
+  const [postInitialDraft, setPostInitialDraft] = useState("");
 
   const messagesEndRef = useRef(null);
   const loadingRef = useRef(null);
@@ -1183,6 +1184,59 @@ export default function BASTInterpreter() {
       hidden: true,
     };
     advanceTier2Conversation([...messages, kickoffMsg]);
+  };
+
+  // A genuine reply box on the Initial Reading screen — separate from
+  // the "Go Deeper" button, which starts the full, structured Tier 2
+  // deepening flow. This exists because the reading itself can end with
+  // a direct question to the person (the chakra-education invitation,
+  // for instance — "just let me know" — or any other follow-up), and
+  // there was previously no way to actually answer it without committing
+  // to the whole Tier 2 process. This just continues the conversation
+  // naturally and shows the reply inline, with no status markers or
+  // progress tracking involved.
+  const submitPostInitialReply = async () => {
+    const trimmed = postInitialDraft.trim();
+    if (!trimmed || loading) return;
+    const userMsg = { role: "user", content: trimmed };
+    const newMessages = [...messages, userMsg];
+    setPostInitialDraft("");
+    setMessages(newMessages);
+    setLoading(true);
+    try {
+      const text = await callAPI(newMessages, 4000);
+      setMessages(prev => [...prev, { role: "assistant", content: text }]);
+    } catch {
+      setMessages(prev => [...prev, { role: "assistant", content: "There was a connection error. Please try again." }]);
+    }
+    setLoading(false);
+  };
+
+  // The second explicit path: learning the framework itself — the
+  // chakra system and the awakening process it maps onto — rather than
+  // going deeper into this specific reading. The system prompt already
+  // has this content fully written out (the "chakra system and energetic
+  // awakening" teaching), normally triggered by the person typing
+  // something like "yes" after the reading's own invitation. This
+  // triggers the same behavior directly, so it's a real button instead
+  // of something only reachable by guessing the right thing to type.
+  const beginChakraEducation = async () => {
+    if (loading) return;
+    const kickoffMsg = {
+      role: "user",
+      content: "The person wants to learn more about how the chakra system works and its role in the energetic awakening process. Teach them this now, following the chakra system and energetic awakening content in full.",
+      hidden: true,
+    };
+    const newMessages = [...messages, kickoffMsg];
+    setMessages(newMessages);
+    setLoading(true);
+    try {
+      const text = await callAPI(newMessages, 6000);
+      setMessages(prev => [...prev, { role: "assistant", content: text }]);
+    } catch {
+      setMessages(prev => [...prev, { role: "assistant", content: "There was a connection error. Please try again." }]);
+    }
+    setLoading(false);
   };
 
   const advanceT1 = (latestAnswers, questionsList) => {
@@ -1426,22 +1480,58 @@ export default function BASTInterpreter() {
         <Transcript messages={messages} loading={loading} messagesEndRef={messagesEndRef} lastMessageRef={lastMessageRef} loadingRef={loadingRef} scrollContainerRef={scrollContainerRef} copyReadingText={copyReadingText} downloadReadingText={downloadReadingText} copiedIndex={copiedIndex}
           inlineCta={
             <div style={{ marginTop: "0.5rem" }}>
-              <div style={{ background: c.accentLight, border: `1px solid ${c.accentMid}`, borderRadius: "10px", padding: "0.9rem 1.1rem", marginBottom: "1rem", textAlign: "center" }}>
-                <div style={{ fontSize: "13.5px", color: c.textPrimary, lineHeight: 1.6, fontFamily: SERIF }}>
-                  This reading was built entirely from your anatomy and sensations. The tool can go much deeper — and the more detail you're willing to share from here, the more precise it gets.
+              <div style={{ fontSize: "13px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: c.accent, marginBottom: "0.75rem", textAlign: "center" }}>
+                Two ways to go from here
+              </div>
+
+              <div style={{ background: c.accentLight, border: `1px solid ${c.accentMid}`, borderRadius: "10px", padding: "1.1rem 1.2rem", marginBottom: "1rem" }}>
+                <div style={{ fontSize: "15px", fontWeight: 700, color: c.textPrimary, marginBottom: "0.4rem", fontFamily: SANS }}>
+                  Go deeper into your reading
+                </div>
+                <div style={{ fontSize: "13.5px", color: c.textSecondary, lineHeight: 1.6, fontFamily: SERIF, marginBottom: "0.9rem" }}>
+                  This reading was built entirely from your anatomy and sensations. Answer a few more questions and the tool will trace this specific pattern further — the more you share, the more precise it gets.
+                </div>
+                <div style={{ display: "flex", justifyContent: "center" }}>
+                  <button
+                    onClick={beginTier2}
+                    style={{ background: c.accent, border: "none", borderRadius: "6px", padding: "12px 24px", fontSize: "14px", color: "#fff", cursor: "pointer", fontFamily: SANS, fontWeight: 700, letterSpacing: "0.04em" }}
+                  >
+                    Go Deeper: Get My Root Cause Reading &rarr;
+                  </button>
                 </div>
               </div>
-              <div style={{ textAlign: "center", fontSize: "14px", color: c.textSecondary, fontFamily: SERIF, marginBottom: "0.85rem" }}>
-                Answer a few more questions for your deeper Root Cause Reading.
+
+              <div style={{ background: c.bgInput, border: `1px solid ${c.borderMid}`, borderRadius: "10px", padding: "1.1rem 1.2rem", marginBottom: "1.5rem" }}>
+                <div style={{ fontSize: "15px", fontWeight: 700, color: c.textPrimary, marginBottom: "0.4rem", fontFamily: SANS }}>
+                  Learn how your body actually works
+                </div>
+                <div style={{ fontSize: "13.5px", color: c.textSecondary, lineHeight: 1.6, fontFamily: SERIF, marginBottom: "0.9rem" }}>
+                  Understand the chakra system itself — the map this whole framework is built on — and what it means for the awakening process your body is guiding you through.
+                </div>
+                <div style={{ display: "flex", justifyContent: "center" }}>
+                  <button
+                    onClick={beginChakraEducation}
+                    style={{ background: "transparent", border: `1.5px solid ${c.accent}`, borderRadius: "6px", padding: "12px 24px", fontSize: "14px", color: c.accent, cursor: "pointer", fontFamily: SANS, fontWeight: 700, letterSpacing: "0.04em" }}
+                  >
+                    Learn About the Chakra System &rarr;
+                  </button>
+                </div>
               </div>
-              <div style={{ display: "flex", justifyContent: "center" }}>
-                <button
-                  onClick={beginTier2}
-                  style={{ background: c.accent, border: "none", borderRadius: "6px", padding: "14px 28px", fontSize: "15px", color: "#fff", cursor: "pointer", fontFamily: SANS, fontWeight: 700, letterSpacing: "0.04em" }}
-                >
-                  Go Deeper: Get My Root Cause Reading &rarr;
-                </button>
+
+              <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", margin: "1.5rem 0" }}>
+                <div style={{ flex: 1, height: "1px", background: c.borderMid }} />
+                <div style={{ fontSize: "11px", color: c.textMuted, fontFamily: SANS, letterSpacing: "0.05em", textTransform: "uppercase" }}>or ask something else</div>
+                <div style={{ flex: 1, height: "1px", background: c.borderMid }} />
               </div>
+              <SimpleChatInput
+                value={postInitialDraft}
+                onChange={setPostInitialDraft}
+                onSubmit={submitPostInitialReply}
+                placeholder="Type your question or response..."
+                loading={loading}
+                handleTextKeyDown={handleTextKeyDown}
+              />
+
               <Disclaimer />
             </div>
           }
