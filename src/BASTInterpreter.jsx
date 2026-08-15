@@ -567,22 +567,29 @@ function Transcript({ messages, loading, messagesEndRef, lastMessageRef, loading
   // told the tool built from. Not gated at all when this prop is off
   // (Tier 2's real input, and the final chat view, need to stay usable
   // immediately).
+  //
+  // Polling on an interval instead of relying only on a scroll event
+  // listener — attaching a listener to a ref that may not be settled
+  // yet, or a scroll event that doesn't fire the way expected on some
+  // mobile browsers, are both easy ways for this to silently never
+  // trigger. Checking the actual scroll position directly and
+  // repeatedly removes that dependency entirely.
   const [scrolledToBottom, setScrolledToBottom] = useState(!revealCtaOnScroll);
   useEffect(() => {
     if (!revealCtaOnScroll) { setScrolledToBottom(true); return; }
     setScrolledToBottom(false);
     const check = () => {
       const el = scrollContainerRef.current;
-      if (!el) return;
-      const nearBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 24;
+      if (!el) return false;
+      const nearBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 32;
       if (nearBottom) setScrolledToBottom(true);
+      return nearBottom;
     };
-    const el = scrollContainerRef.current;
-    if (el) {
-      el.addEventListener("scroll", check, { passive: true });
-      check();
-    }
-    return () => { if (el) el.removeEventListener("scroll", check); };
+    if (check()) return;
+    const interval = setInterval(() => {
+      if (check()) clearInterval(interval);
+    }, 300);
+    return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [revealCtaOnScroll, messages]);
   return (
@@ -1110,7 +1117,7 @@ export default function BASTInterpreter() {
       cancelAnimationFrame(raf);
       timers.forEach(clearTimeout);
     };
-  }, [step, messages.length]);
+  }, [step, messages.length, loading]);
 
   const [copiedIndex, setCopiedIndex] = useState(null);
 
