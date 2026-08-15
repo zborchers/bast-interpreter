@@ -1357,8 +1357,10 @@ export default function BASTInterpreter() {
         loadingLabel={step === "tier1" && loading ? "Building your Energetic Root Cause reading..." : undefined}
         ctaSlot={
           <>
-            <div style={{ textAlign: "center", fontSize: "12px", color: c.textMuted, marginBottom: "0.6rem", fontStyle: "italic", fontFamily: SERIF }}>
-              The more detail you share, the more precise this gets.
+            <div style={{ textAlign: "center", background: c.accentLight, border: `1px solid ${c.accentMid}`, borderRadius: "8px", padding: "0.6rem 1rem", marginBottom: "0.85rem" }}>
+              <div style={{ fontSize: "13.5px", color: c.accent, fontWeight: 700, fontFamily: SANS, letterSpacing: "0.01em" }}>
+                The more detail you share, the more precise this gets.
+              </div>
             </div>
             <SimpleChatInput
               value={chatDraft}
