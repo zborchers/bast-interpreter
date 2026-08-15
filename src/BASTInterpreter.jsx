@@ -1484,34 +1484,34 @@ export default function BASTInterpreter() {
                 Two ways to go from here
               </div>
 
-              <div style={{ background: c.accentLight, border: `1px solid ${c.accentMid}`, borderRadius: "10px", padding: "1.1rem 1.2rem", marginBottom: "1rem" }}>
-                <div style={{ fontSize: "15px", fontWeight: 700, color: c.textPrimary, marginBottom: "0.4rem", fontFamily: SANS }}>
+              <div style={{ background: c.accentLight, border: `1px solid ${c.accentMid}`, borderRadius: "10px", padding: "0.85rem 1rem", marginBottom: "0.7rem" }}>
+                <div style={{ fontSize: "14.5px", fontWeight: 700, color: c.textPrimary, marginBottom: "0.3rem", fontFamily: SANS }}>
                   Go deeper into your reading
                 </div>
-                <div style={{ fontSize: "13.5px", color: c.textSecondary, lineHeight: 1.6, fontFamily: SERIF, marginBottom: "0.9rem" }}>
-                  This reading was built entirely from your anatomy and sensations. Answer a few more questions and the tool will trace this specific pattern further — the more you share, the more precise it gets.
+                <div style={{ fontSize: "13px", color: c.textSecondary, lineHeight: 1.55, fontFamily: SERIF, marginBottom: "0.7rem" }}>
+                  Answer a few more questions and the tool will trace this specific pattern further — the more you share, the more precise it gets.
                 </div>
                 <div style={{ display: "flex", justifyContent: "center" }}>
                   <button
                     onClick={beginTier2}
-                    style={{ background: c.accent, border: "none", borderRadius: "6px", padding: "12px 24px", fontSize: "14px", color: "#fff", cursor: "pointer", fontFamily: SANS, fontWeight: 700, letterSpacing: "0.04em" }}
+                    style={{ background: c.accent, border: "none", borderRadius: "6px", padding: "10px 20px", fontSize: "13.5px", color: "#fff", cursor: "pointer", fontFamily: SANS, fontWeight: 700, letterSpacing: "0.04em" }}
                   >
                     Go Deeper: Get My Root Cause Reading &rarr;
                   </button>
                 </div>
               </div>
 
-              <div style={{ background: c.bgInput, border: `1px solid ${c.borderMid}`, borderRadius: "10px", padding: "1.1rem 1.2rem", marginBottom: "1.5rem" }}>
-                <div style={{ fontSize: "15px", fontWeight: 700, color: c.textPrimary, marginBottom: "0.4rem", fontFamily: SANS }}>
+              <div style={{ background: c.bgInput, border: `1px solid ${c.borderMid}`, borderRadius: "10px", padding: "0.85rem 1rem", marginBottom: "1.2rem" }}>
+                <div style={{ fontSize: "14.5px", fontWeight: 700, color: c.textPrimary, marginBottom: "0.3rem", fontFamily: SANS }}>
                   Learn how your body actually works
                 </div>
-                <div style={{ fontSize: "13.5px", color: c.textSecondary, lineHeight: 1.6, fontFamily: SERIF, marginBottom: "0.9rem" }}>
+                <div style={{ fontSize: "13px", color: c.textSecondary, lineHeight: 1.55, fontFamily: SERIF, marginBottom: "0.7rem" }}>
                   Understand the chakra system itself — the map this whole framework is built on — and what it means for the awakening process your body is guiding you through.
                 </div>
                 <div style={{ display: "flex", justifyContent: "center" }}>
                   <button
                     onClick={beginChakraEducation}
-                    style={{ background: "transparent", border: `1.5px solid ${c.accent}`, borderRadius: "6px", padding: "12px 24px", fontSize: "14px", color: c.accent, cursor: "pointer", fontFamily: SANS, fontWeight: 700, letterSpacing: "0.04em" }}
+                    style={{ background: "transparent", border: `1.5px solid ${c.accent}`, borderRadius: "6px", padding: "10px 20px", fontSize: "13.5px", color: c.accent, cursor: "pointer", fontFamily: SANS, fontWeight: 700, letterSpacing: "0.04em" }}
                   >
                     Learn About the Chakra System &rarr;
                   </button>
