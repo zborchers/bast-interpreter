@@ -147,13 +147,25 @@ function formatMessage(content) {
 // ---- SHARED HEADER (hoisted to module scope so it isn't recreated, and
 // therefore remounted, on every keystroke of a parent-controlled input) ----
 
-function Header() {
+function Header({ onClear }) {
   return (
     <div style={{ borderBottom: `1px solid ${c.border}`, padding: "1.25rem 2rem", display: "flex", alignItems: "center", justifyContent: "space-between", background: c.bgHeader, position: "sticky", top: 0, zIndex: 10 }}>
       <div>
         <div style={{ fontSize: "10px", letterSpacing: "0.2em", textTransform: "uppercase", color: c.accent, marginBottom: "2px", fontFamily: SANS, fontWeight: 600 }}>Voltage Wellness</div>
         <div style={{ fontSize: "17px", fontWeight: 700, color: c.textPrimary, fontFamily: SANS }}>Energetic Root Cause</div>
       </div>
+      {onClear && (
+        <button
+          onClick={() => {
+            if (window.confirm("Start over? This clears everything you've entered so far.")) {
+              onClear();
+            }
+          }}
+          style={{ background: "transparent", border: `1px solid ${c.borderMid}`, borderRadius: "6px", padding: "7px 14px", cursor: "pointer", color: c.textMuted, fontSize: "12px", fontFamily: SANS, fontWeight: 600, letterSpacing: "0.02em" }}
+        >
+          Clear chat
+        </button>
+      )}
     </div>
   );
 }
@@ -789,8 +801,6 @@ function shortenForHeading(text, maxLen) {
 
 function patchQuestionsForBodyParts(questions, regionAnswer) {
   const selected = (regionAnswer && regionAnswer.selected) || [];
-  if (selected.length === 0) return questions;
-
   const somewhereElseDetail = (regionAnswer && regionAnswer.detail && regionAnswer.detail.trim()) || "";
 
   const bodyPartForms = selected.map(region => {
@@ -800,11 +810,33 @@ function patchQuestionsForBodyParts(questions, regionAnswer) {
     return buildBodyPartForm(region);
   });
 
-  return questions.flatMap(q => {
-    if (q.id === "side") return bodyPartForms;
-    if (q.id === "plane" || q.id === "quality" || q.id === "pattern") return [];
-    return [q];
-  });
+  // This can run more than once for the same person — if they go back
+  // to the region question and change their selection, whatever got
+  // patched in last time (earlier body-part forms, or the original
+  // side/plane/quality/pattern placeholders on the very first pass)
+  // needs to be replaced with a fresh set reflecting the CURRENT
+  // selection, not left sitting alongside it. Strip every existing
+  // body-part-form entry and the original placeholder questions, and
+  // insert the freshly-built set in that same spot — including the
+  // empty-selection case, where the right result is removing the old
+  // forms and inserting nothing.
+  let inserted = false;
+  const result = [];
+  for (const q of questions) {
+    if (q.type === "bodyPartForm" || q.id === "side") {
+      if (!inserted) {
+        result.push(...bodyPartForms);
+        inserted = true;
+      }
+      continue;
+    }
+    if (q.id === "plane" || q.id === "quality" || q.id === "pattern") continue;
+    result.push(q);
+  }
+  if (!inserted) {
+    result.push(...bodyPartForms);
+  }
+  return result;
 }
 
 function formatAnswerValue(ans) {
@@ -1094,6 +1126,25 @@ export default function BASTInterpreter() {
     setT1Index(prevIndex);
   };
 
+  const handleClearChat = () => {
+    try {
+      localStorage.removeItem("bast_messages");
+      localStorage.removeItem("bast_step");
+    } catch {}
+    setMessages([]);
+    setStep("tier1");
+    setT1Index(0);
+    setAnswersT1({});
+    setMultiSelected([]);
+    setBodyPartSelections({});
+    setEffectiveTier1Questions(QUESTIONS_TIER1);
+    setTier2Draft("");
+    setTier2Progress(0);
+    setTier2Turn(0);
+    setTextDraft("");
+    scrollToTop();
+  };
+
   // Pick up Tier 1 answers passed in via URL params from the landing
   // page's quiz (diagnosis + region), so a person doesn't have to
   // re-answer those two here. Everything body-part-specific still
@@ -1235,7 +1286,7 @@ export default function BASTInterpreter() {
   if (step === "tier1" && !loading) {
     return (
       <div style={{ minHeight: "100vh", background: c.bg, color: c.textPrimary, fontFamily: SERIF, display: "flex", flexDirection: "column" }}>
-        <Header />
+        <Header onClear={handleClearChat} />
         {t1Index === 0 && (
           <div style={{ textAlign: "center", maxWidth: "620px", margin: "1.5rem auto 0", padding: "0 1.5rem" }}>
             <div style={{ display: "flex", justifyContent: "center", marginBottom: "0.5rem" }}>
@@ -1287,7 +1338,7 @@ export default function BASTInterpreter() {
   if (step === "post-initial" && !loading) {
     return (
       <div style={{ height: "100vh", overflow: "hidden", background: c.bg, color: c.textPrimary, fontFamily: SERIF, display: "flex", flexDirection: "column" }}>
-        <Header />
+        <Header onClear={handleClearChat} />
         <Transcript messages={messages} loading={loading} messagesEndRef={messagesEndRef} lastMessageRef={lastMessageRef} copyReadingText={copyReadingText} downloadReadingText={downloadReadingText} copiedIndex={copiedIndex}
           ctaSlot={
             <>
@@ -1322,7 +1373,7 @@ export default function BASTInterpreter() {
   if (step === "tier2" && !loading) {
     return (
       <div style={{ height: "100vh", overflow: "hidden", background: c.bg, color: c.textPrimary, fontFamily: SERIF, display: "flex", flexDirection: "column" }}>
-        <Header />
+        <Header onClear={handleClearChat} />
         <div style={{ flexShrink: 0, maxWidth: "700px", width: "100%", margin: "0 auto", padding: "0.85rem 1.5rem 0" }}>
           <Tier2ProgressBar progress={tier2Progress} />
         </div>
@@ -1350,7 +1401,7 @@ export default function BASTInterpreter() {
 
   return (
     <div style={{ height: "100vh", overflow: "hidden", background: c.bg, color: c.textPrimary, fontFamily: SERIF, display: "flex", flexDirection: "column" }}>
-      <Header />
+      <Header onClear={handleClearChat} />
       {step === "tier2" && (
         <div style={{ flexShrink: 0, maxWidth: "700px", width: "100%", margin: "0 auto", padding: "0.85rem 1.5rem 0" }}>
           <Tier2ProgressBar progress={tier2Progress} />
