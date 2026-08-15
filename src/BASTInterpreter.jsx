@@ -1003,7 +1003,7 @@ export default function BASTInterpreter() {
       cancelAnimationFrame(raf);
       timers.forEach(clearTimeout);
     };
-  }, [step]);
+  }, [step, messages.length]);
 
   const [copiedIndex, setCopiedIndex] = useState(null);
 
