@@ -81,13 +81,13 @@ function scrollLabelBelowHeader(labelRef) {
   } catch {}
 }
 
-// The post-initial/tier2/chat screens don't have a per-question label to
-// anchor against the way the wizard does — but they have the header
-// itself, and "is the header actually fully visible" is exactly the
-// thing that needs to be true. Measure the header's own position
-// directly: if its top isn't at 0, the window is off by exactly that
-// amount, so correct by that precise difference instead of assuming a
-// blind scroll-to-0 landed correctly.
+// The chat screen doesn't have a per-question label to anchor against
+// the way the wizard does — but it has the header itself, and "is the
+// header actually fully visible" is exactly the thing that needs to be
+// true. Measure the header's own position directly: if its top isn't
+// at 0, the window is off by exactly that amount, so correct by that
+// precise difference instead of assuming a blind scroll-to-0 landed
+// correctly.
 function ensureHeaderVisible() {
   try {
     const headerEl = document.getElementById("app-header");
@@ -498,28 +498,6 @@ function BodyPartFormScreen({ q, index, total, loading, bodyPartSelections, togg
           </div>
         </div>
         <Disclaimer />
-      </div>
-    </div>
-  );
-}
-
-// ---- TIER 2 PROGRESS BAR (subtle indicator of how close the ongoing
-// conversation is to having enough for the full Root Cause Reading) ----
-
-function Tier2ProgressBar({ progress }) {
-  return (
-    <div style={{ marginBottom: "0.75rem" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
-        <div style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: c.textMuted, fontFamily: SANS }}>
-          Root Cause Reading
-        </div>
-        <div style={{ fontSize: "10px", color: c.textMuted, fontFamily: SANS }}>{progress}%</div>
-      </div>
-      <div style={{ height: "3px", background: c.borderMid, borderRadius: "2px", overflow: "hidden" }}>
-        <div style={{ height: "100%", width: `${progress}%`, background: c.accent, transition: "width 0.5s ease" }} />
-      </div>
-      <div style={{ fontSize: "11px", color: c.textMuted, fontFamily: SANS, fontStyle: "italic", marginTop: "5px" }}>
-        Your complete, in-depth reading unlocks at 100% — the more detail you share, the faster it gets there.
       </div>
     </div>
   );
@@ -940,27 +918,6 @@ function compileAnswers(questions, answers) {
     .join("\n\n");
 }
 
-// ---- DYNAMIC ROOT CAUSE CONVERSATION ----
-// Tier 2 no longer uses a fixed question list. The model asks its own
-// questions and reports progress via a status marker at the end of every
-// turn: [[TIER2_STATUS progress=NN next=ask|ready]]. This parses that
-// marker out and strips it from what actually gets displayed/stored.
-
-const TIER2_MAX_TURNS = 12; // safety cap in case the model never signals ready
-
-function parseTier2Status(text) {
-  const bracketMatch = text.match(/\[\[TIER2_STATUS[^\]]*\]\]/i);
-  const bracketText = bracketMatch ? bracketMatch[0] : "";
-  const progressMatch = bracketText.match(/progress\s*=\s*(\d+)/i);
-  const nextMatch = bracketText.match(/next\s*=\s*(ask|ready)/i);
-  const cleaned = (bracketMatch ? text.replace(bracketMatch[0], "") : text).trim();
-  return {
-    cleaned,
-    progress: progressMatch ? Math.max(0, Math.min(100, parseInt(progressMatch[1], 10))) : null,
-    ready: nextMatch ? nextMatch[1].toLowerCase() === "ready" : null,
-  };
-}
-
 export default function BASTInterpreter() {
   const [messages, setMessages] = useState(() => {
     try {
@@ -969,7 +926,8 @@ export default function BASTInterpreter() {
     } catch { return []; }
   });
   const [loading, setLoading] = useState(false);
-  // step: 'tier1' -> 'tier2' -> 'chat'
+  // step: 'tier1' (intake wizard) -> 'chat' (Initial Reading, then an
+  // open-ended, ongoing conversation — no separate stages after that)
   const [step, setStep] = useState(() => {
     try { return localStorage.getItem("bast_step") || "tier1"; }
     catch { return "tier1"; }
@@ -979,9 +937,7 @@ export default function BASTInterpreter() {
   const [multiSelected, setMultiSelected] = useState([]);
   const [bodyPartSelections, setBodyPartSelections] = useState({});
   const [effectiveTier1Questions, setEffectiveTier1Questions] = useState(QUESTIONS_TIER1);
-  const [tier2Draft, setTier2Draft] = useState("");
-  const [tier2Progress, setTier2Progress] = useState(0);
-  const [tier2Turn, setTier2Turn] = useState(0);
+  const [chatDraft, setChatDraft] = useState("");
   const [textDraft, setTextDraft] = useState("");
 
   const messagesEndRef = useRef(null);
@@ -1005,29 +961,45 @@ export default function BASTInterpreter() {
       if (align === "end") {
         container.scrollTop = container.scrollHeight;
       } else {
-        container.scrollTop = targetEl.offsetTop;
+        // offsetTop depends on the browser's offsetParent calculation,
+        // which can be thrown off by intermediate padded or positioned
+        // ancestors — producing a small, consistent gap rather than a
+        // total failure, which is exactly the kind of thing that's easy
+        // to miss until something else (like the header layout) changes
+        // and makes it visible. Measuring the actual current gap between
+        // the two elements directly is precise regardless of DOM
+        // structure in between.
+        const containerRect = container.getBoundingClientRect();
+        const targetRect = targetEl.getBoundingClientRect();
+        // A small buffer so this lands slightly above the exact
+        // calculated boundary rather than butting right up against it.
+        const buffer = 12;
+        container.scrollTop = Math.max(0, container.scrollTop + (targetRect.top - containerRect.top) - buffer);
       }
     };
-    let t;
+    const timers = [];
     if (loading) {
       // Still generating — keep the loading indicator in view.
       scrollWithinContainer(messagesEndRef.current, "end");
     } else if (messages.length > 0 && messages[messages.length - 1].role === "assistant") {
       // A reading just landed — show its beginning, not its end.
-      // Re-asserting once shortly after covers any late content reflow
-      // (e.g. web fonts swapping in).
+      // Re-asserting several times shortly after covers any late content
+      // reflow (web fonts swapping in, a long response's height still
+      // settling), including the bigger layout settling that happens
+      // specifically on the tier1 -> chat transition, when the Initial
+      // Reading first lands on a freshly-mounted screen.
       scrollWithinContainer(lastMessageRef.current, "start");
-      t = setTimeout(() => {
-        scrollWithinContainer(lastMessageRef.current, "start");
-      }, 60);
+      [30, 60, 120, 250, 400, 650, 900].forEach(delay => {
+        timers.push(setTimeout(() => scrollWithinContainer(lastMessageRef.current, "start"), delay));
+      });
     }
-    return () => { if (t) clearTimeout(t); };
+    return () => { timers.forEach(clearTimeout); };
   }, [loading, messages]);
 
   // The scroll-reset above only moves content around inside the
   // transcript's own scrolling region — it never touches the window's
-  // own scroll position. That's a real gap: the post-initial, tier2, and
-  // chat screens use a fixed-height, non-scrolling outer shell (so the
+  // own scroll position. That's a real gap: this app's screens after
+  // the wizard use a fixed-height, non-scrolling outer shell (so the
   // header stays visible in principle), but nothing ever explicitly
   // resets the window if it was scrolled down during the question
   // wizard just before this. Reset it explicitly on every step
@@ -1194,20 +1166,14 @@ export default function BASTInterpreter() {
         { role: "assistant", content: "", localOnly: true, isDonationNote: true },
       ];
       setMessages(withInitialReading);
-      setStep("post-initial");
+      // Straight into the ongoing conversation — no separate "post-initial"
+      // waiting screen, no button to press to formally begin. The chat
+      // input is just there, always, right under the reading.
+      setStep("chat");
     } catch {
       setMessages(prev => [...prev, { role: "assistant", content: "There was a connection error. Please try again." }]);
     }
     setLoading(false);
-  };
-
-  const beginTier2 = () => {
-    const kickoffMsg = {
-      role: "user",
-      content: "The person is ready to go deeper into the Root Cause Reading. Ask them your first question now — the single most useful thing to understand next, following naturally from the Initial Reading and everything in the intake. Keep the transition conversational, not clinical. End with the required status marker.",
-      hidden: true,
-    };
-    advanceTier2Conversation([...messages, kickoffMsg]);
   };
 
   const advanceT1 = (latestAnswers, questionsList) => {
@@ -1247,9 +1213,7 @@ export default function BASTInterpreter() {
     setMultiSelected([]);
     setBodyPartSelections({});
     setEffectiveTier1Questions(QUESTIONS_TIER1);
-    setTier2Draft("");
-    setTier2Progress(0);
-    setTier2Turn(0);
+    setChatDraft("");
     setTextDraft("");
     scrollToTop();
   };
@@ -1325,65 +1289,33 @@ export default function BASTInterpreter() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ---- DYNAMIC ROOT CAUSE CONVERSATION ----
-  // No fixed question list. Each turn: send the conversation so far, get
-  // back an in-depth response ending in a status marker, parse out the
-  // marker, and either continue the conversation or trigger the final
-  // unlimited-depth Root Cause Reading.
+  // ---- ONGOING CONVERSATION ----
+  // Once the Initial Reading lands, this is just a normal back-and-forth:
+  // send whatever the person typed plus the full conversation so far, get
+  // a response back, show it. No status markers, no progress tracking,
+  // no mechanical "signal when ready for the final reading" — the system
+  // prompt's own judgment handles how deep to go and when a fuller
+  // synthesis is actually earned, the same way any real conversation
+  // would, for as long as the person wants to keep it going.
 
-  const requestFinalRootCauseReading = async (priorMessages) => {
-    const userMsg = {
-      role: "user",
-      content: "You now have everything you need from this conversation. Write the complete Root Cause Reading now — the full, unlimited-depth synthesis drawing on the Initial Reading and everything shared in this conversation. Do not include the status marker on this response; this is the final reading, not another conversation turn.",
-      display: "Let's see the complete Root Cause Reading.",
-    };
-    const newMessages = [...priorMessages, userMsg];
-    setMessages(newMessages);
-    const text = await callAPI(newMessages, 12000);
-    setMessages(prev => [...prev,
-      { role: "assistant", content: text, isReading: true, readingLabel: "Root Cause Reading" },
-      { role: "assistant", content: "", localOnly: true, isDonationNote: true },
-    ]);
-    setTier2Progress(100);
-    setStep("chat");
-  };
-
-  const advanceTier2Conversation = async (messagesForApi) => {
+  const sendChatMessage = async (userMsg) => {
+    const newMessages = [...messages, userMsg];
     setLoading(true);
-    setMessages(messagesForApi);
+    setMessages(newMessages);
     try {
-      const raw = await callAPI(messagesForApi, 6000);
-      const { cleaned, progress, ready } = parseTier2Status(raw);
-      const withReply = [...messagesForApi, { role: "assistant", content: cleaned }];
-      setMessages(withReply);
-
-      const nextTurn = tier2Turn + 1;
-      setTier2Turn(nextTurn);
-      setTier2Progress(progress != null ? progress : Math.min(95, tier2Progress + 15));
-
-      const forceReady = nextTurn >= TIER2_MAX_TURNS;
-      if (ready || forceReady) {
-        await requestFinalRootCauseReading(withReply);
-      } else {
-        setStep("tier2");
-      }
+      const text = await callAPI(newMessages, 8000);
+      setMessages(prev => [...prev, { role: "assistant", content: text }]);
     } catch {
       setMessages(prev => [...prev, { role: "assistant", content: "There was a connection error. Please try again." }]);
-      setStep("tier2");
     }
     setLoading(false);
   };
 
-  const submitTier2Answer = () => {
-    const trimmed = tier2Draft.trim();
+  const submitChatMessage = () => {
+    const trimmed = chatDraft.trim();
     if (!trimmed || loading) return;
-    const userMsg = {
-      role: "user",
-      content: `${trimmed}\n\n(Continue the Root Cause conversation: respond in real depth to this specific answer, connecting it to everything established so far. Then either ask the single most useful next question, or — only if you genuinely have enough rich material — signal you're ready for the full reading instead. End with the required status marker.)`,
-      display: trimmed,
-    };
-    setTier2Draft("");
-    advanceTier2Conversation([...messages, userMsg]);
+    setChatDraft("");
+    sendChatMessage({ role: "user", content: trimmed, display: trimmed });
   };
 
   const handleTextKeyDown = (submitFn) => (e) => {
@@ -1441,85 +1373,37 @@ export default function BASTInterpreter() {
     );
   }
 
-  // ---- RENDER: POST-INITIAL (Initial Reading shown, waiting for the
-  // person to consciously continue into the deeper conversation) ----
-
-  if (step === "post-initial" && !loading) {
-    return (
-      <div style={{ height: "100vh", overflow: "hidden", background: c.bg, color: c.textPrimary, fontFamily: SERIF, display: "flex", flexDirection: "column", paddingTop: "80px" }}>
-        <Header onClear={handleClearChat} />
-        <Transcript messages={messages} loading={loading} messagesEndRef={messagesEndRef} lastMessageRef={lastMessageRef} scrollContainerRef={scrollContainerRef} copyReadingText={copyReadingText} downloadReadingText={downloadReadingText} copiedIndex={copiedIndex}
-          ctaSlot={
-            <>
-              <div style={{ background: c.accentLight, border: `1px solid ${c.accentMid}`, borderRadius: "10px", padding: "0.9rem 1.1rem", marginBottom: "1rem", textAlign: "center" }}>
-                <div style={{ fontSize: "13.5px", color: c.textPrimary, lineHeight: 1.6, fontFamily: SERIF }}>
-                  This reading was built entirely from your anatomy and sensations. The tool can go much deeper — and the more detail you're willing to share from here, the more precise it gets.
-                </div>
-              </div>
-              <div style={{ textAlign: "center", fontSize: "14px", color: c.textSecondary, fontFamily: SERIF, marginBottom: "0.85rem" }}>
-                Answer a few more questions for your deeper Root Cause Reading.
-              </div>
-              <div style={{ display: "flex", justifyContent: "center" }}>
-                <button
-                  onClick={beginTier2}
-                  style={{ background: c.accent, border: "none", borderRadius: "6px", padding: "14px 28px", fontSize: "15px", color: "#fff", cursor: "pointer", fontFamily: SANS, fontWeight: 700, letterSpacing: "0.04em" }}
-                >
-                  Go Deeper: Get My Root Cause Reading &rarr;
-                </button>
-              </div>
-              <Disclaimer />
-            </>
-          }
-        />
-        <style>{`* { box-sizing: border-box; overflow-anchor: none; } body { margin: 0; } textarea::placeholder { color: rgba(30,26,22,0.3); }`}</style>
-      </div>
-    );
-  }
-
-  // ---- RENDER: TIER 2 (dynamic, open-ended conversation — plain input,
-  // subtle progress indicator, no fixed question card) ----
-
-  if (step === "tier2" && !loading) {
-    return (
-      <div style={{ height: "100vh", overflow: "hidden", background: c.bg, color: c.textPrimary, fontFamily: SERIF, display: "flex", flexDirection: "column", paddingTop: "80px" }}>
-        <Header onClear={handleClearChat} />
-        <div style={{ flexShrink: 0, maxWidth: "700px", width: "100%", margin: "0 auto", padding: "0.85rem 1.5rem 0" }}>
-          <Tier2ProgressBar progress={tier2Progress} />
-        </div>
-        <Transcript messages={messages} loading={loading} messagesEndRef={messagesEndRef} lastMessageRef={lastMessageRef} scrollContainerRef={scrollContainerRef} copyReadingText={copyReadingText} downloadReadingText={downloadReadingText} copiedIndex={copiedIndex}
-          ctaSlot={
-            <>
-              <SimpleChatInput
-                value={tier2Draft}
-                onChange={setTier2Draft}
-                onSubmit={submitTier2Answer}
-                placeholder="Type your answer..."
-                loading={loading}
-                handleTextKeyDown={handleTextKeyDown}
-              />
-              <Disclaimer />
-            </>
-          }
-        />
-        <style>{`* { box-sizing: border-box; overflow-anchor: none; } body { margin: 0; } textarea::placeholder { color: rgba(30,26,22,0.3); }`}</style>
-      </div>
-    );
-  }
-
-  // ---- RENDER: CHAT (post Root Cause Reading, or mid-request loading state) ----
+  // ---- RENDER: CHAT ----
+  // Everything after the Initial Reading lands here — one continuous
+  // screen for as long as the person wants to keep the conversation
+  // going. No separate "waiting to begin" screen, no progress bar, no
+  // button that has to be pressed to unlock going deeper — the chat
+  // input is just there, always, right under whatever's been said so
+  // far. This is also deliberately the ONLY screen state after the
+  // reading (not tier1 -> post-initial -> tier2 -> chat, just tier1 ->
+  // chat): every one of those old stage transitions was a full layout
+  // change with its own fresh mount, and that was the actual root cause
+  // behind nearly every scroll bug this app has had. With only one
+  // screen after the reading, that whole category of bug has nowhere
+  // left to happen.
 
   return (
     <div style={{ height: "100vh", overflow: "hidden", background: c.bg, color: c.textPrimary, fontFamily: SERIF, display: "flex", flexDirection: "column", paddingTop: "80px" }}>
       <Header onClear={handleClearChat} />
-      {step === "tier2" && (
-        <div style={{ flexShrink: 0, maxWidth: "700px", width: "100%", margin: "0 auto", padding: "0.85rem 1.5rem 0" }}>
-          <Tier2ProgressBar progress={tier2Progress} />
-        </div>
-      )}
       <Transcript messages={messages} loading={loading} messagesEndRef={messagesEndRef} lastMessageRef={lastMessageRef} scrollContainerRef={scrollContainerRef} copyReadingText={copyReadingText} downloadReadingText={downloadReadingText} copiedIndex={copiedIndex}
         loadingLabel={step === "tier1" && loading ? "Building your Energetic Root Cause reading..." : undefined}
         ctaSlot={
-          step === "chat" ? <Disclaimer /> : null
+          <>
+            <SimpleChatInput
+              value={chatDraft}
+              onChange={setChatDraft}
+              onSubmit={submitChatMessage}
+              placeholder="Type a question, a response, or whatever's on your mind..."
+              loading={loading}
+              handleTextKeyDown={handleTextKeyDown}
+            />
+            <Disclaimer />
+          </>
         }
       />
       <style>{`
