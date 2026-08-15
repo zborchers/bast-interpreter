@@ -952,6 +952,33 @@ export default function BASTInterpreter() {
     return () => { if (t) clearTimeout(t); };
   }, [loading, messages]);
 
+  // The scroll-reset above only moves content around inside the
+  // transcript's own scrolling region — it never touches the window's
+  // own scroll position. That's a real gap: the post-initial, tier2, and
+  // chat screens use a fixed-height, non-scrolling outer shell (so the
+  // header stays visible in principle), but nothing ever explicitly
+  // resets the window if it was scrolled down during the question
+  // wizard just before this. Reset it explicitly on every step
+  // transition, so the header — and the Clear Chat button in it — is
+  // reliably visible the moment a new screen (including the Initial
+  // Reading landing) appears, the same way the wizard's own screens do.
+  useEffect(() => {
+    const reset = () => {
+      try {
+        window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+        document.documentElement.scrollTop = 0;
+        document.body.scrollTop = 0;
+      } catch {}
+    };
+    reset();
+    const raf = requestAnimationFrame(reset);
+    const timers = [50, 150, 400].map(delay => setTimeout(reset, delay));
+    return () => {
+      cancelAnimationFrame(raf);
+      timers.forEach(clearTimeout);
+    };
+  }, [step]);
+
   const [copiedIndex, setCopiedIndex] = useState(null);
 
   const copyReadingText = (text, index) => {
