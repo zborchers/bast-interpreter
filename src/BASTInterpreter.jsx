@@ -1126,12 +1126,15 @@ export default function BASTInterpreter() {
       const text = await callAPI(newMessages, 6000);
       const withInitialReading = [...newMessages,
         { role: "assistant", content: text, isReading: true, readingLabel: "Initial Reading" },
-        { role: "assistant", content: "", localOnly: true, isDonationNote: true },
       ];
       setMessages(withInitialReading);
       // Straight into the ongoing conversation — no separate "post-initial"
       // waiting screen, no button to press to formally begin. The chat
-      // input is just there, always, right under the reading.
+      // input is just there, always, right under the reading. (The
+      // support note is no longer added here — see the effect below,
+      // which delays it until the conversation has some real depth to
+      // it rather than showing it immediately after the very first
+      // reading.)
       setStep("chat");
     } catch {
       setMessages(prev => [...prev, { role: "assistant", content: "There was a connection error. Please try again." }]);
@@ -1260,6 +1263,22 @@ export default function BASTInterpreter() {
   // prompt's own judgment handles how deep to go and when a fuller
   // synthesis is actually earned, the same way any real conversation
   // would, for as long as the person wants to keep it going.
+
+  // The support note used to appear immediately after the Initial
+  // Reading — right when someone has the least context for why it's
+  // there. Delaying it until there's been some real back-and-forth
+  // gives it a better chance of landing as a genuine ask rather than
+  // a reflex "here's the pitch" moment. "Real" messages here means
+  // visible, substantive ones — not the hidden intake message, and
+  // not this note itself once it's added (checked via isDonationNote
+  // so it only ever gets inserted once, not re-added on every render).
+  useEffect(() => {
+    const realCount = messages.filter(m => !m.hidden && !m.localOnly).length;
+    const alreadyHasNote = messages.some(m => m.isDonationNote);
+    if (realCount >= 4 && !alreadyHasNote && !loading) {
+      setMessages(prev => [...prev, { role: "assistant", content: "", localOnly: true, isDonationNote: true }]);
+    }
+  }, [messages, loading]);
 
   const sendChatMessage = async (userMsg) => {
     const newMessages = [...messages, userMsg];
