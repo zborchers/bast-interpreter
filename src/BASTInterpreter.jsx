@@ -1374,6 +1374,17 @@ export default function BASTInterpreter() {
             <div style={{ fontSize: "17px", color: c.textSecondary, lineHeight: 1.8, fontFamily: SERIF, marginTop: "1rem" }}>
               Every symptom and disease traces back to an energetic block. Answer a few questions to discover what's actually causing yours.
             </div>
+            <div style={{ textAlign: "left", background: c.accentLight, border: `1px solid ${c.accentMid}`, borderRadius: "10px", padding: "1.1rem 1.3rem", marginTop: "1.5rem" }}>
+              <div style={{ fontSize: "13px", color: c.accent, fontWeight: 700, fontFamily: SANS, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "0.7rem" }}>
+                A few things worth knowing before you start
+              </div>
+              <div style={{ fontSize: "14.5px", color: c.textPrimary, lineHeight: 1.75, fontFamily: SERIF }}>
+                <strong>Everything you share here is completely confidential — I don't have access to any of it.</strong> This reading is built entirely from what you enter, so accuracy matters — even a small detail, like when something started, gotten wrong can shift what the interpretation actually finds. Take a moment to make sure what you've written is accurate before submitting.
+              </div>
+              <div style={{ fontSize: "14.5px", color: c.textPrimary, lineHeight: 1.75, fontFamily: SERIF, marginTop: "0.9rem" }}>
+                This framework also asks you to see your body differently than most of us were ever taught to, and it takes an open mind — not blind acceptance, just a willingness to sit with and reflect on the information rather than immediately dismissing it if it goes against what you expect to hear. Sometimes what this reveals won't be something you recognize right away. That doesn't mean it's wrong. It can mean it's bringing to the surface something that's been living quietly inside you, underneath your awareness. Give the information time to settle, and perhaps read through it multiple times.
+              </div>
+            </div>
           </div>
         )}
         {effectiveTier1Questions[t1Index]?.type === "bodyPartForm" ? (
