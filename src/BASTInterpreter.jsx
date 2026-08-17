@@ -881,6 +881,52 @@ function compileAnswers(questions, answers) {
     .join("\n\n");
 }
 
+// Multiple distinct issues in one reading now each get their own full,
+// dedicated section (see the system prompt's instruction to give every
+// issue its own complete treatment rather than compressing them into a
+// single theme) — which means the response genuinely needs more room
+// to work with as more issues are involved. Estimating how many
+// distinct issues are actually in play, from data the app already has
+// at this point, lets the token ceiling scale to match instead of
+// using one fixed number regardless of whether someone described one
+// symptom or five.
+function estimateIssueCount(latestAnswers) {
+  const regionCount = (latestAnswers.region && latestAnswers.region.selected && latestAnswers.region.selected.length) || 0;
+
+  const diagnosisSelected = (latestAnswers.diagnosis && latestAnswers.diagnosis.selected) || [];
+  const hasDiagnosisFocus = diagnosisSelected.includes(DIAGNOSIS_YES) || diagnosisSelected.includes(DIAGNOSIS_ALSO_SEPARATE);
+  // A diagnosis intake can name more than one condition in free text —
+  // either in the dedicated diagnosisName question, or in the original
+  // diagnosis question's own detail field if it was given there
+  // instead. A rough split on commas/"and" is a reasonable estimate of
+  // how many were actually listed, better than always assuming one.
+  const diagnosisText = (latestAnswers.diagnosisName && latestAnswers.diagnosisName.detail)
+    || (latestAnswers.diagnosis && latestAnswers.diagnosis.detail)
+    || "";
+  const diagnosisCount = hasDiagnosisFocus
+    ? Math.max(1, diagnosisText.split(/,| and /i).map(s => s.trim()).filter(Boolean).length)
+    : 0;
+
+  return Math.max(1, regionCount + diagnosisCount);
+}
+
+// Base covers a single issue comfortably (this was the app's original
+// fixed value, kept as the floor). Each additional distinct issue gets
+// real room of its own for a full section, not a fraction of a shared
+// budget. There's no real cost to a ceiling that isn't fully used —
+// only actual generated tokens are billed for — so this errs generous
+// rather than risk a genuinely multi-issue reading getting cut off
+// mid-thought. The upper cap just keeps an unusually large selection
+// (someone picking many body regions at once) from producing an
+// unreasonably huge ceiling.
+function tokensForInitialReading(latestAnswers) {
+  const issueCount = estimateIssueCount(latestAnswers);
+  const base = 6000;
+  const perExtraIssue = 2200;
+  const ceiling = 20000;
+  return Math.min(base + Math.max(0, issueCount - 1) * perExtraIssue, ceiling);
+}
+
 export default function BASTInterpreter() {
   const [messages, setMessages] = useState(() => {
     try {
@@ -1123,7 +1169,7 @@ export default function BASTInterpreter() {
     const newMessages = [...messages, userMsg];
     setMessages(newMessages);
     try {
-      const text = await callAPI(newMessages, 6000);
+      const text = await callAPI(newMessages, tokensForInitialReading(latestAnswers));
       const withInitialReading = [...newMessages,
         { role: "assistant", content: text, isReading: true, readingLabel: "Initial Reading" },
       ];
