@@ -1385,7 +1385,7 @@ export default function BASTInterpreter() {
                 This reading is built entirely from what you enter, so accuracy matters. Even a small detail, like when something started, if entered incorrectly can shift the entire meaning of the interpretation, so please take a moment to make sure what you've written is accurate before submitting.
               </div>
               <div style={{ fontSize: "16px", color: c.textPrimary, lineHeight: 1.8, fontFamily: SERIF, marginTop: "0.9rem" }}>
-                This framework also asks you to see your body differently than most of us were taught, so it takes an open mind. It's important that you're willing to reflect on the information, rather than immediately dismissing it, if it goes against what you expect to hear. Sometimes what's revealed isn't something you recognize right away, because it's bringing to the surface something that's been living inside you that's underneath your awareness. Give the information time to settle, and perhaps read through it multiple times.
+                This framework also asks you to see your body differently than most of us were taught, so it takes an open mind. It's important that you're willing to reflect on the information, rather than immediately dismissing it, if it goes against what you expect to hear. Sometimes what's revealed isn't something you recognize right away because it's bringing to the surface something that's been living inside you that's underneath your awareness. Give the information time to settle, and perhaps read through it multiple times.
               </div>
             </div>
           </div>
