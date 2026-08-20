@@ -1394,9 +1394,6 @@ export default function BASTInterpreter() {
               <div style={{ fontSize: "16px", color: c.textPrimary, lineHeight: 1.8, fontFamily: SERIF, marginTop: "0.9rem" }}>
                 This framework also asks you to see your body differently than most of us were taught, so it takes an open mind. It's important that you're willing to reflect on the information, rather than immediately dismissing it, if it goes against what you expect to hear. Sometimes what's revealed isn't something you recognize right away because it's bringing to the surface something that's been living inside you that's underneath your awareness. Give the information time to settle, and perhaps read through it multiple times.
               </div>
-              <div style={{ fontSize: "16px", color: c.textPrimary, lineHeight: 1.8, fontFamily: SERIF, marginTop: "0.9rem" }}>
-                Even when what you've entered is accurate, the interpretation itself won't be 100% precise every time — no interpretation ever is. Typically 70 to 80 percent of what comes through will ring true. Take what resonates and leave the rest. You always have the option to gain clarity by continuing the conversation.
-              </div>
             </div>
           </div>
         )}
