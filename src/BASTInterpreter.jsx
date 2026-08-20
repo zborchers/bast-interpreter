@@ -524,6 +524,12 @@ function Transcript({ messages, loading, messagesEndRef, lastMessageRef, scrollC
                     Support This Tool
                   </a>
                 </div>
+              ) : msg.isAccuracyNote ? (
+                <div style={{ background: c.accentLight, border: `1px solid ${c.accentMid}`, borderRadius: "12px", padding: "1.1rem 1.3rem", textAlign: "center" }}>
+                  <div style={{ fontSize: "16px", color: c.textPrimary, lineHeight: 1.8, fontFamily: SERIF }}>
+                    Even when what you've entered is accurate, the interpretation itself won't be 100% precise every time — no interpretation ever is. Typically 70 to 80 percent of what comes through will ring true. Take what resonates and leave the rest. You always have the option to gain clarity by continuing the conversation.
+                  </div>
+                </div>
               ) : msg.role === "user" ? (
                 <div style={{ display: "flex", justifyContent: "flex-end" }}>
                   <div style={{ background: c.userBubble, border: `1px solid ${c.userBubbleBorder}`, borderRadius: "14px 14px 2px 14px", padding: "12px 18px", maxWidth: "85%", fontSize: "15px", lineHeight: 1.65, color: c.textSecondary, whiteSpace: "pre-wrap", fontFamily: SERIF }}>
@@ -1172,6 +1178,7 @@ export default function BASTInterpreter() {
       const text = await callAPI(newMessages, tokensForInitialReading(latestAnswers));
       const withInitialReading = [...newMessages,
         { role: "assistant", content: text, isReading: true, readingLabel: "Initial Reading" },
+        { role: "assistant", content: "", localOnly: true, isAccuracyNote: true },
       ];
       setMessages(withInitialReading);
       // Straight into the ongoing conversation — no separate "post-initial"
@@ -1388,7 +1395,7 @@ export default function BASTInterpreter() {
                 This framework also asks you to see your body differently than most of us were taught, so it takes an open mind. It's important that you're willing to reflect on the information, rather than immediately dismissing it, if it goes against what you expect to hear. Sometimes what's revealed isn't something you recognize right away because it's bringing to the surface something that's been living inside you that's underneath your awareness. Give the information time to settle, and perhaps read through it multiple times.
               </div>
               <div style={{ fontSize: "16px", color: c.textPrimary, lineHeight: 1.8, fontFamily: SERIF, marginTop: "0.9rem" }}>
-                This also won't be 100% accurate every time — no interpretation is. Typically 70 to 80 percent of what comes through will ring true. Take what resonates and leave the rest. You always have the option to gain clarity by continuing the conversation.
+                Even when what you've entered is accurate, the interpretation itself won't be 100% precise every time — no interpretation ever is. Typically 70 to 80 percent of what comes through will ring true. Take what resonates and leave the rest. You always have the option to gain clarity by continuing the conversation.
               </div>
             </div>
           </div>
