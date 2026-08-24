@@ -213,37 +213,47 @@ function nextId() {
 
 // ---- DIAGNOSES: repeatable field ----
 
-function DiagnosesSection({ diagnoses, updateDiagnosis, addDiagnosis, removeDiagnosis }) {
+function DiagnosesSection({ diagnoses, updateDiagnosis, addDiagnosis, removeDiagnosis, toggleDiagnosisDetail }) {
   return (
     <div style={{ background: c.bgInput, border: `1.5px solid ${c.borderMid}`, borderRadius: "12px", padding: "24px 26px", marginBottom: "1.25rem" }}>
       <div style={{ fontSize: "11px", fontWeight: 600, letterSpacing: "0.15em", textTransform: "uppercase", color: c.accent, marginBottom: "1rem", fontFamily: SANS }}>
         Diagnoses (optional)
       </div>
       {diagnoses.map((d, i) => (
-        <div key={d.id} style={{ background: c.bg, border: `1px solid ${c.borderMid}`, borderRadius: "10px", padding: "14px 16px", marginBottom: "10px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
-            <div style={{ fontSize: "11px", fontWeight: 700, color: c.textMuted, fontFamily: SANS, textTransform: "uppercase", letterSpacing: "0.06em" }}>
-              Diagnosis {i + 1}
-            </div>
+        <div key={d.id} style={{ marginBottom: "10px" }}>
+          <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+            <input
+              value={d.name}
+              onChange={e => updateDiagnosis(d.id, "name", e.target.value)}
+              placeholder="Diagnosis name"
+              style={{ flex: "1 1 auto", minWidth: 0, background: c.bg, border: `1px solid ${c.borderMid}`, borderRadius: "8px", padding: "10px 12px", fontSize: "15px", fontFamily: SERIF, color: c.textPrimary }}
+            />
+            {!d.showDetail && (
+              <button
+                onClick={() => toggleDiagnosisDetail(d.id)}
+                aria-label="Add detail"
+                title="Add detail"
+                style={{ flexShrink: 0, background: "transparent", border: `1px solid ${c.borderMid}`, borderRadius: "6px", width: "36px", height: "38px", cursor: "pointer", color: c.textMuted, fontSize: "16px", fontFamily: SANS, lineHeight: 1 }}
+              >
+                +
+              </button>
+            )}
             <button
               onClick={() => removeDiagnosis(d.id)}
-              style={{ background: "transparent", border: `1px solid ${c.borderMid}`, borderRadius: "6px", padding: "5px 10px", cursor: "pointer", color: c.textMuted, fontSize: "12px", fontFamily: SANS }}
+              aria-label="Remove diagnosis"
+              style={{ flexShrink: 0, background: "transparent", border: `1px solid ${c.borderMid}`, borderRadius: "6px", width: "36px", height: "38px", cursor: "pointer", color: c.textMuted, fontSize: "13px", fontFamily: SANS }}
             >
-              Remove
+              ✕
             </button>
           </div>
-          <input
-            value={d.name}
-            onChange={e => updateDiagnosis(d.id, "name", e.target.value)}
-            placeholder="Diagnosis name"
-            style={{ width: "100%", boxSizing: "border-box", background: c.bgInput, border: `1px solid ${c.borderMid}`, borderRadius: "8px", padding: "10px 12px", fontSize: "15px", fontFamily: SERIF, color: c.textPrimary, marginBottom: "8px" }}
-          />
-          <input
-            value={d.detail}
-            onChange={e => updateDiagnosis(d.id, "detail", e.target.value)}
-            placeholder="Detail — how long, how it's progressed, etc. (optional)"
-            style={{ width: "100%", boxSizing: "border-box", background: c.bgInput, border: `1px solid ${c.borderMid}`, borderRadius: "8px", padding: "10px 12px", fontSize: "15px", fontFamily: SERIF, color: c.textPrimary }}
-          />
+          {d.showDetail && (
+            <input
+              value={d.detail}
+              onChange={e => updateDiagnosis(d.id, "detail", e.target.value)}
+              placeholder="Detail — how long, how it's progressed, etc. (optional)"
+              style={{ width: "100%", boxSizing: "border-box", background: c.bg, border: `1px solid ${c.borderMid}`, borderRadius: "8px", padding: "10px 12px", fontSize: "15px", fontFamily: SERIF, color: c.textPrimary, marginTop: "8px" }}
+            />
+          )}
         </div>
       ))}
       <button
@@ -517,7 +527,7 @@ function tokensForPanel(diagnoses, regions) {
 // ---- MAIN INTAKE SCREEN ----
 
 function PanelIntakeForm({ diagnoses, regions, lifeContext, loading, checkoutLoading, paymentError,
-  addDiagnosis, updateDiagnosis, removeDiagnosis,
+  addDiagnosis, updateDiagnosis, removeDiagnosis, toggleDiagnosisDetail,
   addRegion, updateRegionOption, updateRegionDetail, removeRegion,
   setLifeContext, submitIntake }) {
 
@@ -535,7 +545,7 @@ function PanelIntakeForm({ diagnoses, regions, lifeContext, loading, checkoutLoa
         </div>
       </div>
 
-      <DiagnosesSection diagnoses={diagnoses} updateDiagnosis={updateDiagnosis} addDiagnosis={addDiagnosis} removeDiagnosis={removeDiagnosis} />
+      <DiagnosesSection diagnoses={diagnoses} updateDiagnosis={updateDiagnosis} addDiagnosis={addDiagnosis} removeDiagnosis={removeDiagnosis} toggleDiagnosisDetail={toggleDiagnosisDetail} />
       <SymptomsSection regions={regions} addRegion={addRegion} updateRegionOption={updateRegionOption} updateRegionDetail={updateRegionDetail} removeRegion={removeRegion} />
       <LifeContextSection lifeContext={lifeContext} setLifeContext={setLifeContext} />
 
@@ -755,7 +765,7 @@ export default function ReadingInterpreter() {
   });
   const [paymentError, setPaymentError] = useState(null);
 
-  const [diagnoses, setDiagnoses] = useState([{ id: nextId(), name: "", detail: "" }]);
+  const [diagnoses, setDiagnoses] = useState([{ id: nextId(), name: "", detail: "", showDetail: false }]);
   const [regions, setRegions] = useState([]);
   const [lifeContext, setLifeContext] = useState("");
   const [chatDraft, setChatDraft] = useState("");
@@ -895,9 +905,10 @@ export default function ReadingInterpreter() {
   }
 
   // ---- DIAGNOSES HANDLERS ----
-  const addDiagnosis = () => setDiagnoses(prev => [...prev, { id: nextId(), name: "", detail: "" }]);
+  const addDiagnosis = () => setDiagnoses(prev => [...prev, { id: nextId(), name: "", detail: "", showDetail: false }]);
   const updateDiagnosis = (id, field, value) => setDiagnoses(prev => prev.map(d => d.id === id ? { ...d, [field]: value } : d));
   const removeDiagnosis = (id) => setDiagnoses(prev => prev.filter(d => d.id !== id));
+  const toggleDiagnosisDetail = (id) => setDiagnoses(prev => prev.map(d => d.id === id ? { ...d, showDetail: !d.showDetail } : d));
 
   // ---- REGIONS HANDLERS ----
   const addRegion = (region) => setRegions(prev => [...prev, { id: nextId(), region }]);
@@ -1058,7 +1069,7 @@ export default function ReadingInterpreter() {
         <PanelIntakeForm
           diagnoses={diagnoses} regions={regions} lifeContext={lifeContext} loading={loading}
           checkoutLoading={checkoutLoading} paymentError={paymentError}
-          addDiagnosis={addDiagnosis} updateDiagnosis={updateDiagnosis} removeDiagnosis={removeDiagnosis}
+          addDiagnosis={addDiagnosis} updateDiagnosis={updateDiagnosis} removeDiagnosis={removeDiagnosis} toggleDiagnosisDetail={toggleDiagnosisDetail}
           addRegion={addRegion} updateRegionOption={updateRegionOption} updateRegionDetail={updateRegionDetail} removeRegion={removeRegion}
           setLifeContext={setLifeContext} submitIntake={submitIntake}
         />
