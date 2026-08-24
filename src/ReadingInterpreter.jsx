@@ -557,10 +557,10 @@ function PanelIntakeForm({ diagnoses, regions, lifeContext, loading, checkoutLoa
             fontSize: "15px", fontFamily: SANS, fontWeight: 700, letterSpacing: "0.03em",
           }}
         >
-          {checkoutLoading === "initial" ? "Redirecting to payment…" : loading ? "Generating…" : "Generate Reading — $5"}
+          {checkoutLoading ? "Redirecting to payment…" : loading ? "Generating…" : "Generate Reading — $5"}
         </button>
         <div style={{ fontSize: "11px", color: c.textMuted, fontFamily: SANS, marginTop: "0.6rem" }}>
-          One-time $5 for your reading. Continuing the conversation afterward is a separate $25 for unlimited follow-up.
+          One-time $5 for your reading, which includes up to 4 follow-up messages in the conversation afterward.
         </div>
       </div>
       <Disclaimer />
@@ -669,15 +669,21 @@ function Transcript({ messages, loading, messagesEndRef, lastMessageRef, scrollC
 // localStorage keys. Persistence is new here — it wasn't part of the
 // Panel (deliberately, for cross-patient-risk reasons) and was left off
 // in the first version of this file pending a deliberate call. Payment
-// changes that calculus: losing a paid reading on refresh, or losing paid
-// unlimited-chat status because a tab closed, is a real problem once real
-// money is involved, not just an inconvenience. It's also structurally
-// required now — completing a Stripe Checkout is a full page navigation
-// away from the app and back, so anything that needs to survive that trip
-// (the reading in progress, what tier has been paid for) has to live
-// somewhere other than React state.
+// changes that calculus: losing a paid reading on refresh is a real
+// problem once real money is involved, not just an inconvenience. It's
+// also structurally required now — completing a Stripe Checkout is a full
+// page navigation away from the app and back, so anything that needs to
+// survive that trip (the reading in progress, whether it's been paid for)
+// has to live somewhere other than React state.
 const SESSION_KEY = "erc_reading_session";
 const PENDING_INTAKE_KEY = "erc_reading_pending_intake";
+// How many follow-up exchanges (one user message + one response) are
+// included in the flat $5 price before the conversation stops accepting
+// new messages. This is a usage cap on an already-paid feature, not a
+// second paywall — there's no monetary incentive to game it client-side,
+// so counting it in the browser (rather than tracking it server-side the
+// way payment itself is verified) is a reasonable place to draw the line.
+const INCLUDED_FOLLOWUPS = 4;
 
 function loadSession() {
   try {
@@ -707,17 +713,18 @@ export default function ReadingInterpreter() {
   const [messages, setMessages] = useState(restored?.messages || []);
   const [loading, setLoading] = useState(false);
   // step: 'intake' (the single-page form) -> 'chat' (reading result, then
-  // open-ended follow-up conversation).
+  // up to INCLUDED_FOLLOWUPS more exchanges).
   const [step, setStep] = useState(restored?.step || "intake");
-  // paidTier: null (nothing paid yet) -> 'initial' ($5, one reading, chat
-  // locked) -> 'unlimited' ($25 on top of that, chat unlocked). This is
-  // the actual access-control state; see the payment verification effect
-  // below for how it gets set, and verify-payment.js for how it's checked
-  // server-side rather than just trusted from the browser.
-  const [paidTier, setPaidTier] = useState(restored?.paidTier || null);
-  // Tracks an in-flight redirect to Stripe so both paywall buttons can
-  // show a loading state and can't be double-clicked into two sessions.
-  const [checkoutLoading, setCheckoutLoading] = useState(null); // null | 'initial' | 'unlimited'
+  // hasPaid: whether the one-time $5 has been confirmed. There's only one
+  // paid tier now — the $5 covers the reading and the included follow-ups
+  // together, so this is a simple boolean rather than a tier string. See
+  // the payment verification effect below for how it gets set, and
+  // verify-payment.js for how it's checked server-side rather than just
+  // trusted from the browser.
+  const [hasPaid, setHasPaid] = useState(!!restored?.hasPaid);
+  // Tracks an in-flight redirect to Stripe so the button can show a
+  // loading state and can't be double-clicked into two checkout sessions.
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
   // True from the very first render whenever the URL shows a return trip
   // from Stripe, computed synchronously (not in an effect) specifically so
   // there's no gap where the empty intake form could flash before the
@@ -749,10 +756,10 @@ export default function ReadingInterpreter() {
   // pending-intake stash right before a Stripe redirect needs those, and
   // that's handled separately in submitIntake.
   useEffect(() => {
-    if (step === "chat" || paidTier) {
-      saveSession({ messages, step, paidTier });
+    if (step === "chat" || hasPaid) {
+      saveSession({ messages, step, hasPaid });
     }
-  }, [messages, step, paidTier]);
+  }, [messages, step, hasPaid]);
 
   // Handles returning from Stripe. Runs once on mount, before anything
   // else needs to know whether a payment just completed.
@@ -764,6 +771,7 @@ export default function ReadingInterpreter() {
 
     if (canceledParam) {
       window.history.replaceState({}, "", window.location.pathname);
+      setConfirmingPayment(false);
       return;
     }
 
@@ -781,7 +789,7 @@ export default function ReadingInterpreter() {
         });
         const data = await res.json();
 
-        if (!data.paid || data.tier !== paidParam) {
+        if (!data.paid || data.tier !== "initial") {
           setPaymentError("We couldn't confirm that payment went through. If you were charged, contact support before trying again.");
           window.history.replaceState({}, "", window.location.pathname);
           return;
@@ -789,29 +797,25 @@ export default function ReadingInterpreter() {
 
         window.history.replaceState({}, "", window.location.pathname);
 
-        if (paidParam === "initial") {
-          setPaidTier("initial");
-          let pendingIntake = null;
-          try {
-            const raw = localStorage.getItem(PENDING_INTAKE_KEY);
-            pendingIntake = raw ? JSON.parse(raw) : null;
-          } catch {}
-          try { localStorage.removeItem(PENDING_INTAKE_KEY); } catch {}
+        setHasPaid(true);
+        let pendingIntake = null;
+        try {
+          const raw = localStorage.getItem(PENDING_INTAKE_KEY);
+          pendingIntake = raw ? JSON.parse(raw) : null;
+        } catch {}
+        try { localStorage.removeItem(PENDING_INTAKE_KEY); } catch {}
 
-          if (pendingIntake) {
-            setDiagnoses(pendingIntake.diagnoses || []);
-            setRegions(pendingIntake.regions || []);
-            setLifeContext(pendingIntake.lifeContext || "");
-            // generateReadingFromIntake sets its own loading state and,
-            // on success, flips step to 'chat' — confirmingPayment being
-            // cleared in the finally block below is what stops the
-            // confirmation screen from covering that transition.
-            await generateReadingFromIntake(pendingIntake.diagnoses || [], pendingIntake.regions || [], pendingIntake.lifeContext || "");
-          } else {
-            setPaymentError("Payment was confirmed, but your intake details weren't found on this device. Please fill out the form again — you won't be charged twice for the same payment; contact support if you need a refund reconciled.");
-          }
-        } else if (paidParam === "unlimited") {
-          setPaidTier("unlimited");
+        if (pendingIntake) {
+          setDiagnoses(pendingIntake.diagnoses || []);
+          setRegions(pendingIntake.regions || []);
+          setLifeContext(pendingIntake.lifeContext || "");
+          // generateReadingFromIntake sets its own loading state and,
+          // on success, flips step to 'chat' — confirmingPayment being
+          // cleared in the finally block below is what stops the
+          // confirmation screen from covering that transition.
+          await generateReadingFromIntake(pendingIntake.diagnoses || [], pendingIntake.regions || [], pendingIntake.lifeContext || "");
+        } else {
+          setPaymentError("Payment was confirmed, but your intake details weren't found on this device. Please fill out the form again — you won't be charged twice for the same payment; contact support if you need a refund reconciled.");
         }
       } catch (err) {
         setPaymentError("Something went wrong confirming payment. If you were charged, contact support.");
@@ -920,45 +924,41 @@ export default function ReadingInterpreter() {
     setLoading(false);
   }
 
-  // Redirects to Stripe Checkout for the given tier. Stashes the current
-  // intake first when starting the 'initial' tier, since that's the data
-  // generateReadingFromIntake needs after the round trip back from Stripe
-  // — nothing else needs to be stashed for 'unlimited', since unlocking it
-  // doesn't require doing anything with the intake, just flipping paidTier.
-  const startCheckout = async (tier) => {
+  // Redirects to Stripe Checkout for the one-time $5 reading. Stashes the
+  // current intake first, since that's the data generateReadingFromIntake
+  // needs after the round trip back from Stripe.
+  const startCheckout = async () => {
     if (checkoutLoading) return;
     setPaymentError(null);
-    setCheckoutLoading(tier);
+    setCheckoutLoading(true);
 
-    if (tier === "initial") {
-      try {
-        localStorage.setItem(PENDING_INTAKE_KEY, JSON.stringify({ diagnoses, regions, lifeContext }));
-      } catch {}
-    }
+    try {
+      localStorage.setItem(PENDING_INTAKE_KEY, JSON.stringify({ diagnoses, regions, lifeContext }));
+    } catch {}
 
     try {
       const res = await fetch("/api/create-checkout-session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tier }),
+        body: JSON.stringify({ tier: "initial" }),
       });
       const data = await res.json();
       if (data.url) {
         window.location.href = data.url;
       } else {
         setPaymentError(data.error || "Couldn't start checkout. Please try again.");
-        setCheckoutLoading(null);
+        setCheckoutLoading(false);
       }
     } catch (err) {
       setPaymentError("Couldn't reach the payment system. Please try again.");
-      setCheckoutLoading(null);
+      setCheckoutLoading(false);
     }
   };
 
   const submitIntake = () => {
     const hasAnyInput = diagnoses.some(d => d.name.trim()) || regions.length > 0;
     if (!hasAnyInput || loading || checkoutLoading) return;
-    startCheckout("initial");
+    startCheckout();
   };
 
   const sendChatMessage = async (userMsg) => {
@@ -974,11 +974,16 @@ export default function ReadingInterpreter() {
     setLoading(false);
   };
 
+  // Follow-up messages sent so far, not counting the hidden intake message
+  // that kicked off the original reading. Compared against
+  // INCLUDED_FOLLOWUPS to decide whether the chat input is still available.
+  const followUpCount = messages.filter(m => m.role === "user" && !m.hidden).length;
+
   const submitChatMessage = () => {
-    // Defensive only — the chat input itself is replaced by the paywall
-    // card whenever paidTier isn't 'unlimited' (see the chat render below),
-    // so this shouldn't normally be reachable without unlimited access.
-    if (paidTier !== "unlimited") return;
+    // Defensive only — the chat input itself is replaced by a "you've used
+    // your included follow-ups" message once the cap is hit (see the chat
+    // render below), so this shouldn't normally be reachable past the cap.
+    if (followUpCount >= INCLUDED_FOLLOWUPS) return;
     const trimmed = chatDraft.trim();
     if (!trimmed || loading) return;
     setChatDraft("");
@@ -993,7 +998,7 @@ export default function ReadingInterpreter() {
     clearSession();
     setMessages([]);
     setStep("intake");
-    setPaidTier(null);
+    setHasPaid(false);
     setPaymentError(null);
     setDiagnoses([{ id: nextId(), name: "", detail: "" }]);
     setRegions([]);
@@ -1004,8 +1009,7 @@ export default function ReadingInterpreter() {
 
   // ---- RENDER: CONFIRMING PAYMENT ----
   // Takes priority over both other render branches. Covers the entire
-  // window between landing back from Stripe and either the reading being
-  // ready (initial tier) or unlimited being unlocked (unlimited tier) —
+  // window between landing back from Stripe and the reading being ready —
   // including the brief moment before the verification effect has even
   // run, since confirmingPayment is computed synchronously from the URL
   // at initial state, not set inside the effect itself.
@@ -1044,9 +1048,9 @@ export default function ReadingInterpreter() {
   }
 
   // ---- RENDER: READING RESULT + FOLLOW-UP CHAT ----
-  // The chat input itself is the $25 gate: if unlimited hasn't been paid
-  // for, it's replaced entirely by a paywall card rather than letting
-  // someone type a message and only finding out it's locked on submit.
+  // The chat input is available for up to INCLUDED_FOLLOWUPS exchanges,
+  // included in the one $5 payment. Past that, it's replaced by a plain
+  // message rather than letting someone type into a dead end.
   return (
     <div style={{ height: "100vh", overflow: "hidden", background: c.bg, color: c.textPrimary, fontFamily: SERIF, display: "flex", flexDirection: "column", paddingTop: "80px" }}>
       <Header onClear={handleStartOver} />
@@ -1056,35 +1060,22 @@ export default function ReadingInterpreter() {
         loadingLabel={loading && messages.length <= 1 ? "Generating your reading…" : undefined}
         ctaSlot={
           <>
-            {paidTier === "unlimited" ? (
-              <SimpleChatInput
-                value={chatDraft} onChange={setChatDraft} onSubmit={submitChatMessage}
-                placeholder="Ask a follow-up — go deeper on something, explore a connection, whatever's on your mind..."
-                loading={loading} handleTextKeyDown={handleTextKeyDown}
-              />
+            {followUpCount < INCLUDED_FOLLOWUPS ? (
+              <>
+                <SimpleChatInput
+                  value={chatDraft} onChange={setChatDraft} onSubmit={submitChatMessage}
+                  placeholder="Ask a follow-up — go deeper on something, explore a connection, whatever's on your mind..."
+                  loading={loading} handleTextKeyDown={handleTextKeyDown}
+                />
+                <div style={{ fontSize: "11px", color: c.textMuted, fontFamily: SANS, textAlign: "center", marginTop: "0.5rem" }}>
+                  {INCLUDED_FOLLOWUPS - followUpCount} follow-up {INCLUDED_FOLLOWUPS - followUpCount === 1 ? "message" : "messages"} included with your reading.
+                </div>
+              </>
             ) : (
               <div style={{ background: c.accentLight, border: `1px solid ${c.accentMid}`, borderRadius: "10px", padding: "1.1rem 1.3rem", textAlign: "center" }}>
-                <div style={{ fontSize: "15px", color: c.textPrimary, fontFamily: SERIF, lineHeight: 1.7, marginBottom: "0.85rem" }}>
-                  Want to keep exploring this reading? Unlock unlimited follow-up conversation for $25.
+                <div style={{ fontSize: "15px", color: c.textPrimary, fontFamily: SERIF, lineHeight: 1.7 }}>
+                  You've used all {INCLUDED_FOLLOWUPS} follow-up messages included with this reading.
                 </div>
-                {paymentError && (
-                  <div style={{ fontSize: "13px", color: "#a13d3d", fontFamily: SANS, marginBottom: "0.75rem" }}>
-                    {paymentError}
-                  </div>
-                )}
-                <button
-                  onClick={() => startCheckout("unlimited")}
-                  disabled={!!checkoutLoading}
-                  style={{
-                    background: checkoutLoading ? c.accentMid : c.accent,
-                    border: "none", borderRadius: "8px", padding: "11px 26px",
-                    cursor: checkoutLoading ? "default" : "pointer",
-                    color: checkoutLoading ? c.textMuted : "#fff",
-                    fontSize: "14px", fontFamily: SANS, fontWeight: 700, letterSpacing: "0.03em",
-                  }}
-                >
-                  {checkoutLoading === "unlimited" ? "Redirecting to payment…" : "Unlock Unlimited Conversation — $25"}
-                </button>
               </div>
             )}
             <Disclaimer />

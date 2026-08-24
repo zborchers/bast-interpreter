@@ -9,14 +9,11 @@
 // KNOWN LIMITATION: this project has no database, so there's no record of
 // which session_ids have already been redeemed. A user who bookmarks or
 // reuses their own successful success_url could re-verify the same paid
-// session more than once. For the "unlimited" tier this doesn't matter —
-// unlimited is unlimited, reusing that confirmation changes nothing. For
-// the "initial" $5 tier it's a real, if narrow, gap: someone could in
-// principle reuse a session_id they already paid with to regenerate a
-// reading without paying again. Closing this fully requires a small
-// persistent store (Vercel KV or similar) that marks a session_id as
-// consumed on first successful verification. Worth adding before this
-// sees real traffic; not blocking for an initial test.
+// session more than once — in principle regenerating a reading from a
+// session_id they already paid with, without paying again. Closing this
+// fully requires a small persistent store (Vercel KV or similar) that
+// marks a session_id as consumed on first successful verification. Worth
+// adding before this sees real traffic; not blocking for an initial test.
 
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");

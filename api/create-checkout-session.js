@@ -10,7 +10,6 @@
 
 const TIERS = {
   initial: { amountCents: 500, name: "Energetic Root Cause Reading" },
-  unlimited: { amountCents: 2500, name: "Unlimited Follow-Up Conversation" },
 };
 
 export default async function handler(req, res) {
@@ -27,7 +26,7 @@ export default async function handler(req, res) {
   const { tier } = req.body || {};
   const config = TIERS[tier];
   if (!config) {
-    return res.status(400).json({ error: "Invalid tier — must be 'initial' or 'unlimited'" });
+    return res.status(400).json({ error: "Invalid tier — must be 'initial'" });
   }
 
   if (!process.env.STRIPE_SECRET_KEY) {
