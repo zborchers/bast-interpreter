@@ -83,7 +83,7 @@ function formatMessage(content) {
             </div>
           )}
           {block.paragraphs.map((p, pi) => {
-            const isGuidingQuestion = !!block.header && pi === block.paragraphs.length - 1;
+            const isGuidingQuestion = !!block.header && pi === block.paragraphs.length - 1 && /\?\s*$/.test(p.trim());
             if (isGuidingQuestion) {
               return (
                 <div
