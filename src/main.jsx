@@ -1,9 +1,9 @@
-import React from 'react'
-import ReactDOM from 'react-dom/client'
-import BASTInterpreter from './BASTInterpreter'
+import React from "react";
+import ReactDOM from "react-dom/client";
+import ReadingInterpreter from "./ReadingInterpreter.jsx";
 
-ReactDOM.createRoot(document.getElementById('root')).render(
+ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
-    <BASTInterpreter />
+    <ReadingInterpreter />
   </React.StrictMode>
-)
+);
