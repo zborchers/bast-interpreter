@@ -220,26 +220,30 @@ function DiagnosesSection({ diagnoses, updateDiagnosis, addDiagnosis, removeDiag
         Diagnoses (optional)
       </div>
       {diagnoses.map((d, i) => (
-        <div key={d.id} style={{ display: "flex", gap: "10px", marginBottom: "10px", alignItems: "flex-start" }}>
+        <div key={d.id} style={{ background: c.bg, border: `1px solid ${c.borderMid}`, borderRadius: "10px", padding: "14px 16px", marginBottom: "10px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
+            <div style={{ fontSize: "11px", fontWeight: 700, color: c.textMuted, fontFamily: SANS, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+              Diagnosis {i + 1}
+            </div>
+            <button
+              onClick={() => removeDiagnosis(d.id)}
+              style={{ background: "transparent", border: `1px solid ${c.borderMid}`, borderRadius: "6px", padding: "5px 10px", cursor: "pointer", color: c.textMuted, fontSize: "12px", fontFamily: SANS }}
+            >
+              Remove
+            </button>
+          </div>
           <input
             value={d.name}
             onChange={e => updateDiagnosis(d.id, "name", e.target.value)}
             placeholder="Diagnosis name"
-            style={{ flex: "1 1 40%", background: c.bg, border: `1px solid ${c.borderMid}`, borderRadius: "8px", padding: "10px 12px", fontSize: "15px", fontFamily: SERIF, color: c.textPrimary }}
+            style={{ width: "100%", boxSizing: "border-box", background: c.bgInput, border: `1px solid ${c.borderMid}`, borderRadius: "8px", padding: "10px 12px", fontSize: "15px", fontFamily: SERIF, color: c.textPrimary, marginBottom: "8px" }}
           />
           <input
             value={d.detail}
             onChange={e => updateDiagnosis(d.id, "detail", e.target.value)}
             placeholder="Detail — how long, how it's progressed, etc. (optional)"
-            style={{ flex: "1 1 50%", background: c.bg, border: `1px solid ${c.borderMid}`, borderRadius: "8px", padding: "10px 12px", fontSize: "15px", fontFamily: SERIF, color: c.textPrimary }}
+            style={{ width: "100%", boxSizing: "border-box", background: c.bgInput, border: `1px solid ${c.borderMid}`, borderRadius: "8px", padding: "10px 12px", fontSize: "15px", fontFamily: SERIF, color: c.textPrimary }}
           />
-          <button
-            onClick={() => removeDiagnosis(d.id)}
-            aria-label="Remove diagnosis"
-            style={{ background: "transparent", border: `1px solid ${c.borderMid}`, borderRadius: "6px", padding: "10px 12px", cursor: "pointer", color: c.textMuted, fontSize: "13px", fontFamily: SANS }}
-          >
-            ✕
-          </button>
         </div>
       ))}
       <button
@@ -557,10 +561,12 @@ function PanelIntakeForm({ diagnoses, regions, lifeContext, loading, checkoutLoa
             fontSize: "15px", fontFamily: SANS, fontWeight: 700, letterSpacing: "0.03em",
           }}
         >
-          {checkoutLoading ? "Redirecting to payment…" : loading ? "Generating…" : "Generate Reading — $5"}
+          {checkoutLoading ? "Redirecting to payment…" : loading ? "Generating…" : SKIP_PAYMENT ? "Generate Reading" : "Generate Reading — $5"}
         </button>
         <div style={{ fontSize: "11px", color: c.textMuted, fontFamily: SANS, marginTop: "0.6rem" }}>
-          One-time $5 for your reading, which includes up to 4 follow-up messages in the conversation afterward.
+          {SKIP_PAYMENT
+            ? "Includes up to 4 follow-up messages in the conversation afterward."
+            : "One-time $5 for your reading, which includes up to 4 follow-up messages in the conversation afterward."}
         </div>
       </div>
       <Disclaimer />
@@ -684,6 +690,15 @@ const PENDING_INTAKE_KEY = "erc_reading_pending_intake";
 // so counting it in the browser (rather than tracking it server-side the
 // way payment itself is verified) is a reasonable place to draw the line.
 const INCLUDED_FOLLOWUPS = 4;
+
+// TEMPORARY TOGGLE: while true, submitIntake skips Stripe entirely and
+// generates the reading directly — for testing without paying. Nothing
+// about the Stripe integration is removed or disabled underneath this;
+// create-checkout-session.js, verify-payment.js, and startCheckout below
+// are all still fully intact. Flip this back to false (or delete the
+// block that checks it in submitIntake) to require payment again — that's
+// the only thing this flag touches.
+const SKIP_PAYMENT = true;
 
 function loadSession() {
   try {
@@ -958,7 +973,12 @@ export default function ReadingInterpreter() {
   const submitIntake = () => {
     const hasAnyInput = diagnoses.some(d => d.name.trim()) || regions.length > 0;
     if (!hasAnyInput || loading || checkoutLoading) return;
-    startCheckout();
+    if (SKIP_PAYMENT) {
+      setHasPaid(true);
+      generateReadingFromIntake(diagnoses, regions, lifeContext);
+    } else {
+      startCheckout();
+    }
   };
 
   const sendChatMessage = async (userMsg) => {
