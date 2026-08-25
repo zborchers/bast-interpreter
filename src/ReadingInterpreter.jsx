@@ -765,7 +765,7 @@ export default function ReadingInterpreter() {
   });
   const [paymentError, setPaymentError] = useState(null);
 
-  const [diagnoses, setDiagnoses] = useState([{ id: nextId(), name: "", detail: "", showDetail: false }]);
+  const [diagnoses, setDiagnoses] = useState([]);
   const [regions, setRegions] = useState([]);
   const [lifeContext, setLifeContext] = useState("");
   const [chatDraft, setChatDraft] = useState("");
@@ -1031,7 +1031,7 @@ export default function ReadingInterpreter() {
     setStep("intake");
     setHasPaid(false);
     setPaymentError(null);
-    setDiagnoses([{ id: nextId(), name: "", detail: "" }]);
+    setDiagnoses([]);
     setRegions([]);
     setLifeContext("");
     setChatDraft("");
