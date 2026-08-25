@@ -3,855 +3,384 @@ import { SYSTEM_PROMPT } from "./systemPrompt.js";
 
 const SANS = "'Plus Jakarta Sans','system-ui',sans-serif";
 const SERIF = "'Crimson Text','Georgia',serif";
+const LIFE_CONTEXT_PROMPT = "To take this interpretation even deeper, I want to invite you to share more about what is going on in your life. Go beyond the physical for a moment. What stress are you carrying? What decisions are you facing or avoiding? What feels unresolved? Are you sensing a pull toward something, or away from something? What emotions keep surfacing? Are there relationships, work situations, or life transitions weighing on you? Also, let me know if you would like suggestions for non-medical practices that may support your healing - things like breathwork, movement, journaling, or other lifestyle approaches. The body does not operate in isolation from the rest of your life, and all of that context allows for a much more specific and meaningful reading.";
+const ACCESS_PASSWORD = "bodyspeak";
 
-const c = {
-  bg: "#faf8f4",
-  bgHeader: "#f3f0e9",
-  bgInput: "#ede8dd",
-  border: "rgba(100,80,60,0.1)",
-  borderMid: "rgba(100,80,60,0.18)",
-  accent: "#2d5a3d",
-  accentLight: "rgba(45,90,61,0.08)",
-  accentMid: "rgba(45,90,61,0.18)",
-  accentPop: "#c17f3a",
-  textPrimary: "#1e1a16",
-  textSecondary: "#5c5147",
-  textMuted: "rgba(30,26,22,0.38)",
-  userBubble: "#ede8dd",
-  userBubbleBorder: "rgba(100,80,60,0.18)",
-};
-
-// ---- SCROLL HELPERS ----
-// Carried over unchanged from the consumer app — the chat screen (after the
-// panel generates) still needs reliable scroll-to-top-of-response behavior
-// on step transitions and new messages landing. The intake side no longer
-// needs any of this, since it's a single static page with no step
-// transitions of its own.
-
-function ensureHeaderVisible() {
-  try {
-    const headerEl = document.getElementById("app-header");
-    if (!headerEl) return;
-    const rect = headerEl.getBoundingClientRect();
-    if (Math.round(rect.top) !== 0) {
-      const currentScroll = window.scrollY || window.pageYOffset || document.documentElement.scrollTop || 0;
-      const target = Math.max(0, currentScroll + rect.top);
-      window.scrollTo({ top: target, left: 0, behavior: "auto" });
-      document.documentElement.scrollTop = target;
-      document.body.scrollTop = target;
-    }
-  } catch {}
+async function validateLicenseKey(key) {
+  return key.trim().toLowerCase() === ACCESS_PASSWORD;
 }
 
-// Parses panel output into entry blocks. The system prompt guarantees a
-// specific shape: a bold-wrapped paragraph ("**Entry Name**") marks the
-// start of an entry, every paragraph after it belongs to that entry until
-// the next header, and the LAST paragraph of a header'd entry is always the
-// guiding question, on its own paragraph. Content with no headers at all
-// (a follow-up chat answer that isn't itself a formatted panel) is handled
-// too — it just renders as plain paragraphs with no header and no
-// guiding-question styling, since there's no reliable signal for which
-// paragraph, if any, is a question in freeform conversation.
-function parsePanelBlocks(content) {
-  const paragraphs = content.split(/\n{2,}/).map(p => p.trim()).filter(Boolean);
-  const headerRe = /^\*\*(.+?)\*\*$/;
-  const blocks = [];
-  let current = null;
-  for (const p of paragraphs) {
-    const m = p.match(headerRe);
-    if (m) {
-      if (current) blocks.push(current);
-      current = { header: m[1], paragraphs: [] };
-    } else {
-      if (!current) current = { header: null, paragraphs: [] };
-      current.paragraphs.push(p);
-    }
-  }
-  if (current) blocks.push(current);
-  return blocks;
-}
-
-function formatMessage(content) {
-  const blocks = parsePanelBlocks(content);
-  return (
-    <div>
-      {blocks.map((block, bi) => (
-        <div key={bi} style={{ marginBottom: "1.75rem" }}>
-          {block.header && (
-            <div style={{ fontSize: "19px", fontWeight: 700, fontFamily: SANS, color: c.textPrimary, marginBottom: "0.75rem" }}>
-              {block.header}
-            </div>
-          )}
-          {block.paragraphs.map((p, pi) => {
-            const isGuidingQuestion = !!block.header && pi === block.paragraphs.length - 1;
-            if (isGuidingQuestion) {
-              return (
-                <div
-                  key={pi}
-                  style={{ marginTop: "1rem", background: c.accentLight, borderLeft: `3px solid ${c.accent}`, borderRadius: "0 8px 8px 0", padding: "0.85rem 1.1rem" }}
-                >
-                  <div style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: c.accent, marginBottom: "0.35rem", fontFamily: SANS }}>
-                    Worth Exploring
-                  </div>
-                  <div style={{ lineHeight: 1.75, fontStyle: "italic" }}>{p}</div>
-                </div>
-              );
-            }
-            return (
-              <div key={pi} style={{ lineHeight: 1.82, marginBottom: "0.9rem" }}>{p}</div>
-            );
-          })}
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// ---- PRACTICE CONFIG ----
-// This is the one thing that changes between practice deployments. Every
-// practice runs an identical fork of this file and the system prompt —
-// intake fields, interpretive logic, token budget, none of it varies by
-// practice. The only per-deployment edit is the practice's own name below,
-// which is what "swap one file, five minutes" actually means in practice:
-// one constant, not a branching config system. No logo, color, or copy
-// customization beyond this is currently supported by design — see the
-// earlier decision to keep the product identical across every practice
-// rather than build per-practice customization into the template itself.
-const BRAND_CONFIG = {
-  name: "Voltage Wellness",
-};
-
-function Header({ onClear }) {
-  return (
-    <div id="app-header" style={{ position: "fixed", top: 0, left: 0, right: 0, borderBottom: `1px solid ${c.border}`, padding: "1.25rem 2rem", display: "flex", alignItems: "center", justifyContent: "space-between", background: c.bgHeader, zIndex: 50 }}>
-      <div>
-        <div style={{ fontSize: "19px", fontWeight: 700, color: c.textPrimary, fontFamily: SANS }}>{BRAND_CONFIG.name}</div>
-        <div style={{ fontSize: "10px", letterSpacing: "0.15em", textTransform: "uppercase", color: c.accent, marginTop: "2px", fontFamily: SANS, fontWeight: 600 }}>Energetic Root Cause Reading</div>
-      </div>
-      {onClear && (
-        <button
-          onClick={() => {
-            if (window.confirm("Clear this and start a new reading? This can't be undone.")) {
-              onClear();
-            }
-          }}
-          style={{ background: "transparent", border: `1px solid ${c.borderMid}`, borderRadius: "6px", padding: "7px 14px", cursor: "pointer", color: c.textMuted, fontSize: "12px", fontFamily: SANS, fontWeight: 600, letterSpacing: "0.02em" }}
-        >
-          Start Over
-        </button>
-      )}
-    </div>
-  );
-}
-
-function Disclaimer() {
-  return (
-    <div style={{ textAlign: "center", fontSize: "11px", color: c.textMuted, marginTop: "0.75rem", letterSpacing: "0.03em", fontFamily: SANS }}>
-      Energetic root cause interpretation — not a substitute for medical care. If you're managing a diagnosis, keep working with your doctor.
-    </div>
-  );
-}
-
-// ---- REGION CONFIG ----
-// Carried over unchanged from the consumer app's per-body-part form logic —
-// this mapping of which regions get side/plane distinctions, and which
-// quality-of-sensation options apply, doesn't change just because the
-// intake is now single-page instead of step-by-step.
-
-const REGION_OPTIONS = [
-  "Head", "Neck", "Throat", "Mouth", "Shoulders", "Chest", "Heart",
-  "Upper Back", "Lower Back", "Abdomen", "Gut", "Hips", "Pelvis",
-  "Legs", "Knees", "Ankles", "Feet", "Arms", "Hands", "Skin", "Somewhere else",
-];
-
-const REGION_DISPLAY = {
-  "Head": "head", "Neck": "neck", "Throat": "throat", "Mouth": "mouth", "Shoulders": "shoulder",
-  "Chest": "chest", "Heart": "heart", "Upper Back": "upper back", "Lower Back": "lower back",
-  "Abdomen": "abdomen", "Gut": "gut", "Hips": "hip", "Pelvis": "pelvis",
-  "Legs": "leg", "Knees": "knee", "Ankles": "ankle", "Feet": "foot",
-  "Arms": "arm", "Hands": "hand", "Skin": "skin", "Somewhere else": "the area noted",
-};
-
-const REGION_GROUP_CONFIG = {
-  "Head": { side: true, plane: true, centered: true },
-  "Neck": { side: true, plane: true, centered: true },
-  "Throat": { side: false, plane: false, centered: false },
-  "Mouth": { side: false, plane: false, centered: false },
-  "Shoulders": { side: true, plane: true, centered: false },
-  "Chest": { side: true, plane: false, centered: true },
-  "Heart": { side: false, plane: false, centered: false },
-  "Upper Back": { side: true, plane: false, centered: true },
-  "Lower Back": { side: true, plane: false, centered: true },
-  "Abdomen": { side: true, plane: false, centered: true },
-  "Gut": { side: false, plane: false, centered: false },
-  "Hips": { side: true, plane: true, centered: false },
-  "Pelvis": { side: true, plane: false, centered: true },
-  "Legs": { side: true, plane: true, centered: false },
-  "Knees": { side: true, plane: true, centered: false },
-  "Ankles": { side: true, plane: false, centered: false },
-  "Feet": { side: true, plane: false, centered: false },
-  "Arms": { side: true, plane: false, centered: false },
-  "Hands": { side: true, plane: false, centered: false },
-  "Skin": { side: false, plane: false, centered: false },
-  "Somewhere else": { side: false, plane: false, centered: false },
-};
-
-const QUALITY_OPTIONS_DEFAULT = ["Sharp", "Dull ache", "Sore", "Burning", "Tight", "Stiff", "Throbbing", "Numb", "Cramping", "Tingling", "Swollen", "Bloating", "Pressure", "Heavy", "Weak"];
-const QUALITY_OPTIONS_BY_REGION = {
-  "Skin": ["Itchy", "Dry", "Flaky", "Rash", "Burning", "Tingling", "Tight", "Breakouts", "Redness", "Numb"],
-};
-
-function regionDisplayName(region) {
-  return REGION_DISPLAY[region] || region.toLowerCase();
-}
-
-let uidCounter = 0;
-function nextId() {
-  uidCounter += 1;
-  return `id_${Date.now()}_${uidCounter}`;
-}
-
-// ---- DIAGNOSES: repeatable field ----
-
-function DiagnosesSection({ diagnoses, updateDiagnosis, addDiagnosis, removeDiagnosis }) {
-  return (
-    <div style={{ background: c.bgInput, border: `1.5px solid ${c.borderMid}`, borderRadius: "12px", padding: "24px 26px", marginBottom: "1.25rem" }}>
-      <div style={{ fontSize: "11px", fontWeight: 600, letterSpacing: "0.15em", textTransform: "uppercase", color: c.accent, marginBottom: "1rem", fontFamily: SANS }}>
-        Diagnoses (optional)
-      </div>
-      {diagnoses.map((d, i) => (
-        <div key={d.id} style={{ display: "flex", gap: "10px", marginBottom: "10px", alignItems: "flex-start" }}>
-          <input
-            value={d.name}
-            onChange={e => updateDiagnosis(d.id, "name", e.target.value)}
-            placeholder="Diagnosis name"
-            style={{ flex: "1 1 40%", background: c.bg, border: `1px solid ${c.borderMid}`, borderRadius: "8px", padding: "10px 12px", fontSize: "15px", fontFamily: SERIF, color: c.textPrimary }}
-          />
-          <input
-            value={d.detail}
-            onChange={e => updateDiagnosis(d.id, "detail", e.target.value)}
-            placeholder="Detail — how long, how it's progressed, etc. (optional)"
-            style={{ flex: "1 1 50%", background: c.bg, border: `1px solid ${c.borderMid}`, borderRadius: "8px", padding: "10px 12px", fontSize: "15px", fontFamily: SERIF, color: c.textPrimary }}
-          />
-          <button
-            onClick={() => removeDiagnosis(d.id)}
-            aria-label="Remove diagnosis"
-            style={{ background: "transparent", border: `1px solid ${c.borderMid}`, borderRadius: "6px", padding: "10px 12px", cursor: "pointer", color: c.textMuted, fontSize: "13px", fontFamily: SANS }}
-          >
-            ✕
-          </button>
-        </div>
-      ))}
-      <button
-        onClick={addDiagnosis}
-        style={{ background: "transparent", border: `1px dashed ${c.borderMid}`, borderRadius: "8px", padding: "9px 16px", cursor: "pointer", color: c.accent, fontSize: "13px", fontFamily: SANS, fontWeight: 600, marginTop: "4px" }}
-      >
-        + Add diagnosis
-      </button>
-    </div>
-  );
-}
-
-// ---- SYMPTOMS: one block per added region, all visible on the same page ----
-
-function RegionBlock({ entry, updateRegionOption, updateRegionDetail, removeRegion }) {
-  const config = REGION_GROUP_CONFIG[entry.region] || { side: true, plane: true };
-  const qualityOptions = QUALITY_OPTIONS_BY_REGION[entry.region] || QUALITY_OPTIONS_DEFAULT;
-  const display = regionDisplayName(entry.region);
-
-  const sideOptions = config.side ? (config.centered ? ["Left", "Right", "Centered"] : ["Left", "Right"]) : null;
-  const bothSides = config.side && (entry.side || []).includes("Left") && (entry.side || []).includes("Right");
-
-  const renderGroup = (label, key, options) => (
-    <div style={{ marginBottom: "1rem" }}>
-      <div style={{ fontSize: "13px", fontWeight: 700, color: c.textPrimary, marginBottom: "0.5rem", fontFamily: SANS }}>{label}</div>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
-        {options.map(opt => {
-          const selected = (entry[key] || []).includes(opt);
-          return (
-            <button
-              key={opt}
-              onClick={() => updateRegionOption(entry.id, key, opt)}
-              style={{
-                background: selected ? c.accent : c.bg,
-                border: `1.5px solid ${selected ? c.accent : c.borderMid}`,
-                borderRadius: "8px",
-                padding: "8px 14px",
-                fontSize: "14px",
-                color: selected ? "#fff" : c.textPrimary,
-                cursor: "pointer",
-                fontFamily: SERIF,
-                fontWeight: selected ? 600 : 400,
-              }}
-            >
-              {selected ? "✓ " : ""}{opt}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-
-  return (
-    <div style={{ background: c.bg, border: `1.5px solid ${c.borderMid}`, borderRadius: "12px", padding: "20px 22px", marginBottom: "1rem" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
-        <div style={{ fontSize: "17px", fontWeight: 700, color: c.textPrimary, fontFamily: SANS, textTransform: "capitalize" }}>{display}</div>
-        <button
-          onClick={() => removeRegion(entry.id)}
-          style={{ background: "transparent", border: `1px solid ${c.borderMid}`, borderRadius: "6px", padding: "6px 10px", cursor: "pointer", color: c.textMuted, fontSize: "12px", fontFamily: SANS }}
-        >
-          Remove
-        </button>
-      </div>
-
-      {sideOptions && renderGroup("Side", "side", sideOptions)}
-
-      {bothSides ? (
-        <>
-          <div style={{ fontSize: "12px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: c.accent, margin: "0.75rem 0 0.5rem" }}>Left {display}</div>
-          {config.plane && renderGroup("Front / back", "left_plane", ["Front", "Back"])}
-          {renderGroup("Sensation", "left_quality", qualityOptions)}
-          {renderGroup("Pattern", "left_pattern", ["First time", "Comes and goes", "Constant / ongoing"])}
-          <textarea
-            value={entry.left_detail || ""}
-            onChange={e => updateRegionDetail(entry.id, "left_detail", e.target.value)}
-            placeholder={`Additional detail on the left ${display} (optional)`}
-            rows={2}
-            style={{ width: "100%", background: c.bgInput, border: `1px solid ${c.borderMid}`, borderRadius: "8px", padding: "10px 12px", fontSize: "14px", fontFamily: SERIF, color: c.textPrimary, marginBottom: "1rem", resize: "vertical" }}
-          />
-          <div style={{ fontSize: "12px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: c.accent, margin: "0.75rem 0 0.5rem" }}>Right {display}</div>
-          {config.plane && renderGroup("Front / back", "right_plane", ["Front", "Back"])}
-          {renderGroup("Sensation", "right_quality", qualityOptions)}
-          {renderGroup("Pattern", "right_pattern", ["First time", "Comes and goes", "Constant / ongoing"])}
-          <textarea
-            value={entry.right_detail || ""}
-            onChange={e => updateRegionDetail(entry.id, "right_detail", e.target.value)}
-            placeholder={`Additional detail on the right ${display} (optional)`}
-            rows={2}
-            style={{ width: "100%", background: c.bgInput, border: `1px solid ${c.borderMid}`, borderRadius: "8px", padding: "10px 12px", fontSize: "14px", fontFamily: SERIF, color: c.textPrimary, resize: "vertical" }}
-          />
-        </>
-      ) : (
-        <>
-          {config.plane && renderGroup("Front / back", "plane", ["Front", "Back"])}
-          {renderGroup("Sensation", "quality", qualityOptions)}
-          {renderGroup("Pattern", "pattern", ["First time", "Comes and goes", "Constant / ongoing"])}
-          <textarea
-            value={entry.detail || ""}
-            onChange={e => updateRegionDetail(entry.id, "detail", e.target.value)}
-            placeholder="Additional detail — onset, what makes it better or worse, etc. (optional)"
-            rows={2}
-            style={{ width: "100%", background: c.bgInput, border: `1px solid ${c.borderMid}`, borderRadius: "8px", padding: "10px 12px", fontSize: "14px", fontFamily: SERIF, color: c.textPrimary, resize: "vertical" }}
-          />
-        </>
-      )}
-    </div>
-  );
-}
-
-function SymptomsSection({ regions, addRegion, updateRegionOption, updateRegionDetail, removeRegion }) {
-  const [picking, setPicking] = useState(false);
-  const usedRegions = new Set(regions.map(r => r.region));
-
-  return (
-    <div style={{ background: c.bgInput, border: `1.5px solid ${c.borderMid}`, borderRadius: "12px", padding: "24px 26px", marginBottom: "1.25rem" }}>
-      <div style={{ fontSize: "11px", fontWeight: 600, letterSpacing: "0.15em", textTransform: "uppercase", color: c.accent, marginBottom: "1rem", fontFamily: SANS }}>
-        Symptoms by Region
-      </div>
-
-      {regions.map(entry => (
-        <RegionBlock
-          key={entry.id}
-          entry={entry}
-          updateRegionOption={updateRegionOption}
-          updateRegionDetail={updateRegionDetail}
-          removeRegion={removeRegion}
-        />
-      ))}
-
-      {picking ? (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginBottom: "0.5rem" }}>
-          {REGION_OPTIONS.filter(r => !usedRegions.has(r)).map(r => (
-            <button
-              key={r}
-              onClick={() => { addRegion(r); setPicking(false); }}
-              style={{ background: c.bg, border: `1.5px solid ${c.borderMid}`, borderRadius: "8px", padding: "8px 14px", fontSize: "14px", color: c.textPrimary, cursor: "pointer", fontFamily: SERIF }}
-            >
-              {r}
-            </button>
-          ))}
-          <button
-            onClick={() => setPicking(false)}
-            style={{ background: "transparent", border: "none", color: c.textMuted, fontSize: "13px", fontFamily: SANS, cursor: "pointer", padding: "8px 4px" }}
-          >
-            Cancel
-          </button>
-        </div>
-      ) : (
-        <button
-          onClick={() => setPicking(true)}
-          style={{ background: "transparent", border: `1px dashed ${c.borderMid}`, borderRadius: "8px", padding: "9px 16px", cursor: "pointer", color: c.accent, fontSize: "13px", fontFamily: SANS, fontWeight: 600 }}
-        >
-          + Add region
-        </button>
-      )}
-    </div>
-  );
-}
-
-function LifeContextSection({ lifeContext, setLifeContext }) {
-  return (
-    <div style={{ background: c.bgInput, border: `1.5px solid ${c.borderMid}`, borderRadius: "12px", padding: "24px 26px", marginBottom: "1.25rem" }}>
-      <div style={{ fontSize: "11px", fontWeight: 600, letterSpacing: "0.15em", textTransform: "uppercase", color: c.accent, marginBottom: "0.5rem", fontFamily: SANS }}>
-        Life Context (optional)
-      </div>
-      <div style={{ fontSize: "13px", color: c.textMuted, fontFamily: SANS, fontStyle: "italic", marginBottom: "0.75rem" }}>
-        Anything worth carrying into your reading — timing, relationships, major transitions, in your own words.
-      </div>
-      <textarea
-        value={lifeContext}
-        onChange={e => setLifeContext(e.target.value)}
-        placeholder="Type here..."
-        rows={4}
-        style={{ width: "100%", background: c.bg, border: `1px solid ${c.borderMid}`, borderRadius: "8px", padding: "12px 14px", fontSize: "15px", fontFamily: SERIF, color: c.textPrimary, resize: "vertical" }}
-      />
-    </div>
-  );
-}
-
-// ---- COMPILE INTAKE INTO THE TEXT SENT TO THE MODEL ----
-
-function formatRegionEntry(entry) {
-  const display = regionDisplayName(entry.region);
-  const parts = [];
-  const bothSides = (entry.side || []).includes("Left") && (entry.side || []).includes("Right");
-
-  if (entry.side && entry.side.length) parts.push(`Side: ${entry.side.join(", ")}`);
-
-  if (bothSides) {
-    const sideParts = (prefix, label) => {
-      const p = [];
-      if (entry[`${prefix}_plane`]?.length) p.push(`Front/back: ${entry[`${prefix}_plane`].join(", ")}`);
-      if (entry[`${prefix}_quality`]?.length) p.push(`Sensation: ${entry[`${prefix}_quality`].join(", ")}`);
-      if (entry[`${prefix}_pattern`]?.length) p.push(`Pattern: ${entry[`${prefix}_pattern`].join(", ")}`);
-      if (entry[`${prefix}_detail`]?.trim()) p.push(`Detail: ${entry[`${prefix}_detail`].trim()}`);
-      if (p.length) parts.push(`${label} — ${p.join(" | ")}`);
-    };
-    sideParts("left", "Left side");
-    sideParts("right", "Right side");
-  } else {
-    if (entry.plane && entry.plane.length) parts.push(`Front/back: ${entry.plane.join(", ")}`);
-    if (entry.quality && entry.quality.length) parts.push(`Sensation: ${entry.quality.join(", ")}`);
-    if (entry.pattern && entry.pattern.length) parts.push(`Pattern: ${entry.pattern.join(", ")}`);
-    if (entry.detail && entry.detail.trim()) parts.push(`Detail: ${entry.detail.trim()}`);
-  }
-
-  return `Regarding your ${display}:\n${parts.length ? parts.join(" | ") : "(no further detail provided)"}`;
-}
-
-function compilePanelIntake(diagnoses, regions, lifeContext) {
-  const sections = [];
-
-  const namedDiagnoses = diagnoses.filter(d => d.name.trim());
-  if (namedDiagnoses.length) {
-    sections.push(
-      "Diagnoses reported for this patient:\n" +
-      namedDiagnoses.map(d => `- ${d.name.trim()}${d.detail.trim() ? ` — ${d.detail.trim()}` : ""}`).join("\n")
-    );
-  }
-
-  if (regions.length) {
-    sections.push(regions.map(formatRegionEntry).join("\n\n"));
-  }
-
-  if (lifeContext.trim()) {
-    sections.push(`Life context:\n${lifeContext.trim()}`);
-  }
-
-  return sections.join("\n\n");
-}
-
-// Token budget for panel generation.
-//
-// This matches the panel's current structure: one entry per diagnosis, one
-// entry per reported symptom/region, nothing else. There's no fixed section
-// count to work against anymore (no seven-chakra ceiling, no floor cost for
-// unreported material) — a patient with two things reported gets a two-
-// entry panel, a patient with six things reported gets a six-entry panel,
-// and every entry gets the same flat, full-depth treatment regardless of
-// order. That makes the estimate simpler than it was under the chakra-
-// organized structure: entry count is no longer a proxy for something else,
-// it's the actual, exact number of entries the panel will contain.
-//
-// Since only actual generated tokens are billed, erring generous on the
-// ceiling costs nothing and protects a genuinely complex intake (many
-// diagnoses and regions at once) from getting cut off mid-entry.
-function estimateEntryCount(diagnoses, regions) {
-  const diagnosisCount = diagnoses.filter(d => d.name.trim()).length;
-  const regionCount = regions.length;
-  return Math.max(1, diagnosisCount + regionCount);
-}
-
-function tokensForPanel(diagnoses, regions) {
-  const entryCount = estimateEntryCount(diagnoses, regions);
-
-  // Opening framing plus whatever brief connective material ties entries
-  // together, if a real connection between them is actually noted.
-  const BASE_OVERHEAD = 400;
-  // Per entry: real, substantive, clinically direct paragraphs plus a
-  // folded-in guiding question. Generous by design — the standard here is
-  // full depth per entry regardless of how many entries there are.
-  const TOKENS_PER_ENTRY = 2800;
-  // Safety ceiling — no natural cap on entry count anymore (unlike the old
-  // seven-chakra structure), so this exists purely as a backstop against an
-  // unusually large intake, not a value normal use should approach.
-  const CEILING = 30000;
-
-  return Math.min(BASE_OVERHEAD + entryCount * TOKENS_PER_ENTRY, CEILING);
-}
-
-// ---- MAIN INTAKE SCREEN ----
-
-function PanelIntakeForm({ diagnoses, regions, lifeContext, loading,
-  addDiagnosis, updateDiagnosis, removeDiagnosis,
-  addRegion, updateRegionOption, updateRegionDetail, removeRegion,
-  setLifeContext, submitIntake }) {
-
-  const hasAnyInput = diagnoses.some(d => d.name.trim()) || regions.length > 0;
-
-  return (
-    <div style={{ width: "100%", maxWidth: "760px", margin: "1.75rem auto", padding: "0 1.5rem", boxSizing: "border-box" }}>
-      <div style={{ textAlign: "center", marginBottom: "1.5rem" }}>
-        <div style={{ fontSize: "28px", fontWeight: 800, color: c.textPrimary, fontFamily: SANS, letterSpacing: "-0.02em" }}>
-          Energetic Root Cause Reading
-        </div>
-        <div style={{ fontSize: "15px", color: c.textSecondary, fontFamily: SERIF, marginTop: "0.5rem" }}>
-          Enter what's going on for you. All fields are optional except at least one diagnosis or region.
-        </div>
-      </div>
-
-      <DiagnosesSection diagnoses={diagnoses} updateDiagnosis={updateDiagnosis} addDiagnosis={addDiagnosis} removeDiagnosis={removeDiagnosis} />
-      <SymptomsSection regions={regions} addRegion={addRegion} updateRegionOption={updateRegionOption} updateRegionDetail={updateRegionDetail} removeRegion={removeRegion} />
-      <LifeContextSection lifeContext={lifeContext} setLifeContext={setLifeContext} />
-
-      <div style={{ textAlign: "center", marginTop: "1.5rem" }}>
-        {!hasAnyInput && (
-          <div style={{ fontSize: "13px", color: c.textMuted, fontFamily: SANS, fontStyle: "italic", marginBottom: "0.75rem" }}>
-            Add at least one diagnosis or region before generating your reading.
-          </div>
-        )}
-        <button
-          onClick={submitIntake}
-          disabled={loading || !hasAnyInput}
-          style={{
-            background: (loading || !hasAnyInput) ? c.accentMid : c.accent,
-            border: "none", borderRadius: "8px", padding: "14px 32px",
-            cursor: (loading || !hasAnyInput) ? "default" : "pointer",
-            color: (loading || !hasAnyInput) ? c.textMuted : "#fff",
-            fontSize: "15px", fontFamily: SANS, fontWeight: 700, letterSpacing: "0.03em",
-          }}
-        >
-          {loading ? "Generating…" : "Generate Reading"}
-        </button>
-      </div>
-      <Disclaimer />
-    </div>
-  );
-}
-
-// ---- SIMPLE CHAT INPUT (unchanged from consumer app, for the follow-up conversation) ----
-
-function SimpleChatInput({ value, onChange, onSubmit, placeholder, loading, handleTextKeyDown, sendLabel }) {
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "8px", background: c.bgInput, border: `1px solid ${c.borderMid}`, borderRadius: "10px", padding: "10px 14px" }}>
-      <textarea
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        onKeyDown={handleTextKeyDown(onSubmit)}
-        placeholder={placeholder}
-        rows={2}
-        autoFocus
-        style={{ background: "transparent", border: "none", outline: "none", color: c.textPrimary, fontSize: "18px", fontFamily: SERIF, lineHeight: 1.6, resize: "none", width: "100%" }}
-      />
-      <div style={{ display: "flex", justifyContent: "flex-end" }}>
-        <button
-          onClick={onSubmit}
-          disabled={!value.trim() || loading}
-          style={{ background: value.trim() && !loading ? c.accent : c.accentMid, border: "none", borderRadius: "4px", padding: "7px 18px", cursor: value.trim() && !loading ? "pointer" : "default", color: value.trim() && !loading ? "#fff" : c.textMuted, fontSize: "13px", fontFamily: SANS, fontWeight: 700, letterSpacing: "0.04em" }}
-        >
-          {sendLabel || "Send \u2192"}
-        </button>
-      </div>
-    </div>
-  );
-}
-
-// ---- TRANSCRIPT ----
-// No donation note, no accuracy-reassurance note. These existed in the
-// original consumer app and would arguably make sense again now that the
-// reader is back to being an individual — but they're deliberately not
-// reintroduced here, since the scope of this version was voice and user
-// only, not restoring every feature the practitioner version stripped.
-// Worth a deliberate call from Zach on whether either belongs back in,
-// same as the persistence question above.
-
-function Transcript({ messages, loading, messagesEndRef, lastMessageRef, scrollContainerRef, ctaSlot, loadingLabel, copyReadingText, downloadReadingText, copiedIndex }) {
-  let lastRealIndex = -1;
-  for (let i = messages.length - 1; i >= 0; i--) {
-    if (!messages[i].hidden && !messages[i].localOnly) { lastRealIndex = i; break; }
-  }
-  return (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", maxWidth: "700px", width: "100%", margin: "0 auto" }}>
-      <div ref={scrollContainerRef} style={{ flex: 1, overflowY: "auto", padding: "0 1.5rem" }}>
-        <div style={{ paddingTop: "2rem" }}>
-          {messages.map((msg, i) => msg.hidden ? null : (
-            <div key={i} ref={i === lastRealIndex ? lastMessageRef : null} style={{ marginBottom: "2rem" }}>
-              {msg.role === "user" ? (
-                <div style={{ display: "flex", justifyContent: "flex-end" }}>
-                  <div style={{ background: c.userBubble, border: `1px solid ${c.userBubbleBorder}`, borderRadius: "14px 14px 2px 14px", padding: "12px 18px", maxWidth: "85%", fontSize: "15px", lineHeight: 1.65, color: c.textSecondary, whiteSpace: "pre-wrap", fontFamily: SERIF }}>
-                    {msg.display || msg.content}
-                  </div>
-                </div>
-              ) : (
-                <div>
-                  <div style={{ display: "flex", gap: "12px", alignItems: "flex-start" }}>
-                    <div style={{ width: "28px", height: "28px", borderRadius: "50%", background: c.accentLight, border: `1px solid ${c.borderMid}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", color: c.accent, flexShrink: 0, marginTop: "2px", fontFamily: SANS }}>&#10022;</div>
-                    <div style={{ flex: 1, fontSize: "17px", color: c.textPrimary, fontFamily: SERIF }}>{formatMessage(msg.content)}</div>
-                  </div>
-                  <div style={{ display: "flex", gap: "8px", marginTop: "0.9rem", marginLeft: "40px" }}>
-                    <button onClick={() => copyReadingText(msg.content, i)} style={{ background: "transparent", border: `1px solid ${c.borderMid}`, borderRadius: "6px", padding: "6px 14px", fontFamily: SANS, fontSize: "12px", fontWeight: 600, color: c.textSecondary, cursor: "pointer", letterSpacing: "0.02em" }}>
-                      {copiedIndex === i ? "Copied ✓" : "Copy"}
-                    </button>
-                    <button onClick={() => downloadReadingText(msg.content, msg.readingLabel || "reading")} style={{ background: "transparent", border: `1px solid ${c.borderMid}`, borderRadius: "6px", padding: "6px 14px", fontFamily: SANS, fontSize: "12px", fontWeight: 600, color: c.textSecondary, cursor: "pointer", letterSpacing: "0.02em" }}>
-                      Download
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          ))}
-          {loading && (
-            <div style={{ display: "flex", gap: "12px", alignItems: "flex-start", marginBottom: "2rem" }}>
-              <div style={{ width: "28px", height: "28px", borderRadius: "50%", background: c.accentLight, border: `1px solid ${c.borderMid}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", color: c.accent, flexShrink: 0 }}>&#10022;</div>
-              <div style={{ paddingTop: "6px" }}>
-                {loadingLabel && <div style={{ fontSize: "13px", color: c.textMuted, fontFamily: SANS, marginBottom: "6px" }}>{loadingLabel}</div>}
-                <div style={{ display: "flex", gap: "5px" }}>
-                  {[0, 1, 2].map(i => (
-                    <div key={i} style={{ width: "6px", height: "6px", borderRadius: "50%", background: c.accent, animation: `panel-pulse 1.2s ease-in-out ${i * 0.2}s infinite`, opacity: 0.45 }} />
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-          <div ref={messagesEndRef} style={{ paddingBottom: "1rem" }} />
-        </div>
-      </div>
-      {ctaSlot && (
-        <div style={{ flexShrink: 0, background: c.bg, borderTop: `1px solid ${c.border}`, padding: "1rem 1.5rem 1.25rem" }}>
-          {ctaSlot}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ---- MAIN COMPONENT ----
-
-export default function ReadingInterpreter() {
-  const [messages, setMessages] = useState([]);
+export default function BASTInterpreter() {
+  const [messages, setMessages] = useState(() => {
+    try {
+      const saved = localStorage.getItem('bast_messages');
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
+  });
+  const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  // step: 'intake' (the single-page form) -> 'chat' (panel result, then
-  // open-ended follow-up conversation). Same two-stage shape as the
-  // consumer app's tier1 -> chat, just renamed since "tier1" was a
-  // wizard-specific term that no longer applies.
-  const [step, setStep] = useState("intake");
-
-  const [diagnoses, setDiagnoses] = useState([{ id: nextId(), name: "", detail: "" }]);
-  const [regions, setRegions] = useState([]);
-  const [lifeContext, setLifeContext] = useState("");
-  const [chatDraft, setChatDraft] = useState("");
-
+  const [unlocked, setUnlocked] = useState(() => {
+    try { return localStorage.getItem('bast_unlocked') === 'true'; }
+    catch { return false; }
+  });
+  const [licenseKey, setLicenseKey] = useState("");
+  const [licenseError, setLicenseError] = useState("");
+  const [licenseLoading, setLicenseLoading] = useState(false);
+  const [step, setStep] = useState(() => {
+    try { return localStorage.getItem('bast_step') || 'symptoms'; }
+    catch { return 'symptoms'; }
+  });
   const messagesEndRef = useRef(null);
-  const lastMessageRef = useRef(null);
-  const scrollContainerRef = useRef(null);
-  const [copiedIndex, setCopiedIndex] = useState(null);
 
-  // NOTE ON PERSISTENCE: this still does not persist to localStorage.
-  // That was originally a deliberate choice for the practitioner version,
-  // where the real risk was one patient's data leaking into the next
-  // patient's session on the same device. That specific risk doesn't apply
-  // here — one person, their own device, their own single reading — so
-  // persistence might actually be a welcome convenience now (letting
-  // someone leave and come back to their own reading, the way the original
-  // consumer app did). Left off here because the instruction for this
-  // version was to change only the voice and the user, not to add features
-  // back in — but this is worth a deliberate yes/no from Zach rather than
-  // staying off by default just because that's what it inherited.
+  const c = {
+    bg: "#faf8f4",
+    bgHeader: "#f3f0e9",
+    bgInput: "#ede8dd",
+    bgModal: "#faf8f4",
+    border: "rgba(100,80,60,0.1)",
+    borderMid: "rgba(100,80,60,0.18)",
+    accent: "#2d5a3d",
+    accentLight: "rgba(45,90,61,0.08)",
+    accentMid: "rgba(45,90,61,0.18)",
+    accentPop: "#c17f3a",
+    textPrimary: "#1e1a16",
+    textSecondary: "#5c5147",
+    textMuted: "rgba(30,26,22,0.38)",
+    userBubble: "#ede8dd",
+    userBubbleBorder: "rgba(100,80,60,0.18)",
+  };
 
   useEffect(() => {
-    const reset = () => {
-      try {
-        window.scrollTo({ top: 0, left: 0, behavior: "auto" });
-        document.documentElement.scrollTop = 0;
-        document.body.scrollTop = 0;
-      } catch {}
-      ensureHeaderVisible();
-    };
-    reset();
-    const raf = requestAnimationFrame(reset);
-    const timers = [30, 60, 100, 200, 350, 500].map(delay => setTimeout(reset, delay));
-    return () => { cancelAnimationFrame(raf); timers.forEach(clearTimeout); };
-  }, [step, messages.length]);
-
-  const copyReadingText = (text, index) => {
-    navigator.clipboard.writeText(text).then(() => {
-      setCopiedIndex(index);
-      setTimeout(() => setCopiedIndex(prev => (prev === index ? null : prev)), 2000);
-    }).catch(() => {});
-  };
-
-  const downloadReadingText = (text, label) => {
-    const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    const filename = (label || "panel").toLowerCase().replace(/[^a-z0-9]+/g, "-") + ".txt";
-    link.href = url;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  };
-
-  async function callAPI(newMessages, maxTokens) {
-    const response = await fetch("/api/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "claude-sonnet-5",
-        max_tokens: maxTokens || 6000,
-        system: SYSTEM_PROMPT,
-        messages: newMessages.filter(m => !m.localOnly).map(({ role, content }) => ({ role, content })),
-      }),
-    });
-    const data = await response.json();
-    return data.content?.find(b => b.type === "text")?.text
-      || "Something went wrong. Please try again.";
-  }
-
-  // ---- DIAGNOSES HANDLERS ----
-  const addDiagnosis = () => setDiagnoses(prev => [...prev, { id: nextId(), name: "", detail: "" }]);
-  const updateDiagnosis = (id, field, value) => setDiagnoses(prev => prev.map(d => d.id === id ? { ...d, [field]: value } : d));
-  const removeDiagnosis = (id) => setDiagnoses(prev => prev.filter(d => d.id !== id));
-
-  // ---- REGIONS HANDLERS ----
-  const addRegion = (region) => setRegions(prev => [...prev, { id: nextId(), region }]);
-  const removeRegion = (id) => setRegions(prev => prev.filter(r => r.id !== id));
-  const updateRegionOption = (id, key, option) => setRegions(prev => prev.map(r => {
-    if (r.id !== id) return r;
-    const current = r[key] || [];
-    const next = current.includes(option) ? current.filter(o => o !== option) : [...current, option];
-    return { ...r, [key]: next };
-  }));
-  const updateRegionDetail = (id, key, value) => setRegions(prev => prev.map(r => r.id === id ? { ...r, [key]: value } : r));
-
-  // ---- SUBMIT INTAKE -> GENERATE PANEL ----
-  const submitIntake = async () => {
-    const hasAnyInput = diagnoses.some(d => d.name.trim()) || regions.length > 0;
-    if (!hasAnyInput || loading) return;
-
-    setLoading(true);
-    const compiled = compilePanelIntake(diagnoses, regions, lifeContext);
-    const userMsg = {
-      role: "user",
-      content: `Here is my intake:\n\n${compiled}\n\nGenerate my full Energetic Root Cause Reading based on this.`,
-      display: compiled,
-      hidden: true,
-    };
-    const newMessages = [userMsg];
-    setMessages(newMessages);
-    try {
-      const text = await callAPI(newMessages, tokensForPanel(diagnoses, regions));
-      setMessages([...newMessages, { role: "assistant", content: text, isReading: true, readingLabel: "Energetic Root Cause Reading" }]);
-      setStep("chat");
-    } catch {
-      setMessages([...newMessages, { role: "assistant", content: "There was a connection error. Please try again." }]);
+    if (loading) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }
-    setLoading(false);
+  }, [loading]);
+
+  useEffect(() => {
+    try { localStorage.setItem('bast_messages', JSON.stringify(messages)); }
+    catch {}
+  }, [messages]);
+
+  useEffect(() => {
+    try { localStorage.setItem('bast_unlocked', unlocked ? 'true' : 'false'); }
+    catch {}
+  }, [unlocked]);
+
+  useEffect(() => {
+    try { localStorage.setItem('bast_step', step); }
+    catch {}
+  }, [step]);
+
+  const clearHistory = () => {
+    setMessages([]);
+    setStep("symptoms");
+    try {
+      localStorage.removeItem('bast_messages');
+      localStorage.removeItem('bast_step');
+    } catch {}
   };
 
-  const sendChatMessage = async (userMsg) => {
-    const newMessages = [...messages, userMsg];
-    setLoading(true);
+  const handleLicenseSubmit = async () => {
+    if (!licenseKey.trim()) return;
+    setLicenseLoading(true);
+    setLicenseError("");
+    const valid = await validateLicenseKey(licenseKey);
+    if (valid) {
+      setUnlocked(true);
+    } else {
+      setLicenseError("That password doesn't appear to be correct. Please check your purchase confirmation email and try again.");
+    }
+    setLicenseLoading(false);
+  };
+
+  const handleLicenseKeyDown = (e) => {
+    if (e.key === "Enter") handleLicenseSubmit();
+  };
+
+  // Calls /api/chat and, if Anthropic cuts the response off for hitting
+  // max_tokens rather than actually finishing (stop_reason: "max_tokens"),
+  // automatically asks the model to continue from exactly where it left
+  // off and stitches the result into one seamless piece of text. This is
+  // the single-call analog of the Energy Audit tool's fixed three-part
+  // generation — here the length isn't known in advance, so it reacts to
+  // actual truncation instead of always chunking.
+  const callAPIWithContinuation = async (history) => {
+    const maxTokensPerCall = 6000;
+    const maxContinuations = 3; // ~6000 + 3x6000 = ~24,000 tokens ceiling
+    let workingHistory = history;
+    let combinedText = "";
+    let continuations = 0;
+
+    while (true) {
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-5",
+          max_tokens: maxTokensPerCall,
+          system: SYSTEM_PROMPT,
+          messages: workingHistory,
+        }),
+      });
+      const data = await response.json();
+      const chunk = data.content?.find(b => b.type === "text")?.text || "";
+      combinedText += chunk;
+
+      const truncated = data.stop_reason === "max_tokens";
+      if (!truncated || continuations >= maxContinuations || !chunk) {
+        return combinedText;
+      }
+
+      continuations += 1;
+      workingHistory = [
+        ...workingHistory,
+        { role: "assistant", content: chunk },
+        {
+          role: "user",
+          content: "Continue exactly where you left off. Don't repeat anything you've already written, don't restart, don't summarize what came before — just pick up the sentence or section you were in the middle of and keep going.",
+        },
+      ];
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (!input.trim() || loading) return;
+    const userMessage = { role: "user", content: input.trim() };
+    const newMessages = [...messages, userMessage];
     setMessages(newMessages);
+    setInput("");
+    setLoading(true);
     try {
-      const text = await callAPI(newMessages, 8000);
-      setMessages(prev => [...prev, { role: "assistant", content: text }]);
+      const text = await callAPIWithContinuation(newMessages);
+      if (step === "symptoms") {
+        setStep("context");
+        setMessages(prev => [
+          ...prev,
+          { role: "assistant", content: text || "Something went wrong. Please try again." },
+          { role: "assistant", content: LIFE_CONTEXT_PROMPT },
+        ]);
+      } else {
+        setMessages(prev => [...prev, { role: "assistant", content: text || "Something went wrong. Please try again." }]);
+      }
     } catch {
       setMessages(prev => [...prev, { role: "assistant", content: "There was a connection error. Please try again." }]);
     }
     setLoading(false);
   };
 
-  const submitChatMessage = () => {
-    const trimmed = chatDraft.trim();
-    if (!trimmed || loading) return;
-    setChatDraft("");
-    sendChatMessage({ role: "user", content: trimmed, display: trimmed });
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSubmit(); }
   };
 
-  const handleTextKeyDown = (submitFn) => (e) => {
-    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submitFn(); }
+  const formatMessage = (content) => {
+    const parts = content.split(/(Soul Guidance Question[:\s]*)/i);
+    if (parts.length > 1) {
+      return (
+        <>
+          <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.82 }}>{parts[0]}</div>
+          <div style={{ marginTop: "1.5rem", padding: "1rem 1.25rem", background: "rgba(193,127,58,0.08)", borderLeft: "3px solid #c17f3a", borderRadius: "0 8px 8px 0" }}>
+            <div style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.15em", textTransform: "uppercase", color: "#c17f3a", marginBottom: "0.4rem", fontFamily: SANS }}>
+              Soul Guidance Question
+            </div>
+            <div style={{ fontSize: "18px", fontStyle: "italic", lineHeight: 1.75, color: "#1e1a16", fontFamily: SERIF }}>
+              {parts.slice(2).join("").trim()}
+            </div>
+          </div>
+        </>
+      );
+    }
+    return <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.82 }}>{content}</div>;
   };
 
-  const handleStartOver = () => {
-    setMessages([]);
-    setStep("intake");
-    setDiagnoses([{ id: nextId(), name: "", detail: "" }]);
-    setRegions([]);
-    setLifeContext("");
-    setChatDraft("");
-  };
-
-  // ---- RENDER: INTAKE ----
-  if (step === "intake" && !loading) {
+  if (!unlocked) {
     return (
-      <div style={{ minHeight: "100vh", background: c.bg, color: c.textPrimary, fontFamily: SERIF, display: "flex", flexDirection: "column", paddingTop: "80px" }}>
-        <Header onClear={null} />
-        <PanelIntakeForm
-          diagnoses={diagnoses} regions={regions} lifeContext={lifeContext} loading={loading}
-          addDiagnosis={addDiagnosis} updateDiagnosis={updateDiagnosis} removeDiagnosis={removeDiagnosis}
-          addRegion={addRegion} updateRegionOption={updateRegionOption} updateRegionDetail={updateRegionDetail} removeRegion={removeRegion}
-          setLifeContext={setLifeContext} submitIntake={submitIntake}
-        />
-        <style>{`* { box-sizing: border-box; overflow-anchor: none; } body { margin: 0; } textarea::placeholder, input::placeholder { color: rgba(30,26,22,0.3); }`}</style>
+      <div style={{ minHeight: "100vh", background: "#faf8f4", display: "flex", alignItems: "center", justifyContent: "center", padding: "2rem", fontFamily: SERIF }}>
+        <div style={{ width: "100%", maxWidth: "460px" }}>
+          <div style={{ textAlign: "center", marginBottom: "2.5rem" }}>
+            <div style={{ fontSize: "11px", fontWeight: 600, letterSpacing: "0.2em", textTransform: "uppercase", color: "#2d5a3d", marginBottom: "0.75rem", fontFamily: SANS }}>
+              Body as Soul Tech
+            </div>
+            <div style={{ fontSize: "26px", fontWeight: 700, color: "#1e1a16", marginBottom: "1rem", lineHeight: 1.2, fontFamily: SANS, letterSpacing: "-0.01em" }}>
+              Symptom Interpreter
+            </div>
+            <div style={{ fontSize: "17px", color: "#5c5147", lineHeight: 1.75 }}>
+              Enter your access password to unlock the interpreter. Your password was included in your purchase confirmation email.
+            </div>
+          </div>
+
+          <div style={{ background: "#ede8dd", border: "1px solid rgba(100,80,60,0.18)", borderRadius: "10px", padding: "1.25rem" }}>
+            <div style={{ fontSize: "12px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "rgba(30,26,22,0.38)", marginBottom: "0.6rem", fontFamily: SANS }}>
+              Access Password
+            </div>
+            <input
+              type="password"
+              value={licenseKey}
+              onChange={e => { setLicenseKey(e.target.value); setLicenseError(""); }}
+              onKeyDown={handleLicenseKeyDown}
+              placeholder="Enter your access password"
+              style={{ width: "100%", background: "transparent", border: "none", outline: "none", color: "#1e1a16", fontSize: "16px", fontFamily: SANS, padding: "0.25rem 0" }}
+            />
+          </div>
+
+          {licenseError && (
+            <div style={{ marginTop: "0.75rem", fontSize: "14px", color: "#b94040", fontFamily: SERIF, lineHeight: 1.6 }}>
+              {licenseError}
+            </div>
+          )}
+
+          <button
+            onClick={handleLicenseSubmit}
+            disabled={!licenseKey.trim() || licenseLoading}
+            style={{ width: "100%", marginTop: "1rem", background: licenseKey.trim() && !licenseLoading ? "#2d5a3d" : "rgba(45,90,61,0.18)", border: "none", borderRadius: "6px", padding: "14px", fontSize: "15px", color: licenseKey.trim() && !licenseLoading ? "#fff" : "rgba(30,26,22,0.38)", cursor: licenseKey.trim() && !licenseLoading ? "pointer" : "default", fontFamily: SANS, fontWeight: 700, letterSpacing: "0.04em", transition: "all 0.15s" }}
+          >
+            {licenseLoading ? "Verifying..." : "Unlock \u2192"}
+          </button>
+
+          <div style={{ textAlign: "center", marginTop: "1.5rem", fontSize: "14px", color: "rgba(30,26,22,0.38)", fontFamily: SERIF }}>
+            Do not have an access password?{" "}
+            <a href="https://zborchster.gumroad.com/l/dxrekr" style={{ color: "#2d5a3d", textDecoration: "underline" }}>
+              Purchase access here
+            </a>
+          </div>
+
+          <div style={{ textAlign: "center", marginTop: "2rem", fontSize: "11px", color: "rgba(30,26,22,0.38)", letterSpacing: "0.04em", fontFamily: SANS }}>
+            Spiritual and energetic interpretation — not a substitute for medical care.
+          </div>
+        </div>
+        <style>{`
+          * { box-sizing: border-box; }
+          body { margin: 0; }
+          input::placeholder { color: rgba(30,26,22,0.25); }
+        `}</style>
       </div>
     );
   }
 
-  // ---- RENDER: PANEL RESULT + FOLLOW-UP CHAT ----
   return (
-    <div style={{ height: "100vh", overflow: "hidden", background: c.bg, color: c.textPrimary, fontFamily: SERIF, display: "flex", flexDirection: "column", paddingTop: "80px" }}>
-      <Header onClear={handleStartOver} />
-      <Transcript
-        messages={messages} loading={loading} messagesEndRef={messagesEndRef} lastMessageRef={lastMessageRef}
-        scrollContainerRef={scrollContainerRef} copyReadingText={copyReadingText} downloadReadingText={downloadReadingText} copiedIndex={copiedIndex}
-        loadingLabel={loading && messages.length <= 1 ? "Generating your reading…" : undefined}
-        ctaSlot={
-          <>
-            <SimpleChatInput
-              value={chatDraft} onChange={setChatDraft} onSubmit={submitChatMessage}
-              placeholder="Ask a follow-up — go deeper on something, explore a connection, whatever's on your mind..."
-              loading={loading} handleTextKeyDown={handleTextKeyDown}
-            />
-            <Disclaimer />
-          </>
-        }
-      />
+    <div style={{ minHeight: "100vh", background: c.bg, color: c.textPrimary, fontFamily: SERIF, display: "flex", flexDirection: "column" }}>
+
+      <div style={{ borderBottom: `1px solid ${c.border}`, padding: "1.25rem 2rem", display: "flex", alignItems: "center", justifyContent: "space-between", background: c.bgHeader, position: "sticky", top: 0, zIndex: 10 }}>
+        <div>
+          <div style={{ fontSize: "10px", letterSpacing: "0.2em", textTransform: "uppercase", color: c.accent, marginBottom: "2px", fontFamily: SANS, fontWeight: 600 }}>Body as Soul Tech</div>
+          <div style={{ fontSize: "17px", fontWeight: 700, color: c.textPrimary, fontFamily: SANS }}>Symptom Interpreter</div>
+        </div>
+        <div>
+          {messages.length > 0 && (
+            <button onClick={clearHistory} style={{ background: "transparent", border: `1px solid ${c.borderMid}`, color: c.textMuted, padding: "6px 14px", borderRadius: "4px", fontSize: "12px", cursor: "pointer", fontFamily: SANS, fontWeight: 500 }}>
+              Clear history
+            </button>
+          )}
+        </div>
+      </div>
+
+      {messages.length === 0 && (
+        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "2rem 1.5rem" }}>
+          <div style={{ width: "100%", maxWidth: "620px" }}>
+            <div style={{ textAlign: "center", marginBottom: "2rem" }}>
+              <div style={{ fontSize: "11px", fontWeight: 600, letterSpacing: "0.2em", textTransform: "uppercase", color: c.accent, marginBottom: "1rem", fontFamily: SANS }}>
+                Symptom Interpreter
+              </div>
+              <div style={{ fontSize: "27px", fontWeight: 700, color: c.textPrimary, marginBottom: "1.25rem", lineHeight: 1.2, fontFamily: SANS, letterSpacing: "-0.01em" }}>
+                What is your body trying to tell you?
+              </div>
+              <div style={{ fontSize: "18px", color: c.textSecondary, lineHeight: 1.85, fontFamily: SERIF }}>
+                Describe your symptoms in as much detail as you can. The more context you provide, the more useful the interpretation will be.
+              </div>
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px", background: c.bgInput, border: `1px solid ${c.borderMid}`, borderRadius: "12px", padding: "12px 16px" }}>
+              <textarea
+                value={input}
+                onChange={e => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Describe your symptoms here..."
+                rows={5}
+                style={{ background: "transparent", border: "none", outline: "none", color: c.textPrimary, fontSize: "18px", fontFamily: SERIF, lineHeight: 1.7, resize: "none", width: "100%" }}
+              />
+              <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                <button
+                  onClick={handleSubmit}
+                  disabled={!input.trim() || loading}
+                  style={{ background: input.trim() && !loading ? c.accent : c.accentMid, border: "none", borderRadius: "4px", padding: "8px 20px", cursor: input.trim() && !loading ? "pointer" : "default", color: input.trim() && !loading ? "#fff" : c.textMuted, fontSize: "13px", fontFamily: SANS, fontWeight: 700, letterSpacing: "0.04em", transition: "all 0.15s" }}
+                >
+                  Interpret &rarr;
+                </button>
+              </div>
+            </div>
+            <div style={{ textAlign: "center", fontSize: "11px", color: c.textMuted, marginTop: "0.75rem", letterSpacing: "0.03em", fontFamily: SANS }}>
+              Spiritual and energetic interpretation — not a substitute for medical care.
+            </div>
+          </div>
+        </div>
+      )}
+
+      {messages.length > 0 && (
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", maxWidth: "700px", width: "100%", margin: "0 auto", padding: "0 1.5rem" }}>
+          <div style={{ paddingTop: "2rem" }}>
+            {messages.map((msg, i) => (
+              <div key={i} style={{ marginBottom: "2rem" }}>
+                {msg.role === "user" ? (
+                  <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                    <div style={{ background: c.userBubble, border: `1px solid ${c.userBubbleBorder}`, borderRadius: "14px 14px 2px 14px", padding: "12px 18px", maxWidth: "85%", fontSize: "18px", lineHeight: 1.65, color: c.textPrimary, whiteSpace: "pre-wrap", fontFamily: SERIF }}>
+                      {msg.content}
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", gap: "12px", alignItems: "flex-start" }}>
+                    <div style={{ width: "28px", height: "28px", borderRadius: "50%", background: c.accentLight, border: `1px solid ${c.borderMid}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", color: c.accent, flexShrink: 0, marginTop: "2px", fontFamily: SANS }}>&#10022;</div>
+                    <div style={{ flex: 1, fontSize: "18px", color: c.textPrimary, fontFamily: SERIF }}>{formatMessage(msg.content)}</div>
+                  </div>
+                )}
+              </div>
+            ))}
+
+            {loading && (
+              <div style={{ display: "flex", gap: "12px", alignItems: "flex-start", marginBottom: "2rem" }}>
+                <div style={{ width: "28px", height: "28px", borderRadius: "50%", background: c.accentLight, border: `1px solid ${c.borderMid}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", color: c.accent, flexShrink: 0 }}>&#10022;</div>
+                <div style={{ paddingTop: "8px", display: "flex", gap: "5px" }}>
+                  {[0, 1, 2].map(i => (
+                    <div key={i} style={{ width: "6px", height: "6px", borderRadius: "50%", background: c.accent, animation: `bast-pulse 1.2s ease-in-out ${i * 0.2}s infinite`, opacity: 0.45 }} />
+                  ))}
+                </div>
+              </div>
+            )}
+            <div ref={messagesEndRef} />
+          </div>
+
+          <div style={{ position: "sticky", bottom: 0, background: `linear-gradient(to bottom, transparent, ${c.bg} 28%)`, paddingTop: "2rem", paddingBottom: "1.25rem" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px", background: c.bgInput, border: `1px solid ${c.borderMid}`, borderRadius: "10px", padding: "10px 14px" }}>
+              <textarea
+                value={input}
+                onChange={e => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder={step === "context" ? "Share what is going on in your life..." : "Ask a follow-up or describe another symptom..."}
+                rows={2}
+                style={{ background: "transparent", border: "none", outline: "none", color: c.textPrimary, fontSize: "18px", fontFamily: SERIF, lineHeight: 1.6, resize: "none", width: "100%" }}
+              />
+              <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                <button
+                  onClick={handleSubmit}
+                  disabled={!input.trim() || loading}
+                  style={{ background: input.trim() && !loading ? c.accent : c.accentMid, border: "none", borderRadius: "4px", padding: "7px 18px", cursor: input.trim() && !loading ? "pointer" : "default", color: input.trim() && !loading ? "#fff" : c.textMuted, fontSize: "13px", fontFamily: SANS, fontWeight: 700, letterSpacing: "0.04em", transition: "all 0.15s" }}
+                >
+                  Send &rarr;
+                </button>
+              </div>
+            </div>
+            <div style={{ textAlign: "center", fontSize: "11px", color: c.textMuted, marginTop: "0.6rem", letterSpacing: "0.03em", fontFamily: SANS }}>
+              Spiritual and energetic interpretation — not a substitute for medical care.
+            </div>
+          </div>
+        </div>
+      )}
+
       <style>{`
-        @keyframes panel-pulse { 0%, 100% { opacity: 0.2; transform: scale(0.8); } 50% { opacity: 0.8; transform: scale(1); } }
-        textarea::placeholder, input::placeholder { color: rgba(30,26,22,0.3); }
-        * { box-sizing: border-box; overflow-anchor: none; }
+        @keyframes bast-pulse {
+          0%, 100% { opacity: 0.2; transform: scale(0.8); }
+          50% { opacity: 0.8; transform: scale(1); }
+        }
+        textarea::placeholder { color: rgba(30,26,22,0.3); }
+        * { box-sizing: border-box; }
         body { margin: 0; }
       `}</style>
     </div>
