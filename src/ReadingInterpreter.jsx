@@ -217,7 +217,7 @@ function DiagnosesSection({ diagnoses, updateDiagnosis, addDiagnosis, removeDiag
   return (
     <div style={{ background: c.bgInput, border: `1.5px solid ${c.borderMid}`, borderRadius: "12px", padding: "24px 26px", marginBottom: "1.25rem" }}>
       <div style={{ fontSize: "11px", fontWeight: 600, letterSpacing: "0.15em", textTransform: "uppercase", color: c.accent, marginBottom: "1rem", fontFamily: SANS }}>
-        Diagnoses (optional)
+        Diagnoses
       </div>
       {diagnoses.map((d, i) => (
         <div key={d.id} style={{ marginBottom: "10px" }}>
