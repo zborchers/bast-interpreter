@@ -126,7 +126,7 @@ function Header({ onClear }) {
     <div id="app-header" style={{ position: "fixed", top: 0, left: 0, right: 0, borderBottom: `1px solid ${c.border}`, padding: "1.25rem 2rem", display: "flex", alignItems: "center", justifyContent: "space-between", background: c.bgHeader, zIndex: 50 }}>
       <div>
         <div style={{ fontSize: "19px", fontWeight: 700, color: c.textPrimary, fontFamily: SANS }}>{BRAND_CONFIG.name}</div>
-        <div style={{ fontSize: "10px", letterSpacing: "0.15em", textTransform: "uppercase", color: c.accent, marginTop: "2px", fontFamily: SANS, fontWeight: 600 }}>Energetic Root Cause Reading</div>
+        <div style={{ fontSize: "10px", letterSpacing: "0.15em", textTransform: "uppercase", color: c.accent, marginTop: "2px", fontFamily: SANS, fontWeight: 600 }}>Energetic Root Cause</div>
       </div>
       {onClear && (
         <button
@@ -543,7 +543,7 @@ function PanelIntakeForm({ diagnoses, regions, lifeContext, loading, checkoutLoa
     <div style={{ width: "100%", maxWidth: "760px", margin: "1.75rem auto", padding: "0 1.5rem", boxSizing: "border-box" }}>
       <div style={{ textAlign: "center", marginBottom: "1.5rem" }}>
         <div style={{ fontSize: "28px", fontWeight: 800, color: c.textPrimary, fontFamily: SANS, letterSpacing: "-0.02em" }}>
-          Energetic Root Cause Reading
+          Energetic Root Cause
         </div>
         <div style={{ fontSize: "15px", color: c.textSecondary, fontFamily: SERIF, marginTop: "0.5rem" }}>
           Enter what's going on for you. All fields are optional except at least one diagnosis or region.
@@ -1125,7 +1125,7 @@ export default function ReadingInterpreter() {
       <Transcript
         messages={messages} loading={loading} messagesEndRef={messagesEndRef} lastMessageRef={lastMessageRef}
         scrollContainerRef={scrollContainerRef} copyReadingText={copyReadingText} downloadReadingText={downloadReadingText} copiedIndex={copiedIndex}
-        loadingLabel={loading && messages.length <= 1 ? "Generating your reading…" : undefined}
+        loadingLabel={loading && messages.length <= 1 ? "Generating your results…" : undefined}
         ctaSlot={
           <>
             {followUpCount < INCLUDED_FOLLOWUPS ? (
