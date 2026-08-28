@@ -22,11 +22,9 @@ const c = {
 };
 
 // ---- SCROLL HELPERS ----
-// Carried over unchanged from the consumer app — the chat screen (after the
-// panel generates) still needs reliable scroll-to-top-of-response behavior
-// on step transitions and new messages landing. The intake side no longer
-// needs any of this, since it's a single static page with no step
-// transitions of its own.
+// Unchanged — the chat screen (after the reading generates) still needs
+// reliable scroll-to-top-of-response behavior on step transitions and new
+// messages landing.
 
 function ensureHeaderVisible() {
   try {
@@ -43,66 +41,37 @@ function ensureHeaderVisible() {
   } catch {}
 }
 
-// Parses panel output into entry blocks. The system prompt guarantees a
-// specific shape: a bold-wrapped paragraph ("**Entry Name**") marks the
-// start of an entry, every paragraph after it belongs to that entry until
-// the next header, and the LAST paragraph of a header'd entry is always the
-// guiding question, on its own paragraph. Content with no headers at all
-// (a follow-up chat answer that isn't itself a formatted panel) is handled
-// too — it just renders as plain paragraphs with no header and no
-// guiding-question styling, since there's no reliable signal for which
-// paragraph, if any, is a question in freeform conversation.
-function parsePanelBlocks(content) {
-  const paragraphs = content.split(/\n{2,}/).map(p => p.trim()).filter(Boolean);
-  const headerRe = /^\*\*(.+?)\*\*$/;
-  const blocks = [];
-  let current = null;
-  for (const p of paragraphs) {
-    const m = p.match(headerRe);
-    if (m) {
-      if (current) blocks.push(current);
-      current = { header: m[1], paragraphs: [] };
-    } else {
-      if (!current) current = { header: null, paragraphs: [] };
-      current.paragraphs.push(p);
-    }
-  }
-  if (current) blocks.push(current);
-  return blocks;
-}
-
+// Renders one continuous reading — no per-diagnosis panel entries, no bold
+// headers. The system prompt guarantees exactly one "Soul Guidance
+// Question:" marker, always the last thing in the response; everything
+// before it is the reading itself, split into paragraphs on blank lines.
+// A follow-up chat answer that isn't a full reading (no marker present)
+// just renders as plain paragraphs with no highlighted box.
 function formatMessage(content) {
-  const blocks = parsePanelBlocks(content);
+  const marker = /Soul Guidance Question:?\s*/i;
+  const match = content.match(marker);
+  let mainText = content;
+  let question = null;
+  if (match) {
+    mainText = content.slice(0, match.index).trim();
+    question = content.slice(match.index + match[0].length).trim();
+  }
+  const paragraphs = mainText.split(/\n{2,}/).map(p => p.trim()).filter(Boolean);
   return (
     <div>
-      {blocks.map((block, bi) => (
-        <div key={bi} style={{ marginBottom: "1.75rem" }}>
-          {block.header && (
-            <div style={{ fontSize: "19px", fontWeight: 700, fontFamily: SANS, color: c.textPrimary, marginBottom: "0.75rem" }}>
-              {block.header}
-            </div>
-          )}
-          {block.paragraphs.map((p, pi) => {
-            const isGuidingQuestion = !!block.header && pi === block.paragraphs.length - 1 && /\?\s*$/.test(p.trim());
-            if (isGuidingQuestion) {
-              return (
-                <div
-                  key={pi}
-                  style={{ marginTop: "1rem", background: c.accentLight, borderLeft: `3px solid ${c.accent}`, borderRadius: "0 8px 8px 0", padding: "0.85rem 1.1rem" }}
-                >
-                  <div style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: c.accent, marginBottom: "0.35rem", fontFamily: SANS }}>
-                    Worth Exploring
-                  </div>
-                  <div style={{ lineHeight: 1.75, fontStyle: "italic" }}>{p}</div>
-                </div>
-              );
-            }
-            return (
-              <div key={pi} style={{ lineHeight: 1.82, marginBottom: "0.9rem" }}>{p}</div>
-            );
-          })}
-        </div>
+      {paragraphs.map((p, i) => (
+        <div key={i} style={{ lineHeight: 1.82, marginBottom: "0.9rem" }}>{p}</div>
       ))}
+      {question && (
+        <div
+          style={{ marginTop: "1.25rem", background: c.accentLight, borderLeft: `3px solid ${c.accent}`, borderRadius: "0 8px 8px 0", padding: "0.9rem 1.15rem" }}
+        >
+          <div style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: c.accent, marginBottom: "0.4rem", fontFamily: SANS }}>
+            Soul Guidance Question
+          </div>
+          <div style={{ lineHeight: 1.75, fontStyle: "italic" }}>{question}</div>
+        </div>
+      )}
     </div>
   );
 }
@@ -153,10 +122,10 @@ function Disclaimer() {
 }
 
 // ---- REGION CONFIG ----
-// Carried over unchanged from the consumer app's per-body-part form logic —
-// this mapping of which regions get side/plane distinctions, and which
-// quality-of-sensation options apply, doesn't change just because the
-// intake is now single-page instead of step-by-step.
+// Unchanged — this mapping of which regions get side/plane distinctions,
+// and which quality-of-sensation options apply, doesn't change just
+// because the reading itself is now one continuous piece of writing
+// instead of a per-diagnosis panel.
 
 const REGION_OPTIONS = [
   "Head", "Neck", "Throat", "Mouth", "Shoulders", "Chest", "Heart",
@@ -485,48 +454,38 @@ function compilePanelIntake(diagnoses, regions, lifeContext) {
   return sections.join("\n\n");
 }
 
-// Token budget for panel generation.
+// Token budget for reading generation.
 //
-// This matches the panel's current structure: one entry per diagnosis, one
-// entry per reported symptom/region, nothing else. There's no fixed section
-// count to work against anymore (no seven-chakra ceiling, no floor cost for
-// unreported material) — a patient with two things reported gets a two-
-// entry panel, a patient with six things reported gets a six-entry panel,
-// and every entry gets the same flat, full-depth treatment regardless of
-// order. That makes the estimate simpler than it was under the chakra-
-// organized structure: entry count is no longer a proxy for something else,
-// it's the actual, exact number of entries the panel will contain.
+// This is no longer entry-count-driven the way a panel of separate,
+// fully-treated entries would be — the reading is one continuous piece of
+// writing that weaves everything reported together, so it costs less per
+// reported item than a fully separate entry would, but still needs real
+// headroom: more diagnoses and regions means more ground the reading has
+// to genuinely cover (see "Multiple Diagnoses and Symptoms in One
+// Reading" in the system prompt), just woven into fewer words per item
+// than a dedicated panel entry got.
 //
 // Since only actual generated tokens are billed, erring generous on the
 // ceiling costs nothing and protects a genuinely complex intake (many
-// diagnoses and regions at once) from getting cut off mid-entry.
-function estimateEntryCount(diagnoses, regions) {
+// diagnoses and regions at once) from getting cut off mid-thought — and
+// callAPIWithContinuation below is the actual backstop against truncation
+// regardless of how this number is tuned.
+function tokensForReading(diagnoses, regions) {
   const diagnosisCount = diagnoses.filter(d => d.name.trim()).length;
   const regionCount = regions.length;
-  return Math.max(1, diagnosisCount + regionCount);
-}
+  const itemCount = Math.max(1, diagnosisCount + regionCount);
 
-function tokensForPanel(diagnoses, regions) {
-  const entryCount = estimateEntryCount(diagnoses, regions);
+  // Opening framing, the through-line if one's genuinely present across
+  // items, and the closing Soul Guidance Question.
+  const BASE_OVERHEAD = 800;
+  // Per reported item: real, substantive treatment woven into the
+  // continuous reading rather than a fully separate labeled entry.
+  const TOKENS_PER_ITEM = 1600;
+  // Safety ceiling — a backstop against an unusually large intake, not a
+  // value normal use should approach.
+  const CEILING = 16000;
 
-  // Opening framing plus whatever brief connective material ties entries
-  // together, if a real connection between them is actually noted.
-  const BASE_OVERHEAD = 400;
-  // Per entry: real, substantive, clinically direct paragraphs plus a
-  // folded-in guiding question. Raised from 2800 after a real truncation —
-  // a complex, multi-layered condition (Ehlers-Danlos Syndrome, in the case
-  // that surfaced this) can legitimately earn more than a typical entry.
-  // This number isn't the actual fix for truncation — callAPIWithContinuation
-  // is — but a higher budget means fewer entries need to fall back on a
-  // continuation round-trip at all, which is faster for whoever's waiting
-  // on the response.
-  const TOKENS_PER_ENTRY = 3800;
-  // Safety ceiling — no natural cap on entry count anymore (unlike the old
-  // seven-chakra structure), so this exists purely as a backstop against an
-  // unusually large intake, not a value normal use should approach.
-  const CEILING = 38000;
-
-  return Math.min(BASE_OVERHEAD + entryCount * TOKENS_PER_ENTRY, CEILING);
+  return Math.min(BASE_OVERHEAD + itemCount * TOKENS_PER_ITEM, CEILING);
 }
 
 // ---- MAIN INTAKE SCREEN ----
@@ -589,7 +548,7 @@ function PanelIntakeForm({ diagnoses, regions, lifeContext, loading, checkoutLoa
   );
 }
 
-// ---- SIMPLE CHAT INPUT (unchanged from consumer app, for the follow-up conversation) ----
+// ---- SIMPLE CHAT INPUT (unchanged, for the follow-up conversation) ----
 
 function SimpleChatInput({ value, onChange, onSubmit, placeholder, loading, handleTextKeyDown, sendLabel }) {
   return (
@@ -609,7 +568,7 @@ function SimpleChatInput({ value, onChange, onSubmit, placeholder, loading, hand
           disabled={!value.trim() || loading}
           style={{ background: value.trim() && !loading ? c.accent : c.accentMid, border: "none", borderRadius: "4px", padding: "7px 18px", cursor: value.trim() && !loading ? "pointer" : "default", color: value.trim() && !loading ? "#fff" : c.textMuted, fontSize: "13px", fontFamily: SANS, fontWeight: 700, letterSpacing: "0.04em" }}
         >
-          {sendLabel || "Send \u2192"}
+          {sendLabel || "Send →"}
         </button>
       </div>
     </div>
@@ -617,13 +576,6 @@ function SimpleChatInput({ value, onChange, onSubmit, placeholder, loading, hand
 }
 
 // ---- TRANSCRIPT ----
-// No donation note, no accuracy-reassurance note. These existed in the
-// original consumer app and would arguably make sense again now that the
-// reader is back to being an individual — but they're deliberately not
-// reintroduced here, since the scope of this version was voice and user
-// only, not restoring every feature the practitioner version stripped.
-// Worth a deliberate call from Zach on whether either belongs back in,
-// same as the persistence question above.
 
 function Transcript({ messages, loading, messagesEndRef, lastMessageRef, scrollContainerRef, ctaSlot, loadingLabel, copyReadingText, downloadReadingText, copiedIndex }) {
   let lastRealIndex = -1;
@@ -687,23 +639,8 @@ function Transcript({ messages, loading, messagesEndRef, lastMessageRef, scrollC
 
 // ---- MAIN COMPONENT ----
 
-// localStorage keys. Persistence is new here — it wasn't part of the
-// Panel (deliberately, for cross-patient-risk reasons) and was left off
-// in the first version of this file pending a deliberate call. Payment
-// changes that calculus: losing a paid reading on refresh is a real
-// problem once real money is involved, not just an inconvenience. It's
-// also structurally required now — completing a Stripe Checkout is a full
-// page navigation away from the app and back, so anything that needs to
-// survive that trip (the reading in progress, whether it's been paid for)
-// has to live somewhere other than React state.
 const SESSION_KEY = "erc_reading_session";
 const PENDING_INTAKE_KEY = "erc_reading_pending_intake";
-// How many follow-up exchanges (one user message + one response) are
-// included in the flat $5 price before the conversation stops accepting
-// new messages. This is a usage cap on an already-paid feature, not a
-// second paywall — there's no monetary incentive to game it client-side,
-// so counting it in the browser (rather than tracking it server-side the
-// way payment itself is verified) is a reasonable place to draw the line.
 const INCLUDED_FOLLOWUPS = 4;
 
 // TEMPORARY TOGGLE: while true, submitIntake skips Stripe entirely and
@@ -742,24 +679,9 @@ export default function ReadingInterpreter() {
 
   const [messages, setMessages] = useState(restored?.messages || []);
   const [loading, setLoading] = useState(false);
-  // step: 'intake' (the single-page form) -> 'chat' (reading result, then
-  // up to INCLUDED_FOLLOWUPS more exchanges).
   const [step, setStep] = useState(restored?.step || "intake");
-  // hasPaid: whether the one-time $5 has been confirmed. There's only one
-  // paid tier now — the $5 covers the reading and the included follow-ups
-  // together, so this is a simple boolean rather than a tier string. See
-  // the payment verification effect below for how it gets set, and
-  // verify-payment.js for how it's checked server-side rather than just
-  // trusted from the browser.
   const [hasPaid, setHasPaid] = useState(!!restored?.hasPaid);
-  // Tracks an in-flight redirect to Stripe so the button can show a
-  // loading state and can't be double-clicked into two checkout sessions.
   const [checkoutLoading, setCheckoutLoading] = useState(false);
-  // True from the very first render whenever the URL shows a return trip
-  // from Stripe, computed synchronously (not in an effect) specifically so
-  // there's no gap where the empty intake form could flash before the
-  // payment-verification effect has had a chance to run. Set back to false
-  // once that effect finishes, one way or another.
   const [confirmingPayment, setConfirmingPayment] = useState(() => {
     try {
       const params = new URLSearchParams(window.location.search);
@@ -780,19 +702,12 @@ export default function ReadingInterpreter() {
   const scrollContainerRef = useRef(null);
   const [copiedIndex, setCopiedIndex] = useState(null);
 
-  // Keep the persisted session in sync with the state that actually needs
-  // to survive a refresh or a round trip to Stripe. Intake fields (before
-  // a reading exists) deliberately aren't included here — only the
-  // pending-intake stash right before a Stripe redirect needs those, and
-  // that's handled separately in submitIntake.
   useEffect(() => {
     if (step === "chat" || hasPaid) {
       saveSession({ messages, step, hasPaid });
     }
   }, [messages, step, hasPaid]);
 
-  // Handles returning from Stripe. Runs once on mount, before anything
-  // else needs to know whether a payment just completed.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const paidParam = params.get("paid");
@@ -839,10 +754,6 @@ export default function ReadingInterpreter() {
           setDiagnoses(pendingIntake.diagnoses || []);
           setRegions(pendingIntake.regions || []);
           setLifeContext(pendingIntake.lifeContext || "");
-          // generateReadingFromIntake sets its own loading state and,
-          // on success, flips step to 'chat' — confirmingPayment being
-          // cleared in the finally block below is what stops the
-          // confirmation screen from covering that transition.
           await generateReadingFromIntake(pendingIntake.diagnoses || [], pendingIntake.regions || [], pendingIntake.lifeContext || "");
         } else {
           setPaymentError("Payment was confirmed, but your intake details weren't found on this device. Please fill out the form again — you won't be charged twice for the same payment; contact support if you need a refund reconciled.");
@@ -884,7 +795,7 @@ export default function ReadingInterpreter() {
     const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
-    const filename = (label || "panel").toLowerCase().replace(/[^a-z0-9]+/g, "-") + ".txt";
+    const filename = (label || "reading").toLowerCase().replace(/[^a-z0-9]+/g, "-") + ".txt";
     link.href = url;
     link.download = filename;
     document.body.appendChild(link);
@@ -911,12 +822,11 @@ export default function ReadingInterpreter() {
     };
   }
 
-  // A response that hits the token ceiling comes back as a normal, successful
-  // API call — stop_reason: "max_tokens" instead of "end_turn" — not an
-  // error. Left unhandled, that means a reading can end mid-sentence with
-  // nothing telling the user, or the code, that anything went wrong; the
-  // partial text just gets displayed as if it were the complete reading.
-  // This wraps callAPI so that never reaches the screen: if a response comes
+  // A response that hits the token ceiling comes back as a normal,
+  // successful API call — stop_reason: "max_tokens" instead of "end_turn"
+  // — not an error. Left unhandled, a reading could end mid-sentence with
+  // nothing telling the user, or the code, that anything went wrong. This
+  // wraps callAPI so that never reaches the screen: if a response comes
   // back truncated, it automatically asks the model to continue exactly
   // where it left off and stitches the result together, capped at a few
   // rounds as a backstop against a pathological case that never finishes.
@@ -958,14 +868,7 @@ export default function ReadingInterpreter() {
   }));
   const updateRegionDetail = (id, key, value) => setRegions(prev => prev.map(r => r.id === id ? { ...r, [key]: value } : r));
 
-  // ---- SUBMIT INTAKE -> GENERATE PANEL ----
-  // Generates the actual reading. Only ever called after payment for the
-  // 'initial' tier has been verified — see the mount effect above, which
-  // calls this once someone returns from Stripe with a confirmed payment
-  // and their stashed intake. Takes its arguments explicitly rather than
-  // reading from state, since it's called from that effect with data just
-  // pulled out of localStorage, not necessarily whatever's currently in
-  // the diagnoses/regions/lifeContext state at that exact render.
+  // ---- SUBMIT INTAKE -> GENERATE READING ----
   async function generateReadingFromIntake(diagnosesArg, regionsArg, lifeContextArg) {
     setLoading(true);
     const compiled = compilePanelIntake(diagnosesArg, regionsArg, lifeContextArg);
@@ -978,7 +881,7 @@ export default function ReadingInterpreter() {
     const newMessages = [userMsg];
     setMessages(newMessages);
     try {
-      const text = await callAPIWithContinuation(newMessages, tokensForPanel(diagnosesArg, regionsArg));
+      const text = await callAPIWithContinuation(newMessages, tokensForReading(diagnosesArg, regionsArg));
       setMessages([...newMessages, { role: "assistant", content: text, isReading: true, readingLabel: "Energetic Root Cause Reading" }]);
       setStep("chat");
     } catch {
@@ -987,9 +890,6 @@ export default function ReadingInterpreter() {
     setLoading(false);
   }
 
-  // Redirects to Stripe Checkout for the one-time $5 reading. Stashes the
-  // current intake first, since that's the data generateReadingFromIntake
-  // needs after the round trip back from Stripe.
   const startCheckout = async () => {
     if (checkoutLoading) return;
     setPaymentError(null);
@@ -1042,15 +942,9 @@ export default function ReadingInterpreter() {
     setLoading(false);
   };
 
-  // Follow-up messages sent so far, not counting the hidden intake message
-  // that kicked off the original reading. Compared against
-  // INCLUDED_FOLLOWUPS to decide whether the chat input is still available.
   const followUpCount = messages.filter(m => m.role === "user" && !m.hidden).length;
 
   const submitChatMessage = () => {
-    // Defensive only — the chat input itself is replaced by a "you've used
-    // your included follow-ups" message once the cap is hit (see the chat
-    // render below), so this shouldn't normally be reachable past the cap.
     if (followUpCount >= INCLUDED_FOLLOWUPS) return;
     const trimmed = chatDraft.trim();
     if (!trimmed || loading) return;
@@ -1076,11 +970,6 @@ export default function ReadingInterpreter() {
 
 
   // ---- RENDER: CONFIRMING PAYMENT ----
-  // Takes priority over both other render branches. Covers the entire
-  // window between landing back from Stripe and the reading being ready —
-  // including the brief moment before the verification effect has even
-  // run, since confirmingPayment is computed synchronously from the URL
-  // at initial state, not set inside the effect itself.
   if (confirmingPayment) {
     return (
       <div style={{ minHeight: "100vh", background: c.bg, color: c.textPrimary, fontFamily: SERIF, display: "flex", flexDirection: "column", paddingTop: "80px" }}>
@@ -1116,9 +1005,6 @@ export default function ReadingInterpreter() {
   }
 
   // ---- RENDER: READING RESULT + FOLLOW-UP CHAT ----
-  // The chat input is available for up to INCLUDED_FOLLOWUPS exchanges,
-  // included in the one $5 payment. Past that, it's replaced by a plain
-  // message rather than letting someone type into a dead end.
   return (
     <div style={{ height: "100vh", overflow: "hidden", background: c.bg, color: c.textPrimary, fontFamily: SERIF, display: "flex", flexDirection: "column", paddingTop: "80px" }}>
       <Header onClear={handleStartOver} />
